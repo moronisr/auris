@@ -4,6 +4,16 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 
+function traduzir(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("email not confirmed")) return "Seu e-mail ainda não foi confirmado. Abra o e-mail de confirmação (veja também o spam) e clique no link. Se não chegou, use “Reenviar e-mail de confirmação”.";
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos. Se você acabou de se cadastrar, confirme primeiro o seu e-mail.";
+  if (m.includes("already registered")) return "Este e-mail já tem conta. Clique em “Já tenho conta” e entre.";
+  if (m.includes("rate limit")) return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.";
+  if (m.includes("password")) return "Senha inválida: use no mínimo 8 caracteres.";
+  return msg;
+}
+
 export default function Login() {
   const router = useRouter();
   const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
@@ -47,7 +57,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Erro ao entrar." });
+      setMsg({ tipo: "erro", texto: traduzir(err instanceof Error ? err.message : "Erro ao entrar.") });
     } finally {
       setCarregando(false);
     }
@@ -98,6 +108,19 @@ export default function Login() {
           {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
         </button>
       </form>
+      {modo === "entrar" && (
+        <button
+          className="btn-sec"
+          style={{ width: "100%", marginBottom: 8 }}
+          onClick={async () => {
+            if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em reenviar." });
+            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/login` } });
+            setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "E-mail de confirmação reenviado. Veja sua caixa de entrada e o spam." });
+          }}
+        >
+          Reenviar e-mail de confirmação
+        </button>
+      )}
       <button className="btn-sec" style={{ width: "100%" }} onClick={() => setModo(modo === "entrar" ? "cadastrar" : "entrar")}>
         {modo === "entrar" ? "Não tem conta? Cadastre-se" : "Já tenho conta"}
       </button>
