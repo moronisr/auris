@@ -1,19 +1,22 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { formatarCpf, validarFicha, type Ficha } from "@/lib/validacao";
+import { MODELOS, camposDoModelo, modeloPadrao, type Campo, type Ficha } from "@/lib/modelos";
+import { formatarCpf, validarFicha } from "@/lib/validacao";
 
-type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; tempo_processamento_ms: number };
+type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; modelo: string; tempo_processamento_ms: number };
 type Etapa = "pronto" | "gravando" | "processando" | "revisar" | "salvando";
 
-const CAMPOS_NUM: (keyof Ficha)[] = [
-  "paciente_idade", "od_esferico", "od_cilindrico", "od_eixo",
-  "oe_esferico", "oe_cilindrico", "oe_eixo", "adicao", "retorno_meses",
-];
+const EXEMPLOS: Record<string, string> = {
+  geral: "“Paciente João Pereira, 55 anos. Queixa de dor de cabeça há três dias, pior à tarde. Hipertenso, usa losartana 50 mg. Pressão 150 por 95. Impressão: cefaleia tensional, descartar crise hipertensiva. Conduta: ajustar losartana para 100 mg, solicitar hemograma. Retorno em um mês.”",
+  oftalmologia: "“Paciente Maria da Silva, 42 anos, CPF 529 982 247 25. Olho direito menos dois esférico, menos meio cilíndrico, eixo 180. Olho esquerdo menos um e setenta e cinco. Adição mais dois. Retorno em um ano.”",
+  psicologia: "“Paciente Ana Souza, 30 anos, quarta sessão. Relata melhora no sono e mais segurança no trabalho, ainda ansiedade antes de reuniões. Trabalhamos técnicas de respiração e reestruturação de pensamentos. Plano: manter sessões semanais.”",
+};
 
 export default function Novo() {
   const router = useRouter();
+  const [modelo, setModelo] = useState("geral");
   const [etapa, setEtapa] = useState<Etapa>("pronto");
   const [erro, setErro] = useState<string | null>(null);
   const [res, setRes] = useState<Resultado | null>(null);
@@ -22,6 +25,16 @@ export default function Novo() {
   const gravador = useRef<MediaRecorder | null>(null);
   const partes = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      const { data } = await sb.from("profissionais").select("profissao, especialidade").eq("id", user.id).maybeSingle();
+      setModelo(modeloPadrao(data?.profissao, data?.especialidade));
+    })();
+  }, []);
 
   async function iniciar() {
     setErro(null);
@@ -53,6 +66,7 @@ export default function Novo() {
   async function enviar(audio: Blob) {
     const fd = new FormData();
     fd.append("audio", audio, "ditado.webm");
+    fd.append("modelo", modelo);
     try {
       const r = await fetch("/api/processar", { method: "POST", body: fd });
       const data = await r.json();
@@ -66,12 +80,11 @@ export default function Novo() {
     }
   }
 
-  function alterar(campo: keyof Ficha, valor: string) {
+  function alterar(c: Campo, valor: string) {
     if (!ficha) return;
-    const v = CAMPOS_NUM.includes(campo)
-      ? valor.trim() === "" ? null : Number(valor.replace(",", "."))
-      : valor.trim() === "" ? null : valor;
-    setFicha({ ...ficha, [campo]: v });
+    const numerico = c.tipo === "numero" || c.tipo === "inteiro";
+    const v = valor.trim() === "" ? null : numerico ? Number(valor.replace(",", ".")) : valor;
+    setFicha({ ...ficha, [c.chave]: v });
   }
 
   async function aprovar() {
@@ -79,40 +92,54 @@ export default function Novo() {
     if (!ficha.paciente_nome) return setErro("Informe o nome do paciente antes de aprovar.");
     setEtapa("salvando");
     const corrigido = JSON.stringify(ficha) !== JSON.stringify(res.ficha);
+    const meses = typeof ficha.retorno_meses === "number" ? ficha.retorno_meses : null;
     let retorno_data: string | null = null;
-    if (ficha.retorno_meses) {
+    if (meses) {
       const d = new Date();
-      d.setMonth(d.getMonth() + ficha.retorno_meses);
+      d.setMonth(d.getMonth() + meses);
       retorno_data = d.toISOString().slice(0, 10);
     }
-    const { error } = await supabaseBrowser().from("registros").insert({
-      ...ficha,
-      paciente_cpf: ficha.paciente_cpf?.replace(/\D/g, "") || null,
+    const s = (k: string) => (ficha[k] == null ? null : String(ficha[k]));
+    const { data, error } = await supabaseBrowser().from("registros").insert({
+      modelo: res.modelo,
+      dados: ficha,
+      paciente_nome: s("paciente_nome"),
+      paciente_idade: typeof ficha.paciente_idade === "number" ? ficha.paciente_idade : null,
+      paciente_cpf: s("paciente_cpf")?.replace(/\D/g, "") || null,
+      paciente_telefone: s("paciente_telefone"),
+      paciente_email: s("paciente_email"),
+      retorno_meses: meses,
       retorno_data,
       transcricao: res.transcricao,
       tempo_processamento_ms: res.tempo_processamento_ms,
       corrigido_pelo_medico: corrigido,
-    });
+    }).select("id").single();
     if (error) {
       setErro("Erro ao salvar: " + error.message);
       setEtapa("revisar");
       return;
     }
-    router.push("/");
-    router.refresh();
+    router.push(`/registro/${data.id}`);
   }
 
-  const avisos = ficha ? validarFicha(ficha) : [];
-  const campo = (c: keyof Ficha, rotulo: string) => (
-    <div>
-      <label>{rotulo}</label>
-      <input
-        value={ficha?.[c] == null ? "" : String(ficha[c]).replace(".", ",")}
-        onChange={(e) => alterar(c, e.target.value)}
-        inputMode={CAMPOS_NUM.includes(c) ? "decimal" : "text"}
-      />
-    </div>
-  );
+  const campos = camposDoModelo(res?.modelo ?? modelo);
+  const grupos = [...new Set(campos.map((c) => c.grupo))];
+  const avisos = ficha ? validarFicha(ficha, res?.modelo ?? modelo) : [];
+
+  const input = (c: Campo) => {
+    const valor = ficha?.[c.chave];
+    const texto = valor == null ? "" : c.chave === "paciente_cpf" ? formatarCpf(String(valor)) : String(valor).replace(/^(-?\d+)\.(\d+)$/, "$1,$2");
+    return (
+      <div key={c.chave} style={c.tipo === "longo" ? { gridColumn: "1 / -1" } : undefined}>
+        <label>{c.rotulo}</label>
+        {c.tipo === "longo" ? (
+          <textarea rows={3} value={texto} onChange={(e) => alterar(c, e.target.value)} />
+        ) : (
+          <input value={texto} onChange={(e) => alterar(c, e.target.value)} inputMode={c.tipo === "texto" ? "text" : "decimal"} />
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -125,10 +152,11 @@ export default function Novo() {
 
       {(etapa === "pronto" || etapa === "gravando") && (
         <div className="card">
-          <p className="muted">
-            Exemplo: “Paciente Maria da Silva, 42 anos, CPF 123 456 789 09. Olho direito menos dois esférico,
-            menos meio cilíndrico, eixo 180. Olho esquerdo menos um e setenta e cinco. Adição mais dois. Retorno em um ano.”
-          </p>
+          <label>Tipo de registro</label>
+          <select value={modelo} onChange={(e) => setModelo(e.target.value)} disabled={etapa === "gravando"}>
+            {Object.values(MODELOS).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+          </select>
+          <p className="muted">Exemplo de ditado: {EXEMPLOS[modelo]}</p>
           {etapa === "pronto" ? (
             <button className="gravar" onClick={iniciar}>🎙️ Gravar</button>
           ) : (
@@ -137,40 +165,27 @@ export default function Novo() {
         </div>
       )}
 
-      {etapa === "processando" && <div className="card">⏳ Transcrevendo e organizando a ficha...</div>}
+      {etapa === "processando" && <div className="card">⏳ Transcrevendo e organizando o registro...</div>}
 
       {(etapa === "revisar" || etapa === "salvando") && ficha && (
         <>
           {avisos.map((a) => <div className="aviso" key={a}>⚠️ {a}</div>)}
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>Paciente</h2>
-            <div className="grid">
-              {campo("paciente_nome", "Nome")}
-              {campo("paciente_idade", "Idade")}
-              <div>
-                <label>CPF</label>
-                <input value={ficha.paciente_cpf ? formatarCpf(ficha.paciente_cpf) : ""} onChange={(e) => alterar("paciente_cpf", e.target.value)} inputMode="numeric" />
+            <div className="muted">{MODELOS[res?.modelo ?? modelo]?.nome} · revise antes de aprovar</div>
+            {grupos.map((g) => (
+              <div key={g}>
+                <div className="olho">{g}</div>
+                <div className="grid">{campos.filter((c) => c.grupo === g).map(input)}</div>
               </div>
-              {campo("paciente_telefone", "Telefone")}
-            </div>
-            <div className="olho">Olho direito (OD)</div>
-            <div className="grid">{campo("od_esferico", "Esférico")}{campo("od_cilindrico", "Cilíndrico")}{campo("od_eixo", "Eixo (°)")}</div>
-            <div className="olho">Olho esquerdo (OE)</div>
-            <div className="grid">{campo("oe_esferico", "Esférico")}{campo("oe_cilindrico", "Cilíndrico")}{campo("oe_eixo", "Eixo (°)")}</div>
-            <div className="olho">Outros</div>
-            <div className="grid">{campo("adicao", "Adição")}{campo("dnp", "DNP")}{campo("retorno_meses", "Retorno (meses)")}</div>
-            <div style={{ marginTop: 10 }}>
-              <label>Observações</label>
-              <textarea rows={3} value={ficha.observacoes ?? ""} onChange={(e) => alterar("observacoes", e.target.value)} />
-            </div>
-            <details style={{ marginTop: 10 }}>
+            ))}
+            <details style={{ marginTop: 12 }}>
               <summary>Ver transcrição do áudio</summary>
               <p className="muted">{res?.transcricao}</p>
             </details>
           </div>
           <div className="row">
             <button className="btn-sec" onClick={() => { setFicha(null); setRes(null); setEtapa("pronto"); }}>Gravar de novo</button>
-            <button onClick={aprovar} disabled={etapa === "salvando"}>{etapa === "salvando" ? "Salvando..." : "✅ Aprovar e salvar"}</button>
+            <button onClick={aprovar} disabled={etapa === "salvando"}>{etapa === "salvando" ? "Salvando..." : "✅ Aprovar e gerar ficha"}</button>
           </div>
         </>
       )}

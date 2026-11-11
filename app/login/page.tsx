@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 
 export default function Login() {
   const router = useRouter();
@@ -9,8 +10,8 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
-  const [profissao, setProfissao] = useState("Médico(a)");
-  const [especialidade, setEspecialidade] = useState("Oftalmologia");
+  const [profissao, setProfissao] = useState(PROFISSOES[0]);
+  const [especialidade, setEspecialidade] = useState("Clínica geral");
   const [conselho, setConselho] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -27,11 +28,14 @@ export default function Login() {
         router.push("/");
         router.refresh();
       } else {
-        // O perfil é criado pelo banco (gatilho) a partir destes dados.
+        const esp = profissao === "Médico(a)" ? especialidade : especialidade || profissao;
         const { data, error } = await sb.auth.signUp({
           email,
           password: senha,
-          options: { data: { nome, profissao, especialidade, conselho } },
+          options: {
+            data: { nome, profissao, especialidade: esp, conselho },
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
         });
         if (error) throw error;
         if (data.session) {
@@ -52,7 +56,7 @@ export default function Login() {
   return (
     <>
       <h1>Ditado Clínico</h1>
-      <p className="muted">Registre o atendimento falando. A IA organiza, você revisa e aprova.</p>
+      <p className="muted">Registre o atendimento falando. A IA organiza, você revisa, aprova e gera o PDF.</p>
       <form className="card" onSubmit={enviar}>
         {modo === "cadastrar" && (
           <>
@@ -61,18 +65,22 @@ export default function Login() {
             <div className="grid" style={{ marginTop: 10 }}>
               <div>
                 <label>Profissão</label>
-                <select value={profissao} onChange={(e) => setProfissao(e.target.value)}>
-                  <option>Médico(a)</option>
+                <select value={profissao} onChange={(e) => { setProfissao(e.target.value); setEspecialidade(e.target.value === "Médico(a)" ? "Clínica geral" : ""); }}>
+                  {PROFISSOES.map((p) => <option key={p}>{p}</option>)}
                 </select>
               </div>
               <div>
                 <label>Especialidade</label>
-                <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
-                  <option>Oftalmologia</option>
-                </select>
+                {profissao === "Médico(a)" ? (
+                  <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
+                    {ESPECIALIDADES_MEDICAS.map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input placeholder="Opcional" value={especialidade} onChange={(e) => setEspecialidade(e.target.value)} />
+                )}
               </div>
               <div>
-                <label>Conselho (ex.: CRM-PA 12345)</label>
+                <label>Registro no conselho (ex.: CRM-PA 12345)</label>
                 <input value={conselho} onChange={(e) => setConselho(e.target.value)} />
               </div>
             </div>

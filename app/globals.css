@@ -19,3 +19,19 @@ button:disabled { opacity: .5; cursor: default; }
 .muted { color: #64748b; font-size: 13px; }
 .olho { font-weight: 700; margin: 12px 0 6px; }
 details summary { cursor: pointer; color: #475569; font-size: 13px; }
+
+/* Ficha do paciente / PDF */
+.ficha-topo { display: flex; justify-content: space-between; gap: 12px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 6px; }
+.ficha-sec h2 { margin: 16px 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: .4px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+.ficha-linha { display: flex; gap: 12px; padding: 4px 0; font-size: 14px; }
+.ficha-rot { width: 38%; color: #475569; flex: none; }
+.ficha-val { flex: 1; white-space: pre-wrap; }
+.ficha-rodape { margin-top: 28px; font-size: 12px; color: #64748b; }
+.assinatura { margin-top: 36px; text-align: center; color: #0f172a; }
+@media print {
+  @page { size: A4; margin: 16mm; }
+  body { background: #fff; }
+  .container { max-width: none; padding: 0; }
+  .nao-imprimir { display: none !important; }
+  .card { border: 0; padding: 0; }
+}

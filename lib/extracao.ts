@@ -1,56 +1,46 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Ficha } from "./validacao";
+import { MODELOS, camposDoModelo, type Ficha } from "./modelos";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const num = { type: ["number", "null"] } as const;
-const txt = { type: ["string", "null"] } as const;
+const BASE = `Você é um assistente de registro clínico para profissionais de saúde no Brasil.
+Recebe a transcrição do que o profissional ditou e preenche a ficha usando a ferramenta "registrar_ficha".
 
-const SISTEMA = `Você é um assistente de registro clínico para oftalmologia no Brasil.
-Recebe a transcrição de um ditado do médico e preenche a ficha usando a ferramenta "registrar_ficha".
-
-Regras:
-- Preencha SOMENTE o que foi dito. Se algo não foi dito ou ficou ambíguo, use null. Nunca invente.
-- Graus em dioptrias, com sinal: "menos dois" = -2.00; "mais um e meio" = 1.50; "plano" = 0.
-- OD = olho direito, OE = olho esquerdo. "Ambos os olhos" vale para os dois.
-- Eixo em graus inteiros (0 a 180).
+Regras obrigatórias:
+- Preencha SOMENTE o que foi dito. O que não foi dito ou ficou ambíguo = null. Nunca invente.
+- Não faça diagnóstico próprio. Em campos de impressão/hipótese, registre apenas o que o PROFISSIONAL disse.
+- Use português correto e terminologia técnica da área.
 - CPF: apenas os 11 dígitos, sem pontuação.
-- retorno_meses: converta "retorno em um ano" = 12; "em seis meses" = 6.
-- observacoes: outras informações clínicas relevantes ditas pelo médico, em texto curto.`;
+- retorno_meses: "retorno em um ano" = 12; "em seis meses" = 6; "em 15 dias" = null e anote nas orientações/plano.`;
 
-export async function extrairFicha(transcricao: string): Promise<Ficha> {
+function tipoJson(t: string) {
+  if (t === "numero") return { type: ["number", "null"] };
+  if (t === "inteiro") return { type: ["integer", "null"] };
+  return { type: ["string", "null"] };
+}
+
+export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null): Promise<Ficha> {
+  const modelo = MODELOS[modeloId] ?? MODELOS.geral;
+  const campos = camposDoModelo(modelo.id);
+  const properties = Object.fromEntries(
+    campos.map((c) => [c.chave, { ...tipoJson(c.tipo), description: c.rotulo }])
+  );
+
+  const sistema = [
+    BASE,
+    `Modelo: ${modelo.nome}. ${modelo.instrucoes}`,
+    preferencias ? `Preferências deste profissional (siga sempre): ${preferencias}` : "",
+  ].filter(Boolean).join("\n\n");
+
   const resp = await anthropic.messages.create({
     model: process.env.CLAUDE_MODEL || "claude-sonnet-5-5",
-    max_tokens: 1024,
-    system: SISTEMA,
+    max_tokens: 2048,
+    system: sistema,
     tools: [
       {
         name: "registrar_ficha",
-        description: "Registra a ficha do paciente extraída do ditado.",
-        input_schema: {
-          type: "object",
-          properties: {
-            paciente_nome: txt,
-            paciente_idade: { type: ["integer", "null"] },
-            paciente_cpf: txt,
-            paciente_telefone: txt,
-            od_esferico: num,
-            od_cilindrico: num,
-            od_eixo: { type: ["integer", "null"] },
-            oe_esferico: num,
-            oe_cilindrico: num,
-            oe_eixo: { type: ["integer", "null"] },
-            adicao: num,
-            dnp: txt,
-            observacoes: txt,
-            retorno_meses: { type: ["integer", "null"] },
-          },
-          required: [
-            "paciente_nome", "paciente_idade", "paciente_cpf", "paciente_telefone",
-            "od_esferico", "od_cilindrico", "od_eixo", "oe_esferico", "oe_cilindrico", "oe_eixo",
-            "adicao", "dnp", "observacoes", "retorno_meses",
-          ],
-        },
+        description: "Registra a ficha do atendimento extraída do ditado.",
+        input_schema: { type: "object", properties, required: campos.map((c) => c.chave) },
       },
     ],
     tool_choice: { type: "tool", name: "registrar_ficha" },
