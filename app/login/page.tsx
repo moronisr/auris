@@ -44,7 +44,7 @@ export default function Login() {
           password: senha,
           options: {
             data: { nome, profissao, especialidade: esp, conselho },
-            emailRedirectTo: `${window.location.origin}/login`,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;
@@ -114,7 +114,7 @@ export default function Login() {
           style={{ width: "100%", marginBottom: 8 }}
           onClick={async () => {
             if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em reenviar." });
-            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/login` } });
+            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
             setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "E-mail de confirmação reenviado. Veja sua caixa de entrada e o spam." });
           }}
         >
