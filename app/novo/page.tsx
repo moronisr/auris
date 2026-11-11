@@ -233,7 +233,7 @@ export default function Novo() {
             ))}
           </select>
           <div style={{ height: 10 }} />
-          <label>Formato da ficha</label>
+          <label>Formato da ficha (quais campos aparecem — escolhido pela especialidade, mas você pode trocar)</label>
           <select value={modelo} onChange={(e) => setModelo(e.target.value)} disabled={etapa === "gravando"}>
             {Object.values(MODELOS).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>
