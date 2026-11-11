@@ -34,6 +34,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ transcricao, ficha, avisos, modelo, tempo_processamento_ms: Date.now() - inicio });
   } catch (e) {
     console.error("processar:", e);
-    return NextResponse.json({ erro: e instanceof Error ? e.message : "Erro inesperado." }, { status: 500 });
+    const msg = e instanceof Error ? e.message : "";
+    // Mensagem amigável para o profissional; o detalhe técnico fica nos logs da Vercel.
+    const amigavel = msg.startsWith("A IA") || msg.startsWith("Não foi possível entender")
+      ? msg
+      : msg.includes("transcrição")
+        ? "Não consegui transcrever o áudio. Verifique o microfone e grave novamente."
+        : "Ocorreu uma falha ao organizar a ficha. Tente gravar novamente em alguns segundos.";
+    return NextResponse.json({ erro: amigavel }, { status: 500 });
   }
 }

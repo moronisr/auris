@@ -3,7 +3,8 @@ import { MODELOS, camposDoModelo, type Ficha } from "./modelos";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const BASE = `Você é um assistente de registro clínico para profissionais de saúde no Brasil.
+const BASE = `Sempre responda chamando a ferramenta "registrar_ficha" (nunca em texto livre).
+Você é um assistente de registro clínico para profissionais de saúde no Brasil.
 Recebe a transcrição do que o profissional ditou e preenche a ficha usando a ferramenta "registrar_ficha".
 
 Regras obrigatórias:
@@ -17,6 +18,13 @@ function tipoJson(t: string) {
   if (t === "numero") return { type: ["number", "null"] };
   if (t === "inteiro") return { type: ["integer", "null"] };
   return { type: ["string", "null"] };
+}
+
+/** Garante que todos os campos existam (null quando não ditados). */
+function completar(f: Ficha, chaves: string[]): Ficha {
+  const out: Ficha = {};
+  for (const k of chaves) out[k] = f?.[k] ?? null;
+  return out;
 }
 
 export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null): Promise<Ficha> {
@@ -43,11 +51,28 @@ export async function extrairFicha(transcricao: string, modeloId: string, prefer
         input_schema: { type: "object", properties, required: campos.map((c) => c.chave) },
       },
     ],
-    tool_choice: { type: "tool", name: "registrar_ficha" },
-    messages: [{ role: "user", content: `Transcrição do ditado:\n"""${transcricao}"""` }],
+    // Alguns modelos não aceitam forçar a ferramenta; usamos "auto" e exigimos o uso nas instruções.
+    tool_choice: { type: "auto" },
+    messages: [
+      {
+        role: "user",
+        content: `Transcrição do ditado:\n"""${transcricao}"""\n\nResponda SOMENTE chamando a ferramenta registrar_ficha.`,
+      },
+    ],
   });
 
   const bloco = resp.content.find((b) => b.type === "tool_use");
-  if (!bloco || bloco.type !== "tool_use") throw new Error("A IA não retornou a ficha.");
-  return bloco.input as Ficha;
+  if (bloco && bloco.type === "tool_use") return completar(bloco.input as Ficha, campos.map((c) => c.chave));
+
+  // Plano B: se o modelo respondeu em texto, extrai o JSON da resposta.
+  const texto = resp.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  const json = texto.match(/\{[\s\S]*\}/);
+  if (json) {
+    try {
+      return completar(JSON.parse(json[0]) as Ficha, campos.map((c) => c.chave));
+    } catch {
+      /* cai no erro abaixo */
+    }
+  }
+  throw new Error("A IA não conseguiu organizar a ficha. Grave novamente, falando de forma pausada.");
 }
