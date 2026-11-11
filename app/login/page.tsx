@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
@@ -26,6 +26,12 @@ export default function Login() {
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [carregando, setCarregando] = useState(false);
 
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("link") === "expirado")
+      setMsg({ tipo: "erro", texto: "Este link expirou ou já foi usado. Digite seu e-mail abaixo e clique em “Reenviar e-mail de confirmação” ou “Esqueci minha senha”." });
+  }, []);
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setCarregando(true);
@@ -44,7 +50,7 @@ export default function Login() {
           password: senha,
           options: {
             data: { nome, profissao, especialidade: esp, conselho },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
           },
         });
         if (error) throw error;
@@ -114,11 +120,24 @@ export default function Login() {
           style={{ width: "100%", marginBottom: 8 }}
           onClick={async () => {
             if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em reenviar." });
-            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/confirm` } });
             setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "E-mail de confirmação reenviado. Veja sua caixa de entrada e o spam." });
           }}
         >
           Reenviar e-mail de confirmação
+        </button>
+      )}
+      {modo === "entrar" && (
+        <button
+          className="btn-sec"
+          style={{ width: "100%", marginBottom: 8 }}
+          onClick={async () => {
+            if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em “Esqueci minha senha”." });
+            const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/confirm` });
+            setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "Enviamos um link para criar uma nova senha. Veja sua caixa de entrada e o spam." });
+          }}
+        >
+          Esqueci minha senha
         </button>
       )}
       <button className="btn-sec" style={{ width: "100%" }} onClick={() => setModo(modo === "entrar" ? "cadastrar" : "entrar")}>
