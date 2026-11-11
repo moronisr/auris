@@ -43,7 +43,7 @@ export default function Novo() {
   async function iniciar() {
     setErro(null);
     if (modo === "consulta" && !consentimento)
-      return setErro("Antes de iniciar, confirme que o paciente foi informado do registro do atendimento.");
+      return setErro("Antes de iniciar, marque que você avisou o paciente sobre o registro com IA.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Áudio de voz em qualidade leve: mantém consultas longas dentro do limite de envio.
@@ -180,7 +180,7 @@ export default function Novo() {
           {modo === "consulta" && (
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, color: "#0f172a", marginBottom: 12 }}>
               <input type="checkbox" style={{ width: 20, height: 20, flex: "none" }} checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} />
-              O paciente foi informado de que o atendimento é registrado com apoio de tecnologia (aviso no consultório, ficha de cadastro ou verbalmente). O áudio é apagado após a transcrição.
+              Avisei o paciente, no início da consulta, que uso um sistema com IA para registrar o atendimento. O áudio é apagado após a transcrição.
             </label>
           )}
           <label>Tipo de registro</label>
