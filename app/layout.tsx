@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import Navegacao from "@/components/Navegacao";
 
 export const metadata: Metadata = {
-  title: "Ditado Clínico",
+  title: "Auris · Registro clínico",
   description: "Registro clínico por voz com IA",
   manifest: "/manifest.webmanifest",
 };

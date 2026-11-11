@@ -1,6 +1,6 @@
 {
-  "name": "Ditado Clínico",
-  "short_name": "Ditado",
+  "name": "Auris · Registro clínico",
+  "short_name": "Auris",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f7f9",

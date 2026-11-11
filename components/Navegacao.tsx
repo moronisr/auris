@@ -25,7 +25,8 @@ export default function Navegacao() {
             <span className="marca-icone" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /></svg>
             </span>
-            Ditado Clínico
+            <span>Auris</span>
+            <span className="marca-desc">Registro clínico</span>
           </Link>
           <nav className="topo-links" aria-label="Navegação principal">
             {ITENS.map((i) => (

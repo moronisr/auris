@@ -1,4 +1,4 @@
-# Ditado Clínico
+# Auris — Registro clínico por voz
 
 Registro clínico por voz com IA para profissionais de saúde (medicina geral e especialidades, oftalmologia, psicologia/psicanálise). O profissional dita o atendimento, a IA transcreve e preenche a ficha (paciente + grau de cada olho), o sistema confere os dados e o profissional revisa e aprova antes de salvar.
 

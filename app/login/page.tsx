@@ -80,7 +80,8 @@ export default function Login() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /></svg>
         </span>
       </div>
-      <h1>Ditado Clínico</h1>
+      <h1>Auris</h1>
+      <p className="login-desc">Registro clínico por voz</p>
       <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>Registre o atendimento falando. A IA organiza, você revisa, aprova e gera o PDF.</p>
       <form className="card" onSubmit={enviar}>
         {modo === "cadastrar" && (
