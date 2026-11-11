@@ -9,9 +9,24 @@ export type Modelo = { id: string; nome: string; descricao: string; instrucoes: 
 export const CAMPOS_PACIENTE: Campo[] = [
   { chave: "paciente_nome", rotulo: "Nome", tipo: "texto", grupo: "Paciente" },
   { chave: "paciente_idade", rotulo: "Idade", tipo: "inteiro", grupo: "Paciente" },
+  { chave: "paciente_data_nascimento", rotulo: "Data de nascimento", tipo: "texto", grupo: "Paciente" },
+  { chave: "paciente_sexo", rotulo: "Sexo", tipo: "texto", grupo: "Paciente" },
   { chave: "paciente_cpf", rotulo: "CPF", tipo: "texto", grupo: "Paciente" },
   { chave: "paciente_telefone", rotulo: "Telefone", tipo: "texto", grupo: "Paciente" },
   { chave: "paciente_email", rotulo: "E-mail", tipo: "texto", grupo: "Paciente" },
+  { chave: "paciente_profissao", rotulo: "Profissão do paciente", tipo: "texto", grupo: "Paciente" },
+  { chave: "endereco_rua", rotulo: "Rua / logradouro", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_numero", rotulo: "Número", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_complemento", rotulo: "Complemento", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_bairro", rotulo: "Bairro", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_cidade", rotulo: "Cidade", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_uf", rotulo: "UF", tipo: "texto", grupo: "Endereço" },
+  { chave: "endereco_cep", rotulo: "CEP", tipo: "texto", grupo: "Endereço" },
+];
+
+/** Observações gerais: presentes em todos os modelos, ao final da ficha. */
+export const CAMPOS_FINAIS: Campo[] = [
+  { chave: "observacoes_gerais", rotulo: "Observações gerais do atendimento", tipo: "longo", grupo: "Observações" },
 ];
 
 const RETORNO: Campo = { chave: "retorno_meses", rotulo: "Retorno (meses)", tipo: "inteiro", grupo: "Retorno" };
@@ -78,25 +93,39 @@ export const MODELOS: Record<string, Modelo> = {
 };
 
 export const PROFISSOES = [
-  "Médico(a)", "Psicólogo(a)", "Psicanalista", "Dentista", "Fisioterapeuta",
-  "Nutricionista", "Fonoaudiólogo(a)", "Enfermeiro(a)", "Terapeuta ocupacional", "Outro profissional de saúde",
+  "Médico(a)", "Psicólogo(a)", "Psicanalista", "Psicopedagogo(a)", "Dentista", "Fisioterapeuta",
+  "Nutricionista", "Fonoaudiólogo(a)", "Enfermeiro(a)", "Técnico(a) de enfermagem", "Terapeuta ocupacional",
+  "Farmacêutico(a)", "Biomédico(a)", "Profissional de educação física", "Optometrista", "Podólogo(a)",
+  "Quiropraxista", "Acupunturista", "Terapeuta holístico(a)", "Assistente social", "Outro profissional de saúde",
 ];
 
+/** As 55 especialidades médicas reconhecidas pelo Conselho Federal de Medicina (CFM). */
 export const ESPECIALIDADES_MEDICAS = [
-  "Clínica geral", "Oftalmologia", "Cardiologia", "Pediatria", "Ginecologia e obstetrícia", "Dermatologia",
-  "Ortopedia", "Psiquiatria", "Neurologia", "Endocrinologia", "Gastroenterologia", "Otorrinolaringologia",
-  "Urologia", "Geriatria", "Medicina de família", "Outra",
+  "Clínica médica",
+  "Acupuntura", "Alergia e imunologia", "Anestesiologia", "Angiologia", "Cardiologia",
+  "Cirurgia cardiovascular", "Cirurgia da mão", "Cirurgia de cabeça e pescoço", "Cirurgia do aparelho digestivo",
+  "Cirurgia geral", "Cirurgia oncológica", "Cirurgia pediátrica", "Cirurgia plástica", "Cirurgia torácica",
+  "Cirurgia vascular", "Coloproctologia", "Dermatologia", "Endocrinologia e metabologia", "Endoscopia",
+  "Gastroenterologia", "Genética médica", "Geriatria", "Ginecologia e obstetrícia", "Hematologia e hemoterapia",
+  "Homeopatia", "Infectologia", "Mastologia", "Medicina de emergência", "Medicina de família e comunidade",
+  "Medicina do trabalho", "Medicina de tráfego", "Medicina esportiva", "Medicina física e reabilitação",
+  "Medicina intensiva", "Medicina legal e perícia médica", "Medicina nuclear", "Medicina preventiva e social",
+  "Nefrologia", "Neurocirurgia", "Neurologia", "Nutrologia", "Oftalmologia", "Oncologia clínica",
+  "Ortopedia e traumatologia", "Otorrinolaringologia", "Patologia", "Patologia clínica / medicina laboratorial",
+  "Pediatria", "Pneumologia", "Psiquiatria", "Radiologia e diagnóstico por imagem", "Radioterapia",
+  "Reumatologia", "Urologia",
+  "Sem especialidade (médico generalista)", "Outra",
 ];
 
 /** Escolhe o modelo padrão a partir do perfil do profissional. */
 export function modeloPadrao(profissao?: string | null, especialidade?: string | null): string {
   if (especialidade === "Oftalmologia") return "oftalmologia";
-  if (profissao === "Psicólogo(a)" || profissao === "Psicanalista") return "psicologia";
+  if (["Psicólogo(a)", "Psicanalista", "Psicopedagogo(a)"].includes(profissao ?? "")) return "psicologia";
   return "geral";
 }
 
 export function camposDoModelo(id: string): Campo[] {
-  return [...CAMPOS_PACIENTE, ...(MODELOS[id] ?? MODELOS.geral).campos];
+  return [...CAMPOS_PACIENTE, ...(MODELOS[id] ?? MODELOS.geral).campos, ...CAMPOS_FINAIS];
 }
 
 export type Ficha = Record<string, string | number | null>;

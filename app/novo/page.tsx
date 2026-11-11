@@ -5,7 +5,9 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { MODELOS, camposDoModelo, modeloPadrao, type Campo, type Ficha } from "@/lib/modelos";
 import { formatarCpf, validarFicha } from "@/lib/validacao";
 
-type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; modelo: string; tempo_processamento_ms: number };
+type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; modelo: string; modo: string; tempo_processamento_ms: number };
+type Modo = "ditado" | "consulta";
+const LIMITE_CONSULTA_S = 20 * 60; // 20 minutos (limite de tamanho do envio)
 type Etapa = "pronto" | "gravando" | "processando" | "revisar" | "salvando";
 
 const EXEMPLOS: Record<string, string> = {
@@ -17,6 +19,8 @@ const EXEMPLOS: Record<string, string> = {
 export default function Novo() {
   const router = useRouter();
   const [modelo, setModelo] = useState("geral");
+  const [modo, setModo] = useState<Modo>("ditado");
+  const [consentimento, setConsentimento] = useState(false);
   const [etapa, setEtapa] = useState<Etapa>("pronto");
   const [erro, setErro] = useState<string | null>(null);
   const [res, setRes] = useState<Resultado | null>(null);
@@ -38,9 +42,12 @@ export default function Novo() {
 
   async function iniciar() {
     setErro(null);
+    if (modo === "consulta" && !consentimento)
+      return setErro("Antes de gravar a consulta, confirme que o paciente autorizou a gravação.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      // Áudio de voz em qualidade leve: mantém consultas longas dentro do limite de envio.
+      const mr = new MediaRecorder(stream, { audioBitsPerSecond: 24000 });
       partes.current = [];
       mr.ondataavailable = (e) => e.data.size && partes.current.push(e.data);
       mr.onstop = () => {
@@ -50,7 +57,13 @@ export default function Novo() {
       mr.start();
       gravador.current = mr;
       setSegundos(0);
-      timer.current = setInterval(() => setSegundos((s) => s + 1), 1000);
+      timer.current = setInterval(() => {
+        setSegundos((s) => {
+          const limite = modo === "consulta" ? LIMITE_CONSULTA_S : 10 * 60;
+          if (s + 1 >= limite) setTimeout(() => parar(), 0);
+          return s + 1;
+        });
+      }, 1000);
       setEtapa("gravando");
     } catch {
       setErro("Não consegui acessar o microfone. Permita o uso do microfone no navegador.");
@@ -67,6 +80,8 @@ export default function Novo() {
     const fd = new FormData();
     fd.append("audio", audio, "ditado.webm");
     fd.append("modelo", modelo);
+    fd.append("modo", modo);
+    if (modo === "consulta" && consentimento) fd.append("consentimento", "sim");
     try {
       const r = await fetch("/api/processar", { method: "POST", body: fd });
       const data = await r.json();
@@ -152,15 +167,31 @@ export default function Novo() {
 
       {(etapa === "pronto" || etapa === "gravando") && (
         <div className="card">
+          <label>Como você quer registrar?</label>
+          <div className="row" style={{ justifyContent: "flex-start", marginBottom: 10 }}>
+            <button type="button" className={modo === "ditado" ? "" : "btn-sec"} disabled={etapa === "gravando"} onClick={() => setModo("ditado")}>🗣️ Ditado</button>
+            <button type="button" className={modo === "consulta" ? "" : "btn-sec"} disabled={etapa === "gravando"} onClick={() => setModo("consulta")}>👥 Consulta (conversa)</button>
+          </div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {modo === "ditado"
+              ? "Você fala sozinho, após o atendimento, e a IA organiza o registro."
+              : "Grave a conversa com o paciente, mesmo informal. A IA identifica quem fala e extrai nome, endereço, queixas e observações. Máx. 20 minutos."}
+          </p>
+          {modo === "consulta" && (
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, color: "#0f172a", marginBottom: 12 }}>
+              <input type="checkbox" style={{ width: 20, height: 20, flex: "none" }} checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} />
+              O paciente foi informado e autorizou a gravação desta consulta (LGPD). O áudio é apagado após a transcrição.
+            </label>
+          )}
           <label>Tipo de registro</label>
           <select value={modelo} onChange={(e) => setModelo(e.target.value)} disabled={etapa === "gravando"}>
             {Object.values(MODELOS).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>
-          <p className="muted">Exemplo de ditado: {EXEMPLOS[modelo]}</p>
+          {modo === "ditado" && <p className="muted">Exemplo de ditado: {EXEMPLOS[modelo]}</p>}
           {etapa === "pronto" ? (
-            <button className="gravar" onClick={iniciar}>🎙️ Gravar</button>
+            <button className="gravar" onClick={iniciar}>{modo === "consulta" ? "🎙️ Iniciar consulta" : "🎙️ Gravar"}</button>
           ) : (
-            <button className="gravar gravando" onClick={parar}>⏹️ Parar ({segundos}s)</button>
+            <button className="gravar gravando" onClick={parar}>⏹️ Parar ({Math.floor(segundos / 60)}:{String(segundos % 60).padStart(2, "0")})</button>
           )}
         </div>
       )}
@@ -180,7 +211,7 @@ export default function Novo() {
             ))}
             <details style={{ marginTop: 12 }}>
               <summary>Ver transcrição do áudio</summary>
-              <p className="muted">{res?.transcricao}</p>
+              <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{res?.transcricao}</p>
             </details>
           </div>
           <div className="row">

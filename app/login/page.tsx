@@ -21,7 +21,7 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
   const [profissao, setProfissao] = useState(PROFISSOES[0]);
-  const [especialidade, setEspecialidade] = useState("Clínica geral");
+  const [especialidade, setEspecialidade] = useState("Clínica médica");
   const [conselho, setConselho] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -85,7 +85,7 @@ export default function Login() {
             <div className="grid" style={{ marginTop: 10 }}>
               <div>
                 <label>Profissão</label>
-                <select value={profissao} onChange={(e) => { setProfissao(e.target.value); setEspecialidade(e.target.value === "Médico(a)" ? "Clínica geral" : ""); }}>
+                <select value={profissao} onChange={(e) => { setProfissao(e.target.value); setEspecialidade(e.target.value === "Médico(a)" ? "Clínica médica" : ""); }}>
                   {PROFISSOES.map((p) => <option key={p}>{p}</option>)}
                 </select>
               </div>

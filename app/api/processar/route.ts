@@ -6,7 +6,7 @@ import { validarFicha } from "@/lib/validacao";
 import { MODELOS } from "@/lib/modelos";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -19,6 +19,9 @@ export async function POST(req: Request) {
     const audio = form.get("audio");
     const modeloPedido = String(form.get("modelo") || "geral");
     const modelo = MODELOS[modeloPedido] ? modeloPedido : "geral";
+    const consulta = form.get("modo") === "consulta";
+    if (consulta && form.get("consentimento") !== "sim")
+      return NextResponse.json({ erro: "Confirme que o paciente autorizou a gravação da consulta." }, { status: 400 });
     if (!(audio instanceof Blob) || audio.size === 0)
       return NextResponse.json({ erro: "Nenhum áudio recebido." }, { status: 400 });
     if (audio.size > 25 * 1024 * 1024)
@@ -27,11 +30,11 @@ export async function POST(req: Request) {
     const { data: perfil } = await supabase
       .from("profissionais").select("preferencias").eq("id", user.id).maybeSingle();
 
-    const transcricao = await transcrever(audio);
-    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias);
+    const transcricao = await transcrever(audio, consulta);
+    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta);
     const avisos = validarFicha(ficha, modelo);
 
-    return NextResponse.json({ transcricao, ficha, avisos, modelo, tempo_processamento_ms: Date.now() - inicio });
+    return NextResponse.json({ transcricao, ficha, avisos, modelo, modo: consulta ? "consulta" : "ditado", tempo_processamento_ms: Date.now() - inicio });
   } catch (e) {
     console.error("processar:", e);
     const msg = e instanceof Error ? e.message : "";

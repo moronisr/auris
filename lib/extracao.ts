@@ -27,7 +27,14 @@ function completar(f: Ficha, chaves: string[]): Ficha {
   return out;
 }
 
-export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null): Promise<Ficha> {
+const CONSULTA = `MODO CONSULTA: a transcrição é uma conversa (possivelmente informal) entre o profissional e o paciente, separada por locutores.
+- Identifique pelo contexto quem é o profissional (quem pergunta, examina, orienta) e quem é o paciente (quem responde sobre si).
+- Extraia os dados que o PACIENTE informar: nome, idade, data de nascimento, telefone, e-mail, profissão e endereço completo (rua, número, complemento, bairro, cidade, UF, CEP), além de queixas, histórico, hábitos e medicamentos.
+- Ignore cumprimentos e conversa social que não tenham relevância clínica ou cadastral.
+- Em "observacoes_gerais", registre de forma breve informações relevantes que não couberem em outro campo (ex.: preocupações do paciente, contexto familiar, adesão ao tratamento).
+- Datas no formato DD/MM/AAAA. UF com 2 letras. CEP com 8 dígitos.`;
+
+export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null, consulta = false): Promise<Ficha> {
   const modelo = MODELOS[modeloId] ?? MODELOS.geral;
   const campos = camposDoModelo(modelo.id);
   const properties = Object.fromEntries(
@@ -37,12 +44,13 @@ export async function extrairFicha(transcricao: string, modeloId: string, prefer
   const sistema = [
     BASE,
     `Modelo: ${modelo.nome}. ${modelo.instrucoes}`,
+    consulta ? CONSULTA : "MODO DITADO: o profissional ditou o atendimento sozinho, após a consulta.",
     preferencias ? `Preferências deste profissional (siga sempre): ${preferencias}` : "",
   ].filter(Boolean).join("\n\n");
 
   const resp = await anthropic.messages.create({
     model: process.env.CLAUDE_MODEL || "claude-sonnet-5-5",
-    max_tokens: 2048,
+    max_tokens: consulta ? 4096 : 2048,
     system: sistema,
     tools: [
       {
@@ -56,7 +64,7 @@ export async function extrairFicha(transcricao: string, modeloId: string, prefer
     messages: [
       {
         role: "user",
-        content: `Transcrição do ditado:\n"""${transcricao}"""\n\nResponda SOMENTE chamando a ferramenta registrar_ficha.`,
+        content: `${consulta ? "Transcrição da consulta" : "Transcrição do ditado"}:\n"""${transcricao}"""\n\nResponda SOMENTE chamando a ferramenta registrar_ficha.`,
       },
     ],
   });
