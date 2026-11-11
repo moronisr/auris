@@ -34,6 +34,7 @@ export default async function Inicio() {
       </div>
 
       <Link href="/novo" className="btn gravar">🎙️ Novo registro por voz</Link>
+      <Link href="/dia" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>📅 PDF dos atendimentos do dia</Link>
 
       <h2>Resultados</h2>
       <div className="grid">

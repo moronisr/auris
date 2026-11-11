@@ -35,3 +35,5 @@ details summary { cursor: pointer; color: #475569; font-size: 13px; }
   .nao-imprimir { display: none !important; }
   .card { border: 0; padding: 0; }
 }
+.quebra-pagina { margin-top: 16px; }
+@media print { .quebra-pagina { break-before: page; page-break-before: always; margin-top: 0; } }
