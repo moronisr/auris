@@ -43,7 +43,7 @@ export default function Novo() {
   async function iniciar() {
     setErro(null);
     if (modo === "consulta" && !consentimento)
-      return setErro("Antes de gravar a consulta, confirme que o paciente autorizou a gravação.");
+      return setErro("Antes de iniciar, confirme que o paciente foi informado do registro do atendimento.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Áudio de voz em qualidade leve: mantém consultas longas dentro do limite de envio.
@@ -180,7 +180,7 @@ export default function Novo() {
           {modo === "consulta" && (
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, color: "#0f172a", marginBottom: 12 }}>
               <input type="checkbox" style={{ width: 20, height: 20, flex: "none" }} checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} />
-              O paciente foi informado e autorizou a gravação desta consulta (LGPD). O áudio é apagado após a transcrição.
+              O paciente foi informado de que o atendimento é registrado com apoio de tecnologia (aviso no consultório, ficha de cadastro ou verbalmente). O áudio é apagado após a transcrição.
             </label>
           )}
           <label>Tipo de registro</label>

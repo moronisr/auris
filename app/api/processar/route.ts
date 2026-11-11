@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     const modelo = MODELOS[modeloPedido] ? modeloPedido : "geral";
     const consulta = form.get("modo") === "consulta";
     if (consulta && form.get("consentimento") !== "sim")
-      return NextResponse.json({ erro: "Confirme que o paciente autorizou a gravação da consulta." }, { status: 400 });
+      return NextResponse.json({ erro: "Confirme que o paciente foi informado do registro do atendimento." }, { status: 400 });
     if (!(audio instanceof Blob) || audio.size === 0)
       return NextResponse.json({ erro: "Nenhum áudio recebido." }, { status: 400 });
     if (audio.size > 25 * 1024 * 1024)
