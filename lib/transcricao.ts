@@ -6,7 +6,9 @@ type Palavra = { text: string; type?: string; speaker_id?: string };
  */
 export async function transcrever(audio: Blob, consulta = false): Promise<string> {
   const form = new FormData();
-  form.append("file", audio, "audio.webm");
+  const tipo = audio.type || "audio/webm";
+  const ext = tipo.includes("mp4") || tipo.includes("m4a") || tipo.includes("aac") ? "m4a" : tipo.includes("ogg") ? "ogg" : tipo.includes("wav") ? "wav" : "webm";
+  form.append("file", audio, `audio.${ext}`);
   form.append("model_id", process.env.ELEVENLABS_STT_MODEL || "scribe_v2");
   form.append("language_code", "por");
   if (consulta) {

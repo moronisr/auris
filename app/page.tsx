@@ -27,7 +27,10 @@ export default async function Inicio() {
     <>
       <div className="row">
         <h1>Olá{perfil?.nome ? `, ${perfil.nome.split(" ")[0]}` : ""}</h1>
-        <BotaoSair />
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/perfil" className="btn btn-sec">Meu perfil</Link>
+          <BotaoSair />
+        </div>
       </div>
 
       <Link href="/novo" className="btn gravar">🎙️ Novo registro por voz</Link>

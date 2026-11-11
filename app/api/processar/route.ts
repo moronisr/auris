@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     const modeloPedido = String(form.get("modelo") || "geral");
     const modelo = MODELOS[modeloPedido] ? modeloPedido : "geral";
     const consulta = form.get("modo") === "consulta";
+    const area = String(form.get("area") || "") || null;
     if (consulta && form.get("consentimento") !== "sim")
       return NextResponse.json({ erro: "Confirme que o paciente foi informado do registro do atendimento." }, { status: 400 });
     if (!(audio instanceof Blob) || audio.size === 0)
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
       .from("profissionais").select("preferencias").eq("id", user.id).maybeSingle();
 
     const transcricao = await transcrever(audio, consulta);
-    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta);
+    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta, area);
     const avisos = validarFicha(ficha, modelo);
 
     return NextResponse.json({ transcricao, ficha, avisos, modelo, modo: consulta ? "consulta" : "ditado", tempo_processamento_ms: Date.now() - inicio });

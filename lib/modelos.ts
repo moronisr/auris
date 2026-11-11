@@ -117,6 +117,19 @@ export const ESPECIALIDADES_MEDICAS = [
   "Sem especialidade (médico generalista)", "Outra",
 ];
 
+/** Lista única para o seletor do registro: especialidades médicas + demais profissões de saúde. */
+export const AREAS_ATENDIMENTO: { grupo: string; itens: string[] }[] = [
+  { grupo: "Medicina — especialidades (CFM)", itens: ESPECIALIDADES_MEDICAS.filter((e) => e !== "Outra") },
+  { grupo: "Outras profissões de saúde", itens: PROFISSOES.filter((p) => p !== "Médico(a)") },
+];
+
+/** Modelo de campos para uma área de atendimento escolhida no registro. */
+export function modeloDaArea(area: string): string {
+  if (area === "Oftalmologia" || area === "Optometrista") return "oftalmologia";
+  if (["Psicólogo(a)", "Psicanalista", "Psicopedagogo(a)"].includes(area)) return "psicologia";
+  return "geral";
+}
+
 /** Escolhe o modelo padrão a partir do perfil do profissional. */
 export function modeloPadrao(profissao?: string | null, especialidade?: string | null): string {
   if (especialidade === "Oftalmologia") return "oftalmologia";

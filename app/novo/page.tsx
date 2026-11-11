@@ -2,7 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { MODELOS, camposDoModelo, modeloPadrao, type Campo, type Ficha } from "@/lib/modelos";
+import { MODELOS, AREAS_ATENDIMENTO, camposDoModelo, modeloDaArea, type Campo, type Ficha } from "@/lib/modelos";
+
+/** Escolhe um formato de gravação que o aparelho suporte (iPhone grava em mp4, Android/PC em webm). */
+function formatoSuportado(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  const opcoes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/aac"];
+  return opcoes.find((t) => MediaRecorder.isTypeSupported?.(t));
+}
 import { formatarCpf, validarFicha } from "@/lib/validacao";
 
 type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; modelo: string; modo: string; tempo_processamento_ms: number };
@@ -19,6 +26,7 @@ const EXEMPLOS: Record<string, string> = {
 export default function Novo() {
   const router = useRouter();
   const [modelo, setModelo] = useState("geral");
+  const [area, setArea] = useState("Clínica médica");
   const [modo, setModo] = useState<Modo>("ditado");
   const [consentimento, setConsentimento] = useState(false);
   const [etapa, setEtapa] = useState<Etapa>("pronto");
@@ -36,7 +44,11 @@ export default function Novo() {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return;
       const { data } = await sb.from("profissionais").select("profissao, especialidade").eq("id", user.id).maybeSingle();
-      setModelo(modeloPadrao(data?.profissao, data?.especialidade));
+      const a = data?.profissao === "Médico(a)" ? data?.especialidade : data?.profissao;
+      const existe = AREAS_ATENDIMENTO.some((g) => g.itens.includes(a ?? ""));
+      const escolhida = a && existe ? a : "Clínica médica";
+      setArea(escolhida);
+      setModelo(modeloDaArea(escolhida));
     })();
   }, []);
 
@@ -44,17 +56,25 @@ export default function Novo() {
     setErro(null);
     if (modo === "consulta" && !consentimento)
       return setErro("Antes de iniciar, marque que você avisou o paciente sobre o registro com IA.");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
+      return setErro("Este navegador não permite gravar áudio. No iPhone use o Safari atualizado; no Android, o Chrome.");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const mimeType = formatoSuportado();
       // Áudio de voz em qualidade leve: mantém consultas longas dentro do limite de envio.
-      const mr = new MediaRecorder(stream, { audioBitsPerSecond: 24000 });
+      let mr: MediaRecorder;
+      try {
+        mr = new MediaRecorder(stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 32000 });
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
       partes.current = [];
       mr.ondataavailable = (e) => e.data.size && partes.current.push(e.data);
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         enviar(new Blob(partes.current, { type: mr.mimeType || "audio/webm" }));
       };
-      mr.start();
+      mr.start(1000); // entrega o áudio em partes a cada segundo (necessário em alguns celulares)
       gravador.current = mr;
       setSegundos(0);
       timer.current = setInterval(() => {
@@ -78,19 +98,40 @@ export default function Novo() {
 
   async function enviar(audio: Blob) {
     const fd = new FormData();
-    fd.append("audio", audio, "ditado.webm");
+    if (audio.size < 2000) {
+      setErro("A gravação ficou vazia. Verifique se o microfone está liberado e grave novamente.");
+      setEtapa("pronto");
+      return;
+    }
+    if (audio.size > 4.4 * 1024 * 1024) {
+      setErro("A gravação ficou grande demais para envio. Grave consultas de até 20 minutos.");
+      setEtapa("pronto");
+      return;
+    }
+    const ext = audio.type.includes("mp4") || audio.type.includes("aac") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+    fd.append("audio", audio, `gravacao.${ext}`);
+    fd.append("area", area);
     fd.append("modelo", modelo);
     fd.append("modo", modo);
     if (modo === "consulta" && consentimento) fd.append("consentimento", "sim");
     try {
       const r = await fetch("/api/processar", { method: "POST", body: fd });
-      const data = await r.json();
+      const bruto = await r.text();
+      let data: { erro?: string } & Partial<Resultado>;
+      try {
+        data = JSON.parse(bruto);
+      } catch {
+        throw new Error(r.status === 413 ? "A gravação ficou grande demais para envio." : `Falha de conexão com o servidor (código ${r.status}). Tente novamente.`);
+      }
       if (!r.ok) throw new Error(data.erro || "Falha ao processar.");
-      setRes(data);
-      setFicha(data.ficha);
+      setRes(data as Resultado);
+      setFicha((data as Resultado).ficha);
       setEtapa("revisar");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao processar.");
+      const msg = e instanceof Error ? e.message : "";
+      setErro(msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("Load failed")
+        ? "Sem conexão com a internet no momento do envio. Verifique o sinal e tente novamente."
+        : msg || "Falha ao processar.");
       setEtapa("pronto");
     }
   }
@@ -183,7 +224,16 @@ export default function Novo() {
               Avisei o paciente, no início da consulta, que uso um sistema com IA para registrar o atendimento. O áudio é apagado após a transcrição.
             </label>
           )}
-          <label>Tipo de registro</label>
+          <label>Especialidade / área do atendimento</label>
+          <select value={area} disabled={etapa === "gravando"} onChange={(e) => { setArea(e.target.value); setModelo(modeloDaArea(e.target.value)); }}>
+            {AREAS_ATENDIMENTO.map((g) => (
+              <optgroup key={g.grupo} label={g.grupo}>
+                {g.itens.map((i) => <option key={i} value={i}>{i}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <div style={{ height: 10 }} />
+          <label>Formato da ficha</label>
           <select value={modelo} onChange={(e) => setModelo(e.target.value)} disabled={etapa === "gravando"}>
             {Object.values(MODELOS).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>

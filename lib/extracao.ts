@@ -34,7 +34,7 @@ const CONSULTA = `MODO CONSULTA: a transcrição é uma conversa (possivelmente 
 - Em "observacoes_gerais", registre de forma breve informações relevantes que não couberem em outro campo (ex.: preocupações do paciente, contexto familiar, adesão ao tratamento).
 - Datas no formato DD/MM/AAAA. UF com 2 letras. CEP com 8 dígitos.`;
 
-export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null, consulta = false): Promise<Ficha> {
+export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null, consulta = false, area?: string | null): Promise<Ficha> {
   const modelo = MODELOS[modeloId] ?? MODELOS.geral;
   const campos = camposDoModelo(modelo.id);
   const properties = Object.fromEntries(
@@ -44,6 +44,7 @@ export async function extrairFicha(transcricao: string, modeloId: string, prefer
   const sistema = [
     BASE,
     `Modelo: ${modelo.nome}. ${modelo.instrucoes}`,
+    area ? `Área do atendimento: ${area}. Use a terminologia e o raciocínio de registro próprios dessa área.` : "",
     consulta ? CONSULTA : "MODO DITADO: o profissional ditou o atendimento sozinho, após a consulta.",
     preferencias ? `Preferências deste profissional (siga sempre): ${preferencias}` : "",
   ].filter(Boolean).join("\n\n");
