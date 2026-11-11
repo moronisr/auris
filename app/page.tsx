@@ -27,10 +27,7 @@ export default async function Inicio() {
     <>
       <div className="row">
         <h1>Olá{perfil?.nome ? `, ${perfil.nome.split(" ")[0]}` : ""}</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/perfil" className="btn btn-sec">Meu perfil</Link>
-          <BotaoSair />
-        </div>
+        <BotaoSair />
       </div>
 
       <Link href="/novo" className="btn gravar">🎙️ Novo registro por voz</Link>
@@ -38,9 +35,9 @@ export default async function Inicio() {
 
       <h2>Resultados</h2>
       <div className="grid">
-        <div className="card"><div className="muted">Registros</div><b style={{ fontSize: 22 }}>{total}</b></div>
-        <div className="card"><div className="muted">Aprovados sem correção</div><b style={{ fontSize: 22 }}>{precisao}%</b></div>
-        <div className="card"><div className="muted">Retornos agendados</div><b style={{ fontSize: 22 }}>{retornos30}</b></div>
+        <div className="card"><div className="muted">Registros</div><div className="numero">{total}</div></div>
+        <div className="card"><div className="muted">Aprovados sem correção</div><div className="numero">{precisao}%</div></div>
+        <div className="card"><div className="muted">Retornos agendados</div><div className="numero">{retornos30}</div></div>
       </div>
 
       <h2>Últimos pacientes</h2>

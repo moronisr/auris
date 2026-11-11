@@ -1,39 +1,108 @@
+/* ===== Direção A — Clínica serena ===== */
+:root {
+  --fundo: #F7F7F4;
+  --superficie: #FFFFFF;
+  --tinta: #101817;
+  --suave: #56625F;
+  --linha: #E5E7E2;
+  --destaque: #0F5E5A;
+  --destaque-escuro: #0A4542;
+  --destaque-claro: #E4EFEC;
+  --alerta-fundo: #FBF4E4; --alerta-borda: #EBD9A8; --alerta-tinta: #6B4F12;
+  --erro-fundo: #FBEDEB; --erro-borda: #EFC6C0; --erro-tinta: #7A2318;
+  --ok-fundo: #E7F3EC; --ok-borda: #BFDDC9; --ok-tinta: #1D5A36;
+  --raio: 14px;
+  --sombra: 0 1px 2px rgba(16, 24, 23, .04), 0 4px 16px rgba(16, 24, 23, .05);
+  --serif: "Instrument Serif", Georgia, serif;
+  --sans: Manrope, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f6f7f9; color: #0f172a; }
-.container { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
-h1 { font-size: 22px; margin: 4px 0 16px; }
-h2 { font-size: 16px; margin: 20px 0 8px; color: #334155; }
-.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-.row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-label { display: block; font-size: 12px; color: #475569; margin-bottom: 4px; }
-input, textarea, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: #fff; }
-button, .btn { display: inline-block; padding: 12px 18px; border-radius: 10px; border: 0; font-size: 15px; font-weight: 600; cursor: pointer; background: #0f172a; color: #fff; text-decoration: none; text-align: center; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--sans); background: var(--fundo); color: var(--tinta); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.container { max-width: 760px; margin: 0 auto; padding: 28px 18px 110px; }
+
+h1 { font-family: var(--serif); font-weight: 400; font-size: 38px; line-height: 1.1; letter-spacing: -.3px; margin: 4px 0 18px; }
+h2 { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--suave); margin: 26px 0 10px; }
+.muted { color: var(--suave); font-size: 13.5px; }
+a { color: var(--destaque); }
+
+/* Topo */
+.topo { position: sticky; top: 0; z-index: 20; background: rgba(247, 247, 244, .88); backdrop-filter: saturate(160%) blur(10px); border-bottom: 1px solid var(--linha); }
+.topo-inner { max-width: 760px; margin: 0 auto; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.marca { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 22px; color: var(--tinta); text-decoration: none; }
+.marca-icone { width: 32px; height: 32px; border-radius: 10px; background: var(--destaque); display: inline-flex; align-items: center; justify-content: center; }
+.topo-links { display: flex; gap: 4px; }
+.topo-links a { padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--suave); text-decoration: none; }
+.topo-links a:hover { color: var(--tinta); background: #EEF0EC; }
+.topo-links a.ativo { color: var(--destaque); background: var(--destaque-claro); }
+
+/* Barra inferior (celular) */
+.barra-inferior { display: none; }
+@media (max-width: 720px) {
+  .topo-links { display: none; }
+  .barra-inferior { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: rgba(255, 255, 255, .96); backdrop-filter: blur(10px); border-top: 1px solid var(--linha); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .barra-inferior a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; min-height: 52px; justify-content: center; font-size: 11.5px; font-weight: 600; color: var(--suave); text-decoration: none; border-radius: 10px; }
+  .barra-inferior a.ativo { color: var(--destaque); }
+  h1 { font-size: 32px; }
+}
+
+/* Superfícies */
+.card { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 20px; margin-bottom: 14px; box-shadow: var(--sombra); }
+a.card:hover { border-color: #CFD6D2; }
+.row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+
+/* Formulários */
+label { display: block; font-size: 12.5px; font-weight: 600; color: var(--suave); margin-bottom: 6px; }
+input, textarea, select { width: 100%; padding: 12px 14px; border: 1px solid #D9DDD8; border-radius: 11px; font: inherit; font-size: 15px; color: var(--tinta); background: #FCFCFA; transition: border-color .15s, box-shadow .15s; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-claro); background: #fff; }
+textarea { resize: vertical; }
+
+/* Botões */
+button, .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 12px 20px; border-radius: 12px; border: 0; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; background: var(--destaque); color: #fff; text-decoration: none; text-align: center; transition: background .15s, transform .05s; }
+button:hover, .btn:hover { background: var(--destaque-escuro); color: #fff; }
+button:active, .btn:active { transform: translateY(1px); }
 button:disabled { opacity: .5; cursor: default; }
-.btn-sec { background: #e2e8f0; color: #0f172a; }
-.gravar { width: 100%; padding: 22px; font-size: 18px; }
-.gravando { background: #dc2626; }
-.aviso { background: #fef3c7; border: 1px solid #fcd34d; color: #78350f; padding: 10px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 6px; }
-.erro { background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
-.ok { background: #dcfce7; border: 1px solid #86efac; color: #14532d; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
-.muted { color: #64748b; font-size: 13px; }
-.olho { font-weight: 700; margin: 12px 0 6px; }
-details summary { cursor: pointer; color: #475569; font-size: 13px; }
+.btn-sec, button.btn-sec { background: var(--superficie); color: var(--tinta); border: 1px solid var(--linha); }
+.btn-sec:hover, button.btn-sec:hover { background: #F1F3EF; color: var(--tinta); }
+
+/* Gravação */
+.gravar { width: 100%; min-height: 64px; font-size: 17px; border-radius: 16px; }
+.gravando { background: #B42318; animation: pulso 1.6s ease-out infinite; }
+.gravando:hover { background: #9B1D13; }
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(180, 35, 24, .45); } 100% { box-shadow: 0 0 0 18px rgba(180, 35, 24, 0); } }
+@media (prefers-reduced-motion: reduce) { .gravando { animation: none; } }
+
+/* Mensagens */
+.aviso { background: var(--alerta-fundo); border: 1px solid var(--alerta-borda); color: var(--alerta-tinta); padding: 12px 14px; border-radius: 12px; font-size: 14px; margin-bottom: 8px; }
+.erro { background: var(--erro-fundo); border: 1px solid var(--erro-borda); color: var(--erro-tinta); padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+.ok { background: var(--ok-fundo); border: 1px solid var(--ok-borda); color: var(--ok-tinta); padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+
+.olho { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--destaque); margin: 22px 0 10px; }
+details summary { cursor: pointer; color: var(--suave); font-size: 13.5px; font-weight: 600; }
 
 /* Ficha do paciente / PDF */
-.ficha-topo { display: flex; justify-content: space-between; gap: 12px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 6px; }
-.ficha-sec h2 { margin: 16px 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: .4px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-.ficha-linha { display: flex; gap: 12px; padding: 4px 0; font-size: 14px; }
-.ficha-rot { width: 38%; color: #475569; flex: none; }
+.ficha-topo { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1.5px solid var(--tinta); padding-bottom: 12px; margin-bottom: 4px; }
+.ficha-topo b { font-family: var(--serif); font-weight: 400; font-size: 24px !important; }
+.ficha-sec h2 { margin: 20px 0 6px; font-size: 11.5px; color: var(--destaque); border-bottom: 1px solid var(--linha); padding-bottom: 5px; }
+.ficha-linha { display: flex; gap: 14px; padding: 5px 0; font-size: 14px; }
+.ficha-rot { width: 38%; color: var(--suave); flex: none; }
 .ficha-val { flex: 1; white-space: pre-wrap; }
-.ficha-rodape { margin-top: 28px; font-size: 12px; color: #64748b; }
-.assinatura { margin-top: 36px; text-align: center; color: #0f172a; }
+.ficha-rodape { margin-top: 30px; font-size: 12px; color: var(--suave); }
+.assinatura { margin-top: 40px; text-align: center; color: var(--tinta); }
+.quebra-pagina { margin-top: 16px; }
+
 @media print {
   @page { size: A4; margin: 16mm; }
-  body { background: #fff; }
+  body { background: #fff; font-size: 13px; }
   .container { max-width: none; padding: 0; }
   .nao-imprimir { display: none !important; }
-  .card { border: 0; padding: 0; }
+  .card { border: 0; padding: 0; box-shadow: none; }
+  .quebra-pagina { break-before: page; page-break-before: always; margin-top: 0; }
 }
-.quebra-pagina { margin-top: 16px; }
-@media print { .quebra-pagina { break-before: page; page-break-before: always; margin-top: 0; } }
+.numero { font-family: var(--serif); font-size: 40px; line-height: 1.1; margin-top: 4px; }
+.login-marca { margin-top: 24px; margin-bottom: 14px; }
+.login-marca .marca-icone { width: 44px; height: 44px; border-radius: 13px; }
+button.link { background: none; color: var(--destaque); min-height: 44px; padding: 8px 4px; font-weight: 600; font-size: 14px; }
+button.link:hover { background: none; color: var(--destaque-escuro); text-decoration: underline; }
+.links-login { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin: -4px 0 10px; }
