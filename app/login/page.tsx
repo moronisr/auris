@@ -28,6 +28,10 @@ export default function Login() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    if (q.get("confirmado") === "1")
+      setMsg({ tipo: "ok", texto: "E-mail confirmado! Agora entre com seu e-mail e senha." });
+    if (q.get("link") === "outro-aparelho-senha")
+      setMsg({ tipo: "erro", texto: "Abra o link de nova senha no mesmo aparelho em que você o pediu, ou peça um novo link aqui." });
     if (q.get("link") === "expirado")
       setMsg({ tipo: "erro", texto: "Este link expirou ou já foi usado. Digite seu e-mail abaixo e clique em “Reenviar e-mail de confirmação” ou “Esqueci minha senha”." });
   }, []);
