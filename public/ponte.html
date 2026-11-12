@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Auris</title></head>
+<body style="font-family:system-ui;padding:24px;color:#101817">
+<p id="s">Preparando o vídeo...</p>
+<script>
+(async () => {
+  const s = document.getElementById('s');
+  try {
+    if (!window.opener) { s.textContent = 'Janela de origem não encontrada.'; return; }
+    const blob = await (await fetch('/auris-demo.mp4', { cache: 'no-store' })).blob();
+    window.opener.postMessage(blob, 'https://www.linkedin.com');
+    s.textContent = 'Vídeo enviado. Pode fechar esta janela.';
+    setTimeout(() => window.close(), 800);
+  } catch (e) { s.textContent = 'Erro: ' + e.message; }
+})();
+</script>
+</body></html>
