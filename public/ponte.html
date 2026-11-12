@@ -7,7 +7,8 @@
   const s = document.getElementById('s');
   try {
     if (!window.opener) { s.textContent = 'Janela de origem não encontrada.'; return; }
-    const blob = await (await fetch('/auris-demo.mp4', { cache: 'no-store' })).blob();
+    const arq = new URLSearchParams(location.search).get('f') === 'capa' ? '/auris-capa.jpg' : '/auris-demo.mp4';
+    const blob = await (await fetch(arq, { cache: 'no-store' })).blob();
     window.opener.postMessage(blob, 'https://www.linkedin.com');
     s.textContent = 'Vídeo enviado. Pode fechar esta janela.';
     setTimeout(() => window.close(), 800);
