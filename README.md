@@ -4,6 +4,8 @@ O profissional de saúde fala, o Auris escreve. Um sistema web que transforma o 
 
 > Status: piloto em validação com profissionais de saúde. Todos os dados de demonstração são fictícios.
 
+**Demonstração em vídeo (54 s, com narração):** [docs/auris-demo.mp4](docs/auris-demo.mp4)
+
 ## O problema
 
 Médicos, psicólogos e demais profissionais de saúde passam parte do atendimento digitando. Isso tira o olhar do paciente, alonga a consulta e leva trabalho para casa no fim do dia.
