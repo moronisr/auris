@@ -9,7 +9,7 @@
     if (!window.opener) { s.textContent = 'Janela de origem não encontrada.'; return; }
     const arq = new URLSearchParams(location.search).get('f') === 'capa' ? '/auris-capa.jpg' : '/auris-demo.mp4';
     const blob = await (await fetch(arq, { cache: 'no-store' })).blob();
-    window.opener.postMessage(blob, 'https://www.linkedin.com');
+    window.opener.postMessage(arq.includes('capa') ? { tipo: 'capa', blob } : blob, 'https://www.linkedin.com');
     s.textContent = 'Vídeo enviado. Pode fechar esta janela.';
     setTimeout(() => window.close(), 800);
   } catch (e) { s.textContent = 'Erro: ' + e.message; }
