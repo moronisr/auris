@@ -7,7 +7,7 @@ import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 function traduzir(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("email not confirmed")) return "Seu e-mail ainda não foi confirmado. Abra o e-mail de confirmação (veja também o spam) e clique no link. Se não chegou, use “Reenviar e-mail de confirmação”.";
-  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos. Se você acabou de se cadastrar, confirme primeiro o seu e-mail.";
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos. Se é sua primeira vez no Auris, crie sua conta na aba “Criar conta”, acima.";
   if (m.includes("already registered")) return "Este e-mail já tem conta. Clique em “Já tenho conta” e entre.";
   if (m.includes("rate limit")) return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.";
   if (m.includes("password")) return "Senha inválida: use no mínimo 8 caracteres.";
@@ -83,6 +83,10 @@ export default function Login() {
       <h1>Auris</h1>
       <p className="login-desc">Registro clínico por voz</p>
       <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>Registre o atendimento falando. A IA organiza, você revisa, aprova e gera o PDF.</p>
+      <div className="abas-login" role="tablist">
+        <button type="button" role="tab" aria-selected={modo === "entrar"} className={modo === "entrar" ? "ativa" : ""} onClick={() => { setModo("entrar"); setMsg(null); }}>Entrar</button>
+        <button type="button" role="tab" aria-selected={modo === "cadastrar"} className={modo === "cadastrar" ? "ativa" : ""} onClick={() => { setModo("cadastrar"); setMsg(null); }}>Criar conta</button>
+      </div>
       <form className="card" onSubmit={enviar}>
         {modo === "cadastrar" && (
           <>
@@ -120,6 +124,9 @@ export default function Login() {
         <input type="password" minLength={8} value={senha} onChange={(e) => setSenha(e.target.value)} required />
         <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
+        {msg?.tipo === "erro" && modo === "entrar" && msg.texto.includes("primeira vez") && (
+          <button type="button" className="btn-sec" style={{ width: "100%", marginBottom: 10 }} onClick={() => { setModo("cadastrar"); setMsg(null); }}>Criar minha conta</button>
+        )}
         <button type="submit" disabled={carregando} style={{ width: "100%" }}>
           {carregando ? "Aguarde..." : modo === "entrar" ? "Entrar" : "Criar conta"}
         </button>
@@ -150,8 +157,8 @@ export default function Login() {
         </button>
       )}
       </div>}
-      <button className="btn-sec" style={{ width: "100%" }} onClick={() => setModo(modo === "entrar" ? "cadastrar" : "entrar")}>
-        {modo === "entrar" ? "Não tem conta? Cadastre-se" : "Já tenho conta"}
+      <button className="link" style={{ display: "block", margin: "14px auto 0" }} onClick={() => { setModo(modo === "entrar" ? "cadastrar" : "entrar"); setMsg(null); }}>
+        {modo === "entrar" ? "Primeira vez aqui? Criar conta" : "Já tenho conta. Entrar"}
       </button>
     </>
   );

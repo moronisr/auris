@@ -109,3 +109,7 @@ details summary { cursor: pointer; color: var(--suave); font-size: 13.5px; font-
 button.link { background: none; color: var(--destaque); min-height: 44px; padding: 8px 4px; font-weight: 600; font-size: 14px; }
 button.link:hover { background: none; color: var(--destaque-escuro); text-decoration: underline; }
 .links-login { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin: -4px 0 10px; }
+
+.abas-login { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--linha); border-radius: 12px; margin-bottom: 14px; }
+.abas-login button { background: transparent; color: var(--suave); border: 0; min-height: 42px; border-radius: 9px; font-size: 15px; font-weight: 600; box-shadow: none; }
+.abas-login button.ativa { background: #fff; color: var(--destaque); box-shadow: 0 1px 3px rgba(16,24,23,0.08); }
