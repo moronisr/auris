@@ -16,7 +16,10 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
     <>
       <div className="row nao-imprimir">
         <a className="btn btn-sec" href="/">← Início</a>
-        <BotaoPdf />
+        <div style={{ display: "flex", gap: 10 }}>
+          {/Médic|Dentista/.test(prof?.profissao ?? "") && <a className="btn btn-sec" href={`/registro/${id}/receita`}>Emitir receita</a>}
+          <BotaoPdf />
+        </div>
       </div>
       <article className="card ficha">
         <FichaConteudo r={r as Registro} prof={prof} />
