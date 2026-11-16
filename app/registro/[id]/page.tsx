@@ -12,15 +12,22 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
   const { data: r } = await sb.from("registros").select("*").eq("id", id).maybeSingle();
   if (!r) notFound();
   const { data: prof } = await sb.from("profissionais").select("nome, profissao, especialidade, conselho").eq("id", user!.id).maybeSingle();
+  const podeReceitar = /Médic|Dentista/.test(prof?.profissao ?? "");
   return (
     <>
       <div className="row nao-imprimir">
         <a className="btn btn-sec" href="/">← Início</a>
-        <div style={{ display: "flex", gap: 10 }}>
-          {/Médic|Dentista/.test(prof?.profissao ?? "") && <a className="btn btn-sec" href={`/registro/${id}/receita`}>Emitir receita</a>}
-          <BotaoPdf />
-        </div>
+        <BotaoPdf />
       </div>
+      {podeReceitar && (
+        <a className="card atalho-receita nao-imprimir" href={`/registro/${id}/receita`}>
+          <span>
+            <b>Emitir receita com assinatura gov.br</b>
+            <span className="muted" style={{ display: "block" }}>Gere a receita deste paciente em PDF e assine com a sua conta gov.br.</span>
+          </span>
+          <span className="atalho-seta" aria-hidden="true">→</span>
+        </a>
+      )}
       <article className="card ficha">
         <FichaConteudo r={r as Registro} prof={prof} />
       </article>

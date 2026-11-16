@@ -113,3 +113,7 @@ button.link:hover { background: none; color: var(--destaque-escuro); text-decora
 .abas-login { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--linha); border-radius: 12px; margin-bottom: 14px; }
 .abas-login button { background: transparent; color: var(--suave); border: 0; min-height: 42px; border-radius: 9px; font-size: 15px; font-weight: 600; box-shadow: none; }
 .abas-login button.ativa { background: #fff; color: var(--destaque); box-shadow: 0 1px 3px rgba(16,24,23,0.08); }
+
+.atalho-receita { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; text-decoration: none; color: var(--tinta); border-color: var(--destaque); background: var(--destaque-claro); }
+.atalho-receita b { color: var(--destaque); }
+.atalho-seta { font-size: 20px; color: var(--destaque); }

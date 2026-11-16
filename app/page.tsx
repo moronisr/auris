@@ -41,6 +41,7 @@ export default async function Inicio() {
       </div>
 
       <h2>Últimos pacientes</h2>
+      {total > 0 && <p className="muted" style={{ marginTop: -4, marginBottom: 10 }}>Para emitir uma receita com assinatura gov.br, abra a ficha do paciente.</p>}
       {total === 0 && <p className="muted">Nenhum registro ainda. Toque em “Novo registro por voz”.</p>}
       {lista.map((r) => (
         <Link href={`/registro/${r.id}`} className="card" key={r.id} style={{ display: "block", color: "inherit", textDecoration: "none" }}>
@@ -51,7 +52,7 @@ export default async function Inicio() {
           <div className="muted" style={{ marginTop: 6 }}>
             {MODELOS[r.modelo]?.nome ?? r.modelo}
             {r.retorno_data && <> · Retorno {new Date(r.retorno_data + "T12:00").toLocaleDateString("pt-BR")}</>}
-            {" · Ver ficha / PDF →"}
+            {" · Ver ficha · PDF · Receita gov.br →"}
           </div>
         </Link>
       ))}
