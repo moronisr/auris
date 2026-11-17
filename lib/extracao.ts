@@ -27,6 +27,11 @@ function completar(f: Ficha, chaves: string[]): Ficha {
   return out;
 }
 
+const TELECONSULTA = `TELECONSULTA POR VÍDEO: as falas já vêm identificadas com certeza como "Profissional" e "Paciente" (cada voz foi gravada em um canal próprio).
+- Use esses rótulos como verdade; não troque quem falou.
+- Não houve exame físico presencial. Registre em exame/achados apenas o que o profissional disser que observou pelo vídeo ou o que o paciente relatar (ex.: medida feita em casa), deixando claro que foi relatado ou observado por vídeo.
+- A captação e a extração devem ter a mesma precisão de uma consulta presencial: aproveite todas as informações clínicas e cadastrais ditas, formais ou informais.`;
+
 const CONSULTA = `MODO CONSULTA: a transcrição é uma conversa (possivelmente informal) entre o profissional e o paciente, separada por locutores.
 - Identifique pelo contexto quem é o profissional (quem pergunta, examina, orienta) e quem é o paciente (quem responde sobre si).
 - Extraia os dados que o PACIENTE informar: nome, idade, data de nascimento, telefone, e-mail, profissão e endereço completo (rua, número, complemento, bairro, cidade, UF, CEP), além de queixas, histórico, hábitos e medicamentos.
@@ -34,7 +39,7 @@ const CONSULTA = `MODO CONSULTA: a transcrição é uma conversa (possivelmente 
 - Em "observacoes_gerais", registre de forma breve informações relevantes que não couberem em outro campo (ex.: preocupações do paciente, contexto familiar, adesão ao tratamento).
 - Datas no formato DD/MM/AAAA. UF com 2 letras. CEP com 8 dígitos.`;
 
-export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null, consulta = false, area?: string | null): Promise<Ficha> {
+export async function extrairFicha(transcricao: string, modeloId: string, preferencias?: string | null, consulta = false, area?: string | null, teleconsulta = false): Promise<Ficha> {
   const modelo = MODELOS[modeloId] ?? MODELOS.geral;
   const campos = camposDoModelo(modelo.id);
   const properties = Object.fromEntries(
@@ -46,6 +51,7 @@ export async function extrairFicha(transcricao: string, modeloId: string, prefer
     `Modelo: ${modelo.nome}. ${modelo.instrucoes}`,
     area ? `Área do atendimento: ${area}. Use a terminologia e o raciocínio de registro próprios dessa área.` : "",
     consulta ? CONSULTA : "MODO DITADO: o profissional ditou o atendimento sozinho, após a consulta.",
+    teleconsulta ? TELECONSULTA : "",
     preferencias ? `Preferências deste profissional (siga sempre): ${preferencias}` : "",
   ].filter(Boolean).join("\n\n");
 

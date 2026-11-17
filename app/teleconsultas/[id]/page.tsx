@@ -7,7 +7,7 @@ import { reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
 import { dataHora, horaDe, type Teleconsulta } from "@/lib/teleconsulta";
 
-const LIMITE_S = 20 * 60;
+const LIMITE_S = 60 * 60; // até 60 minutos de registro por voz
 
 function formatoAudio(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
@@ -31,6 +31,8 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
   const videoLocal = useRef<HTMLVideoElement>(null);
   const audioCtx = useRef<AudioContext | null>(null);
   const destino = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const juntador = useRef<ChannelMergerNode | null>(null);
+  const doisCanais = useRef(false);
   const remotoLigado = useRef<MediaStream | null>(null);
   const gravador = useRef<MediaRecorder | null>(null);
   const partes = useRef<Blob[]>([]);
@@ -63,9 +65,9 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
   useEffect(() => { if (videoLocal.current) videoLocal.current.srcObject = local; }, [local]);
   useEffect(() => {
     if (videoRemoto.current) videoRemoto.current.srcObject = remoto;
-    // Junta a voz do paciente na gravação usada para montar a ficha.
-    if (remoto && audioCtx.current && destino.current && remotoLigado.current !== remoto && remoto.getAudioTracks().length) {
-      audioCtx.current.createMediaStreamSource(remoto).connect(destino.current);
+    // Voz do paciente no canal 2 da gravação (o canal 1 é o profissional).
+    if (remoto && audioCtx.current && juntador.current && remotoLigado.current !== remoto && remoto.getAudioTracks().length) {
+      audioCtx.current.createMediaStreamSource(new MediaStream(remoto.getAudioTracks())).connect(juntador.current, 0, 1);
       remotoLigado.current = remoto;
     }
   }, [remoto]);
@@ -78,9 +80,9 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     audioCtx.current?.close().catch(() => {});
   }, []);
 
-  function criarGravador(fonte: MediaStream): MediaRecorder {
+  function criarGravador(fonte: MediaStream, bits: number): MediaRecorder {
     const tipo = formatoAudio();
-    try { return new MediaRecorder(fonte, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: 24000 }); }
+    try { return new MediaRecorder(fonte, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: bits }); }
     catch { return new MediaRecorder(fonte); }
   }
 
@@ -90,17 +92,29 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     if (ctx) {
       try { await ctx.resume(); } catch { /* segue para o plano B */ }
       if (ctx.state === "running") {
+        // Gravação em dois canais: profissional no canal 1, paciente no canal 2.
         const dest = ctx.createMediaStreamDestination();
-        ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(dest);
+        dest.channelCount = 2;
+        dest.channelInterpretation = "discrete";
+        const merger = ctx.createChannelMerger(2);
+        merger.connect(dest);
+        ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(merger, 0, 0);
         audioCtx.current = ctx;
         destino.current = dest;
+        juntador.current = merger;
+        doisCanais.current = true;
         fonte = dest.stream;
+        if (remoto && remoto.getAudioTracks().length) {
+          ctx.createMediaStreamSource(new MediaStream(remoto.getAudioTracks())).connect(merger, 0, 1);
+          remotoLigado.current = remoto;
+        }
       } else {
+        doisCanais.current = false;
         ctx.close().catch(() => {});
         setAviso("O navegador não liberou a mistura de áudio. O registro vai usar o seu microfone, que também capta a voz do paciente pelo alto-falante.");
       }
     }
-    const mr = criarGravador(fonte);
+    const mr = criarGravador(fonte, doisCanais.current ? 48000 : 32000);
     partes.current = [];
     audioFinal.current = null;
     mr.ondataavailable = (e) => { if (e.data.size) partes.current.push(e.data); };
@@ -151,17 +165,30 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
   async function enviarAudio() {
     const audio = audioFinal.current;
     if (!audio || audio.size < 2000) { setEtapa("falhou"); return setErro("A gravação ficou vazia: o microfone não captou a conversa. Use Gravar, no menu, para ditar o atendimento."); }
-    if (audio.size > 4.4 * 1024 * 1024) { setEtapa("falhou"); return setErro("A gravação ficou grande demais para envio. Use Gravar, no menu, para ditar o atendimento."); }
     setEtapa("processando");
     setErro("");
     const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
     const fd = new FormData();
-    fd.append("audio", audio, `teleconsulta.${ext}`);
     fd.append("area", area);
     fd.append("modelo", modeloDaArea(area));
     fd.append("modo", "consulta");
     fd.append("consentimento", "sim");
+    fd.append("teleconsulta", "sim");
+    fd.append("canais", doisCanais.current ? "2" : "1");
     try {
+      // O áudio vai para o armazenamento privado do profissional e é apagado logo após a transcrição.
+      const sb = supabaseBrowser();
+      const { data: { user } } = await sb.auth.getUser();
+      let enviadoPorArquivo = false;
+      if (user) {
+        const caminho = `${user.id}/tele-${id}-${Date.now()}.${ext}`;
+        const { error } = await sb.storage.from("audios").upload(caminho, audio, { contentType: audio.type || "audio/webm", upsert: false });
+        if (!error) { fd.append("audio_caminho", caminho); enviadoPorArquivo = true; }
+      }
+      if (!enviadoPorArquivo) {
+        if (audio.size > 4.4 * 1024 * 1024) throw new Error("Não consegui enviar a gravação. Verifique a internet e tente de novo.");
+        fd.append("audio", audio, `teleconsulta.${ext}`);
+      }
       const r = await fetch("/api/processar", { method: "POST", body: fd });
       const data = await r.json().catch(() => ({ erro: `Falha de conexão com o servidor (código ${r.status}).` }));
       if (!r.ok) throw new Error(data.erro || "Falha ao processar.");
@@ -225,7 +252,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
                 <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
               </div>
             )}
-            {ativo && segundos >= LIMITE_S && <p className="muted">O registro por voz cobre os primeiros 20 minutos. O restante você pode completar na revisão da ficha.</p>}
+            {ativo && segundos >= LIMITE_S && <p className="muted">O registro por voz cobre os primeiros 60 minutos. O restante você pode completar na revisão da ficha.</p>}
             <p className="muted">A chamada não é gravada em vídeo. Ao encerrar, a conversa é transcrita e vira a ficha para a sua revisão.</p>
           </section>
 

@@ -16,7 +16,17 @@ export async function POST(req: Request) {
   const inicio = Date.now();
   try {
     const form = await req.formData();
-    const audio = form.get("audio");
+    let audio: FormDataEntryValue | Blob | null = form.get("audio");
+    // Teleconsulta: o áudio chega pelo armazenamento privado (sem limite de 20 minutos) e é apagado após a transcrição.
+    const caminho = String(form.get("audio_caminho") || "");
+    const teleconsulta = form.get("teleconsulta") === "sim";
+    const doisCanais = form.get("canais") === "2";
+    if (caminho) {
+      if (!caminho.startsWith(`${user.id}/`)) return NextResponse.json({ erro: "Áudio não pertence a esta conta." }, { status: 403 });
+      const { data: arquivo, error } = await supabase.storage.from("audios").download(caminho);
+      if (error || !arquivo) return NextResponse.json({ erro: "Não encontrei o áudio enviado. Tente de novo." }, { status: 400 });
+      audio = arquivo;
+    }
     const modeloPedido = String(form.get("modelo") || "geral");
     const modelo = MODELOS[modeloPedido] ? modeloPedido : "geral";
     const consulta = form.get("modo") === "consulta";
@@ -25,14 +35,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ erro: "Confirme que o paciente foi informado do registro do atendimento." }, { status: 400 });
     if (!(audio instanceof Blob) || audio.size === 0)
       return NextResponse.json({ erro: "Nenhum áudio recebido." }, { status: 400 });
-    if (audio.size > 25 * 1024 * 1024)
-      return NextResponse.json({ erro: "Áudio muito longo (máx. 25 MB)." }, { status: 413 });
+    if (audio.size > (caminho ? 100 : 25) * 1024 * 1024)
+      return NextResponse.json({ erro: "Áudio muito longo." }, { status: 413 });
 
     const { data: perfil } = await supabase
       .from("profissionais").select("preferencias").eq("id", user.id).maybeSingle();
 
-    const transcricao = await transcrever(audio, consulta);
-    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta, area);
+    let transcricao: string;
+    try {
+      transcricao = await transcrever(audio, consulta, doisCanais);
+    } finally {
+      if (caminho) await supabase.storage.from("audios").remove([caminho]).catch(() => {});
+    }
+    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta, area, teleconsulta);
     const avisos = validarFicha(ficha, modelo);
 
     return NextResponse.json({ transcricao, ficha, avisos, modelo, modo: consulta ? "consulta" : "ditado", tempo_processamento_ms: Date.now() - inicio });
