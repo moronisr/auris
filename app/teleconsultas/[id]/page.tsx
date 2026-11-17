@@ -36,6 +36,8 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
   const partes = useRef<Blob[]>([]);
   const audioFinal = useRef<Blob | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const localRef = useRef<MediaStream | null>(null);
+  const [aviso, setAviso] = useState("");
 
   const { remoto, estado, encerrar } = useSala(t?.codigo ?? "", "medico", local, ativo && !!t);
 
@@ -68,30 +70,46 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     }
   }, [remoto]);
 
+  // Limpeza apenas quando o profissional sai da página.
   useEffect(() => () => {
     if (timer.current) clearInterval(timer.current);
-    local?.getTracks().forEach((tr) => tr.stop());
-    audioCtx.current?.close();
-  }, [local]);
+    if (gravador.current?.state === "recording") gravador.current.stop();
+    localRef.current?.getTracks().forEach((tr) => tr.stop());
+    audioCtx.current?.close().catch(() => {});
+  }, []);
 
-  function iniciarGravacao(stream: MediaStream) {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AC();
-    const dest = ctx.createMediaStreamDestination();
-    ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(dest);
-    audioCtx.current = ctx;
-    destino.current = dest;
+  function criarGravador(fonte: MediaStream): MediaRecorder {
     const tipo = formatoAudio();
-    let mr: MediaRecorder;
-    try { mr = new MediaRecorder(dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: 24000 }); }
-    catch { mr = new MediaRecorder(dest.stream); }
+    try { return new MediaRecorder(fonte, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: 24000 }); }
+    catch { return new MediaRecorder(fonte); }
+  }
+
+  async function iniciarGravacao(stream: MediaStream, ctx: AudioContext | null) {
+    let fonte: MediaStream = new MediaStream(stream.getAudioTracks());
+    // Mistura a voz do profissional e a do paciente; se o navegador não liberar o áudio, grava o microfone direto.
+    if (ctx) {
+      try { await ctx.resume(); } catch { /* segue para o plano B */ }
+      if (ctx.state === "running") {
+        const dest = ctx.createMediaStreamDestination();
+        ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(dest);
+        audioCtx.current = ctx;
+        destino.current = dest;
+        fonte = dest.stream;
+      } else {
+        ctx.close().catch(() => {});
+        setAviso("O navegador não liberou a mistura de áudio. O registro vai usar o seu microfone, que também capta a voz do paciente pelo alto-falante.");
+      }
+    }
+    const mr = criarGravador(fonte);
     partes.current = [];
-    mr.ondataavailable = (e) => e.data.size && partes.current.push(e.data);
+    audioFinal.current = null;
+    mr.ondataavailable = (e) => { if (e.data.size) partes.current.push(e.data); };
     mr.onstop = () => { audioFinal.current = new Blob(partes.current, { type: mr.mimeType || "audio/webm" }); };
     mr.start(1000);
     gravador.current = mr;
     setGravando(true);
     setSegundos(0);
+    if (timer.current) clearInterval(timer.current);
     timer.current = setInterval(() => setSegundos((s) => {
       if (s + 1 >= LIMITE_S && gravador.current?.state === "recording") { gravador.current.stop(); setGravando(false); }
       return s + 1;
@@ -99,12 +117,16 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
   }
 
   async function entrar() {
-    setErro("");
+    setErro(""); setAviso("");
+    // O áudio precisa ser criado no próprio clique, senão o navegador o deixa mudo.
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const ctx = AC ? new AC() : null;
     const r = await abrirCameraMicrofone();
-    if (!r.stream) return setErro(r.erro ?? "Não consegui abrir a câmera.");
+    if (!r.stream) { ctx?.close().catch(() => {}); return setErro(r.erro ?? "Não consegui abrir a câmera."); }
+    localRef.current = r.stream;
     setLocal(r.stream);
     setAtivo(true);
-    iniciarGravacao(r.stream);
+    await iniciarGravacao(r.stream, ctx);
     await supabaseBrowser().from("teleconsultas").update({ status: "em_andamento", iniciada_em: new Date().toISOString() }).eq("id", id);
     carregar();
   }
@@ -120,6 +142,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     setGravando(false);
     encerrar();
     local?.getTracks().forEach((tr) => tr.stop());
+    localRef.current = null;
     setLocal(null);
     setAtivo(false);
     await supabaseBrowser().from("teleconsultas").update({ status: "encerrada", encerrada_em: new Date().toISOString() }).eq("id", id);
@@ -127,7 +150,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
 
   async function enviarAudio() {
     const audio = audioFinal.current;
-    if (!audio || audio.size < 2000) { setEtapa("falhou"); return setErro("A gravação ficou vazia. Use Gravar, no menu, para ditar o atendimento."); }
+    if (!audio || audio.size < 2000) { setEtapa("falhou"); return setErro("A gravação ficou vazia: o microfone não captou a conversa. Use Gravar, no menu, para ditar o atendimento."); }
     if (audio.size > 4.4 * 1024 * 1024) { setEtapa("falhou"); return setErro("A gravação ficou grande demais para envio. Use Gravar, no menu, para ditar o atendimento."); }
     setEtapa("processando");
     setErro("");
@@ -170,6 +193,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       </div>
 
       {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
+      {aviso && etapa === "sala" && <div className="aviso" style={{ margin: "12px 0" }}>{aviso}</div>}
 
       {etapa === "processando" && <div className="card" style={{ marginTop: 14 }}>Consulta encerrada. Transcrevendo a conversa e montando a ficha, isso leva alguns segundos.</div>}
       {etapa === "falhou" && (

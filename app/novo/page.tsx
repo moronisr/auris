@@ -38,6 +38,7 @@ export default function Novo() {
   const partes = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [tele, setTele] = useState<string | null>(null);
+  const veioDeTele = useRef(false);
 
   // Ficha vinda de uma teleconsulta encerrada: abre direto na revisão.
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function Novo() {
     try {
       const s = JSON.parse(sessionStorage.getItem("auris_tele_resultado") || "null");
       if (s?.tele === id && s.res?.ficha) {
+        veioDeTele.current = true;
         setTele(id);
         setModo("consulta");
         setModelo(s.res.modelo);
@@ -66,7 +68,8 @@ export default function Novo() {
       const existe = AREAS_ATENDIMENTO.some((g) => g.itens.includes(a ?? ""));
       const escolhida = a && existe ? a : "Clínica médica";
       setArea(escolhida);
-      setModelo(modeloDaArea(escolhida));
+      // Na ficha vinda da teleconsulta, o modelo já foi escolhido ao montar a ficha.
+      if (!veioDeTele.current) setModelo(modeloDaArea(escolhida));
     })();
   }, []);
 
