@@ -22,6 +22,12 @@ export default async function Inicio() {
   const precisao = total ? Math.round((semCorrecao / total) * 100) : 0;
   const hoje = new Date().toISOString().slice(0, 10);
   const retornos30 = lista.filter((r) => r.retorno_data && r.retorno_data >= hoje).length;
+  const agora = new Date();
+  const fimDoDia = new Date(agora.getTime() + 24 * 3600 * 1000).toISOString();
+  const { data: teles } = await sb.from("teleconsultas").select("id, paciente_nome, inicio, paciente_na_espera_em, status")
+    .gte("inicio", new Date(agora.getTime() - 2 * 3600 * 1000).toISOString()).lte("inicio", fimDoDia)
+    .in("status", ["agendada", "confirmada", "em_andamento"]).order("inicio").limit(5);
+  const proximas = teles ?? [];
 
   return (
     <>
@@ -31,7 +37,23 @@ export default async function Inicio() {
       </div>
 
       <Link href="/novo" className="btn gravar">Novo registro</Link>
+      <Link href="/teleconsultas" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>Teleconsultas</Link>
       <Link href="/dia" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>PDF dos atendimentos do dia</Link>
+
+      {proximas.length > 0 && (
+        <>
+          <h2>Próximas teleconsultas</h2>
+          {proximas.map((t) => (
+            <Link key={t.id} href={`/teleconsultas/${t.id}`} className="card" style={{ display: "block", color: "inherit", textDecoration: "none" }}>
+              <div className="row">
+                <b>{t.paciente_nome}</b>
+                <span className="muted">{new Date(t.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}</span>
+              </div>
+              {t.paciente_na_espera_em && <div className="selo selo-alerta" style={{ marginTop: 8 }}>Paciente na sala de espera</div>}
+            </Link>
+          ))}
+        </>
+      )}
 
       <h2>Resultados</h2>
       <div className="grid">

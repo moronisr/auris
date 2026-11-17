@@ -1,13 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
-import { DOCUMENTOS, gerarPdfDocumento, textoInicial, type TipoDocumento } from "@/lib/documentos";
+import { DOCUMENTOS, gerarPdfDocumento, textoInicial, type ConteudoEntrega, type TipoDocumento } from "@/lib/documentos";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { linkWhatsApp, mascaraData, nascimentoIso, novoCodigo, sha256 } from "@/lib/teleconsulta";
 
 type Props = {
   dados: Record<string, string | number | null>;
+  registroId: string;
+  telefone: string;
   prof: { nome: string; especialidade: string; conselho: string };
 };
 
-export default function FormDocumentos({ dados, prof }: Props) {
+export default function FormDocumentos({ dados, prof, registroId, telefone }: Props) {
   const [tipo, setTipo] = useState<TipoDocumento>("resumo");
   const [textos, setTextos] = useState<Record<TipoDocumento, string>>(() => ({
     resumo: textoInicial("resumo", dados),
@@ -25,6 +29,14 @@ export default function FormDocumentos({ dados, prof }: Props) {
   const [erro, setErro] = useState("");
   const [pronto, setPronto] = useState("");
   const [gerando, setGerando] = useState(false);
+  const [envio, setEnvio] = useState<Record<TipoDocumento, boolean>>({ resumo: true, atestado: false, exames: false, encaminhamento: false });
+  const [nascEnvio, setNascEnvio] = useState(() => (/^\d{2}\/\d{2}\/\d{4}$/.test(String(dados.paciente_data_nascimento ?? "")) ? String(dados.paciente_data_nascimento) : ""));
+  const [telEnvio, setTelEnvio] = useState(telefone);
+  const [reviseiEnvio, setReviseiEnvio] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState("");
+  const [linkPaciente, setLinkPaciente] = useState("");
+  const [criandoLink, setCriandoLink] = useState(false);
+  const [copiadoLink, setCopiadoLink] = useState(false);
 
   useEffect(() => {
     try {
@@ -65,6 +77,35 @@ export default function FormDocumentos({ dados, prof }: Props) {
       setGerando(false);
     }
   }
+
+  async function criarLink() {
+    setErroEnvio(""); setLinkPaciente("");
+    const escolhidos = DOCUMENTOS.filter((x) => envio[x.id] && textos[x.id].trim());
+    if (!escolhidos.length) return setErroEnvio("Marque pelo menos um documento com texto.");
+    if (!paciente.trim()) return setErroEnvio("Informe o nome do paciente, no topo da tela.");
+    const nasc = nascEnvio ? nascimentoIso(nascEnvio) : null;
+    if (nascEnvio && !nasc) return setErroEnvio("Data de nascimento inválida. Use DD/MM/AAAA.");
+    if (!reviseiEnvio) return setErroEnvio("Marque que você revisou os documentos antes de enviar.");
+    setCriandoLink(true);
+    const codigo = novoCodigo();
+    const conteudo: ConteudoEntrega = {
+      paciente: paciente.trim(),
+      profissional: { nome: prof.nome, especialidade: prof.especialidade, registro, endereco },
+      cidade,
+      data: new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }),
+      documentos: escolhidos.map((x) => ({ tipo: x.id, nome: x.nome, titulo: x.titulo, texto: textos[x.id] })),
+    };
+    const { error } = await supabaseBrowser().from("entregas").insert({ registro_id: registroId, codigo_hash: await sha256(codigo), nascimento: nasc, conteudo });
+    setCriandoLink(false);
+    if (error) return setErroEnvio("Não foi possível criar o link: " + error.message);
+    setLinkPaciente(`${window.location.origin}/p/${codigo}`);
+  }
+
+  async function copiarLink() {
+    try { await navigator.clipboard.writeText(linkPaciente); setCopiadoLink(true); setTimeout(() => setCopiadoLink(false), 3000); } catch { /* sem permissão */ }
+  }
+
+  const mensagemPaciente = `Olá, ${paciente.trim().split(" ")[0]}. Aqui estão o resumo e os documentos da sua consulta com ${prof.nome}:\n${linkPaciente}${nascEnvio ? "\n\nPara abrir, informe a sua data de nascimento." : ""}`;
 
   return (
     <>
@@ -131,6 +172,46 @@ export default function FormDocumentos({ dados, prof }: Props) {
         <button type="button" onClick={gerar} disabled={gerando} style={{ marginTop: 12 }}>
           {gerando ? "Gerando" : `Gerar PDF: ${doc.nome}`}
         </button>
+      </div>
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Enviar ao paciente</h2>
+        <p className="muted" style={{ marginTop: 0 }}>O paciente recebe um link com os documentos marcados. Ele abre no celular, sem criar conta, e pode baixar em PDF. O link vale por 30 dias.</p>
+        <div className="selos" style={{ marginBottom: 12 }}>
+          {DOCUMENTOS.map((x) => (
+            <label key={x.id} className="marca-envio">
+              <input type="checkbox" checked={envio[x.id]} disabled={!textos[x.id].trim()} onChange={(e) => { setEnvio({ ...envio, [x.id]: e.target.checked }); setReviseiEnvio(false); }} />
+              <span>{x.nome}{!textos[x.id].trim() ? " (vazio)" : ""}</span>
+            </label>
+          ))}
+        </div>
+        <div className="grid">
+          <div>
+            <label htmlFor="env-nasc">Data de nascimento do paciente</label>
+            <input id="env-nasc" inputMode="numeric" placeholder="DD/MM/AAAA" value={nascEnvio} onChange={(e) => setNascEnvio(mascaraData(e.target.value))} />
+          </div>
+          <div>
+            <label htmlFor="env-tel">WhatsApp do paciente</label>
+            <input id="env-tel" inputMode="tel" value={telEnvio} onChange={(e) => setTelEnvio(e.target.value)} />
+          </div>
+        </div>
+        <p className="muted">Com a data de nascimento, só quem souber a data consegue abrir o link. Recomendado.</p>
+        <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 6 }}>
+          <input type="checkbox" checked={reviseiEnvio} onChange={(e) => setReviseiEnvio(e.target.checked)} style={{ width: 20, height: 20, marginTop: 2, flex: "0 0 20px" }} />
+          <span>Revisei os documentos marcados e autorizo o envio ao paciente.</span>
+        </label>
+        {erroEnvio && <div className="erro" role="alert" style={{ marginTop: 12 }}>{erroEnvio}</div>}
+        {!linkPaciente ? (
+          <button type="button" onClick={criarLink} disabled={criandoLink} style={{ marginTop: 12 }}>{criandoLink ? "Criando o link" : "Criar o link do paciente"}</button>
+        ) : (
+          <div className="ok" style={{ marginTop: 12 }}>
+            Link criado. Envie agora ao paciente.
+            <div className="acoes-ficha" style={{ marginTop: 10 }}>
+              <a className="btn" href={linkWhatsApp(telEnvio, mensagemPaciente)} target="_blank" rel="noreferrer">Enviar pelo WhatsApp</a>
+              <button type="button" className="btn-sec" onClick={copiarLink}>{copiadoLink ? "Link copiado" : "Copiar link"}</button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -40,7 +40,7 @@ a { color: var(--destaque); }
 .barra-inferior { display: none; }
 @media (max-width: 720px) {
   .topo-links { display: none; }
-  .barra-inferior { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: rgba(255, 255, 255, .96); backdrop-filter: blur(10px); border-top: 1px solid var(--linha); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .barra-inferior { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: rgba(255, 255, 255, .96); backdrop-filter: blur(10px); border-top: 1px solid var(--linha); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
   .barra-inferior a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; min-height: 52px; justify-content: center; font-size: 11.5px; font-weight: 600; color: var(--suave); text-decoration: none; border-radius: 10px; }
   .barra-inferior a.ativo { color: var(--destaque); }
   h1 { font-size: 23px; }
@@ -125,3 +125,54 @@ button.link:hover { background: none; color: var(--destaque-escuro); text-decora
 .abas-doc .aba-doc:hover { background: #F1F3EF; color: var(--tinta); }
 .abas-doc .aba-doc.ativa { background: var(--destaque-claro); color: var(--destaque-escuro); border-color: var(--destaque); }
 .acoes-ficha { display: flex; flex-wrap: wrap; gap: 8px; }
+
+
+/* Teleconsulta */
+.selos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.selo { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #EEF0EC; color: var(--suave); }
+.selo-ok { background: var(--ok-fundo); color: var(--ok-tinta); }
+.selo-alerta { background: var(--alerta-fundo); color: var(--alerta-tinta); }
+.ok-card { border-color: var(--ok-borda); }
+.marca-envio { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--linha); border-radius: 11px; font-size: 14px; font-weight: 500; color: var(--tinta); margin: 0; }
+.marca-envio input { width: 18px; height: 18px; }
+
+main.container:has(.sala-medico) { max-width: 1200px; }
+.sala-grade { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; margin-top: 16px; }
+@media (max-width: 900px) { .sala-grade { grid-template-columns: 1fr; } }
+.video-remoto { position: relative; background: #0B2E2C; border-radius: 18px; overflow: hidden; aspect-ratio: 16 / 10; }
+.video-remoto > video:first-child { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-remoto-celular { aspect-ratio: 3 / 4; }
+.video-teste { aspect-ratio: 4 / 3; margin-top: 4px; }
+.video-teste video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.video-vazio { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #CFE0DD; font-size: 15px; }
+.video-local { position: absolute; right: 12px; bottom: 12px; width: 28%; max-width: 200px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; border: 2px solid #0B2E2C; background: #1A4E4A; transform: scaleX(-1); }
+.video-tag { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 12.5px; font-weight: 500; }
+.ponto { width: 8px; height: 8px; border-radius: 50%; background: #9AA8A4; }
+.ponto-ativo { background: #7FE0B0; }
+.controles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.lista-check { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--suave); }
+.lista-check li { padding-left: 22px; position: relative; }
+.lista-check li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #B9C6C2; }
+.lista-check li.feito { color: var(--tinta); }
+.lista-check li.feito::before { background: var(--destaque); border-color: var(--destaque); }
+
+/* Páginas do paciente */
+.paciente { max-width: 480px; margin: 0 auto; }
+.paciente-topo { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.paciente-marca { font-weight: 600; font-size: 16px; color: var(--destaque); }
+.paciente-chamada .video-remoto { margin-top: 12px; }
+.passos { display: flex; gap: 6px; }
+.passo { flex: 1; height: 4px; border-radius: 2px; background: #DADFDA; }
+.passo.feito { background: var(--destaque); }
+.termo { white-space: pre-wrap; font-size: 14px; line-height: 1.6; max-height: 300px; overflow: auto; padding: 14px; border: 1px solid var(--linha); border-radius: 12px; background: #FCFCFA; }
+.aceite { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 12px; border-radius: 11px; background: var(--destaque-claro); font-size: 14px; font-weight: 500; color: var(--tinta); }
+.aceite input { width: 20px; height: 20px; margin-top: 1px; flex: none; accent-color: var(--destaque); }
+.qr { display: block; width: 220px; height: 220px; margin: 6px auto 14px; border-radius: 12px; border: 1px solid var(--linha); }
+.rotulo { display: block; font-size: 12.5px; font-weight: 600; color: var(--suave); margin-bottom: 6px; }
+.opcoes { display: flex; gap: 10px; margin-bottom: 10px; }
+.opcoes .opcao { flex: 1; background: var(--superficie); color: var(--tinta); border: 1px solid #D9DDD8; }
+.opcoes .opcao:hover { background: #F1F3EF; color: var(--tinta); }
+.opcoes .opcao.ativa { background: var(--destaque-claro); color: var(--destaque-escuro); border-color: var(--destaque); }
+.doc-titulo { width: 100%; justify-content: space-between; background: none; color: var(--tinta); padding: 0; min-height: 44px; font-size: 16px; }
+.doc-titulo:hover { background: none; color: var(--tinta); }
+.doc-texto { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--linha); }

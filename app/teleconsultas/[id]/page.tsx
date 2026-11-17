@@ -1,0 +1,236 @@
+"use client";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { AREAS_ATENDIMENTO, modeloDaArea } from "@/lib/modelos";
+import { reais } from "@/lib/pix";
+import { abrirCameraMicrofone, useSala } from "@/lib/sala";
+import { dataHora, horaDe, type Teleconsulta } from "@/lib/teleconsulta";
+
+const LIMITE_S = 20 * 60;
+
+function formatoAudio(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  return ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported?.(t));
+}
+
+export default function SalaMedico({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [t, setT] = useState<Teleconsulta | null>(null);
+  const [area, setArea] = useState("Clínica médica");
+  const [local, setLocal] = useState<MediaStream | null>(null);
+  const [ativo, setAtivo] = useState(false);
+  const [erro, setErro] = useState("");
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
+  const [segundos, setSegundos] = useState(0);
+  const [gravando, setGravando] = useState(false);
+  const [etapa, setEtapa] = useState<"sala" | "processando" | "falhou">("sala");
+  const videoRemoto = useRef<HTMLVideoElement>(null);
+  const videoLocal = useRef<HTMLVideoElement>(null);
+  const audioCtx = useRef<AudioContext | null>(null);
+  const destino = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const remotoLigado = useRef<MediaStream | null>(null);
+  const gravador = useRef<MediaRecorder | null>(null);
+  const partes = useRef<Blob[]>([]);
+  const audioFinal = useRef<Blob | null>(null);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { remoto, estado, encerrar } = useSala(t?.codigo ?? "", "medico", local, ativo && !!t);
+
+  const carregar = useCallback(async () => {
+    const { data } = await supabaseBrowser().from("teleconsultas").select("*").eq("id", id).maybeSingle();
+    if (data) setT(data as Teleconsulta);
+  }, [id]);
+
+  useEffect(() => {
+    carregar();
+    const p = setInterval(carregar, 5000);
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      const { data } = await sb.from("profissionais").select("profissao, especialidade").eq("id", user.id).maybeSingle();
+      const a = data?.profissao === "Médico(a)" ? data?.especialidade : data?.profissao;
+      if (a && AREAS_ATENDIMENTO.some((g) => g.itens.includes(a))) setArea(a);
+    })();
+    return () => clearInterval(p);
+  }, [carregar]);
+
+  useEffect(() => { if (videoLocal.current) videoLocal.current.srcObject = local; }, [local]);
+  useEffect(() => {
+    if (videoRemoto.current) videoRemoto.current.srcObject = remoto;
+    // Junta a voz do paciente na gravação usada para montar a ficha.
+    if (remoto && audioCtx.current && destino.current && remotoLigado.current !== remoto && remoto.getAudioTracks().length) {
+      audioCtx.current.createMediaStreamSource(remoto).connect(destino.current);
+      remotoLigado.current = remoto;
+    }
+  }, [remoto]);
+
+  useEffect(() => () => {
+    if (timer.current) clearInterval(timer.current);
+    local?.getTracks().forEach((tr) => tr.stop());
+    audioCtx.current?.close();
+  }, [local]);
+
+  function iniciarGravacao(stream: MediaStream) {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
+    const dest = ctx.createMediaStreamDestination();
+    ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(dest);
+    audioCtx.current = ctx;
+    destino.current = dest;
+    const tipo = formatoAudio();
+    let mr: MediaRecorder;
+    try { mr = new MediaRecorder(dest.stream, { ...(tipo ? { mimeType: tipo } : {}), audioBitsPerSecond: 24000 }); }
+    catch { mr = new MediaRecorder(dest.stream); }
+    partes.current = [];
+    mr.ondataavailable = (e) => e.data.size && partes.current.push(e.data);
+    mr.onstop = () => { audioFinal.current = new Blob(partes.current, { type: mr.mimeType || "audio/webm" }); };
+    mr.start(1000);
+    gravador.current = mr;
+    setGravando(true);
+    setSegundos(0);
+    timer.current = setInterval(() => setSegundos((s) => {
+      if (s + 1 >= LIMITE_S && gravador.current?.state === "recording") { gravador.current.stop(); setGravando(false); }
+      return s + 1;
+    }), 1000);
+  }
+
+  async function entrar() {
+    setErro("");
+    const r = await abrirCameraMicrofone();
+    if (!r.stream) return setErro(r.erro ?? "Não consegui abrir a câmera.");
+    setLocal(r.stream);
+    setAtivo(true);
+    iniciarGravacao(r.stream);
+    await supabaseBrowser().from("teleconsultas").update({ status: "em_andamento", iniciada_em: new Date().toISOString() }).eq("id", id);
+    carregar();
+  }
+
+  const alternarMic = () => { local?.getAudioTracks().forEach((tr) => (tr.enabled = !micOn)); setMicOn(!micOn); };
+  const alternarCam = () => { local?.getVideoTracks().forEach((tr) => (tr.enabled = !camOn)); setCamOn(!camOn); };
+
+  async function pararTudo() {
+    if (timer.current) clearInterval(timer.current);
+    if (gravador.current?.state === "recording") {
+      await new Promise<void>((ok) => { gravador.current!.addEventListener("stop", () => setTimeout(ok, 50), { once: true }); gravador.current!.stop(); });
+    }
+    setGravando(false);
+    encerrar();
+    local?.getTracks().forEach((tr) => tr.stop());
+    setLocal(null);
+    setAtivo(false);
+    await supabaseBrowser().from("teleconsultas").update({ status: "encerrada", encerrada_em: new Date().toISOString() }).eq("id", id);
+  }
+
+  async function enviarAudio() {
+    const audio = audioFinal.current;
+    if (!audio || audio.size < 2000) { setEtapa("falhou"); return setErro("A gravação ficou vazia. Use Gravar, no menu, para ditar o atendimento."); }
+    if (audio.size > 4.4 * 1024 * 1024) { setEtapa("falhou"); return setErro("A gravação ficou grande demais para envio. Use Gravar, no menu, para ditar o atendimento."); }
+    setEtapa("processando");
+    setErro("");
+    const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
+    const fd = new FormData();
+    fd.append("audio", audio, `teleconsulta.${ext}`);
+    fd.append("area", area);
+    fd.append("modelo", modeloDaArea(area));
+    fd.append("modo", "consulta");
+    fd.append("consentimento", "sim");
+    try {
+      const r = await fetch("/api/processar", { method: "POST", body: fd });
+      const data = await r.json().catch(() => ({ erro: `Falha de conexão com o servidor (código ${r.status}).` }));
+      if (!r.ok) throw new Error(data.erro || "Falha ao processar.");
+      try { sessionStorage.setItem("auris_tele_resultado", JSON.stringify({ tele: id, area, res: data })); } catch { /* armazenamento indisponível */ }
+      router.push(`/novo?tele=${id}`);
+    } catch (e) {
+      setEtapa("falhou");
+      setErro((e instanceof Error ? e.message : "") || "Falha ao processar.");
+    }
+  }
+
+  async function encerrarComFicha() { await pararTudo(); await enviarAudio(); }
+  async function encerrarSemFicha() { await pararTudo(); router.push("/teleconsultas"); }
+
+  if (!t) return <p className="muted">Carregando a teleconsulta.</p>;
+
+  const pagamentoPendente = t.pagamento_status === "pendente" || t.pagamento_status === "informado";
+  const tempo = `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
+  const textoEstado = estado === "conectado" ? "Paciente conectado" : estado === "conectando" ? "Conectando ao paciente" : estado === "instavel" ? "Conexão instável, tentando de novo" : t.paciente_na_espera_em ? "Paciente na sala de espera" : "Aguardando o paciente entrar";
+
+  return (
+    <div className="sala-medico">
+      <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <h1 style={{ marginBottom: 2 }}>{t.paciente_nome}</h1>
+          <p className="muted" style={{ margin: 0 }}>Teleconsulta, {dataHora(t.inicio)}</p>
+        </div>
+        <a className="btn btn-sec" href="/teleconsultas">Voltar à agenda</a>
+      </div>
+
+      {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
+
+      {etapa === "processando" && <div className="card" style={{ marginTop: 14 }}>Consulta encerrada. Transcrevendo a conversa e montando a ficha, isso leva alguns segundos.</div>}
+      {etapa === "falhou" && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <p style={{ marginTop: 0 }}>A consulta foi encerrada, mas a ficha não foi montada.</p>
+          <div className="acoes-ficha">
+            {audioFinal.current && audioFinal.current.size > 2000 && <button type="button" onClick={enviarAudio}>Tentar montar a ficha de novo</button>}
+            <a className="btn btn-sec" href="/novo">Ditar o atendimento</a>
+          </div>
+        </div>
+      )}
+
+      {etapa === "sala" && (
+        <div className="sala-grade">
+          <section className="sala-video-col">
+            <div className="video-remoto">
+              <video ref={videoRemoto} autoPlay playsInline />
+              {!remoto && <div className="video-vazio">{ativo ? textoEstado : "Entre na sala para iniciar a chamada"}</div>}
+              {local && <video ref={videoLocal} className="video-local" autoPlay playsInline muted />}
+              {ativo && <span className="video-tag"><span className={gravando ? "ponto ponto-ativo" : "ponto"} aria-hidden="true" />{gravando ? `Registro por voz ativo, ${tempo}` : "Registro por voz pausado"}</span>}
+            </div>
+            {!ativo ? (
+              <button type="button" className="gravar" onClick={entrar} style={{ marginTop: 12 }}>Entrar na sala</button>
+            ) : (
+              <div className="controles">
+                <button type="button" className="btn-sec" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
+                <button type="button" className="btn-sec" onClick={alternarCam} aria-pressed={!camOn}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
+                <button type="button" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
+                <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
+              </div>
+            )}
+            {ativo && segundos >= LIMITE_S && <p className="muted">O registro por voz cobre os primeiros 20 minutos. O restante você pode completar na revisão da ficha.</p>}
+            <p className="muted">A chamada não é gravada em vídeo. Ao encerrar, a conversa é transcrita e vira a ficha para a sua revisão.</p>
+          </section>
+
+          <aside className="sala-lado">
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>Antes da consulta</h2>
+              <ul className="lista-check">
+                <li className={t.consentimento_em ? "feito" : ""}>{t.consentimento_em ? `Termo aceito às ${horaDe(t.consentimento_em)}` : "Termo ainda não aceito"}</li>
+                {t.pagamento_status !== "isento" && (
+                  <li className={t.pagamento_status === "confirmado" ? "feito" : ""}>
+                    {t.pagamento_status === "confirmado" ? `Pagamento confirmado${t.valor ? `, ${reais(Number(t.valor))}` : ""}` : t.pagamento_status === "informado" ? "Paciente informou o pagamento; confira no banco" : "Pagamento pendente"}
+                  </li>
+                )}
+                <li className={t.preconsulta ? "feito" : ""}>{t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta não respondida"}</li>
+                <li className={t.paciente_na_espera_em ? "feito" : ""}>{t.paciente_na_espera_em ? "Paciente chegou à sala de espera" : "Paciente ainda não entrou"}</li>
+              </ul>
+              {pagamentoPendente && t.valor ? <p className="muted" style={{ marginBottom: 0 }}>Você pode iniciar mesmo sem a confirmação do pagamento.</p> : null}
+            </div>
+            {t.preconsulta && (
+              <div className="card">
+                <h2 style={{ marginTop: 0 }}>Respostas do paciente</h2>
+                {t.preconsulta.motivo && <p><b>Motivo:</b> {t.preconsulta.motivo}</p>}
+                {t.preconsulta.medicamentos && <p><b>Remédios de uso diário:</b> {t.preconsulta.medicamentos}</p>}
+                {t.preconsulta.alergias && <p style={{ marginBottom: 0 }}><b>Alergia a medicamento:</b> {t.preconsulta.alergias}</p>}
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}

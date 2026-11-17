@@ -5,6 +5,14 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
  * Nenhum texto é criado por IA aqui: os modelos usam somente o que está na ficha
  * e o profissional revisa e edita tudo antes de gerar o PDF.
  */
+export type ConteudoEntrega = {
+  paciente: string;
+  profissional: { nome: string; especialidade: string; registro: string; endereco: string };
+  cidade: string;
+  data: string;
+  documentos: { tipo: string; nome: string; titulo: string; texto: string }[];
+};
+
 export type TipoDocumento = "atestado" | "exames" | "encaminhamento" | "resumo";
 export type Dados = Record<string, string | number | null | undefined>;
 

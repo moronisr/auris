@@ -37,6 +37,24 @@ export default function Novo() {
   const gravador = useRef<MediaRecorder | null>(null);
   const partes = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [tele, setTele] = useState<string | null>(null);
+
+  // Ficha vinda de uma teleconsulta encerrada: abre direto na revisão.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("tele");
+    if (!id) return;
+    try {
+      const s = JSON.parse(sessionStorage.getItem("auris_tele_resultado") || "null");
+      if (s?.tele === id && s.res?.ficha) {
+        setTele(id);
+        setModo("consulta");
+        setModelo(s.res.modelo);
+        setRes(s.res as Resultado);
+        setFicha(s.res.ficha);
+        setEtapa("revisar");
+      }
+    } catch { /* sem armazenamento: o profissional dita o atendimento */ }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -175,6 +193,10 @@ export default function Novo() {
       setEtapa("revisar");
       return;
     }
+    if (tele) {
+      await supabaseBrowser().from("teleconsultas").update({ registro_id: data.id }).eq("id", tele);
+      try { sessionStorage.removeItem("auris_tele_resultado"); } catch { /* opcional */ }
+    }
     router.push(`/registro/${data.id}`);
   }
 
@@ -200,7 +222,7 @@ export default function Novo() {
   return (
     <>
       <div className="row">
-        <h1>Novo registro</h1>
+        <h1>{tele ? "Ficha da teleconsulta" : "Novo registro"}</h1>
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
 

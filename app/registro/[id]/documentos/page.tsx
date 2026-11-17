@@ -12,6 +12,8 @@ export default async function PaginaDocumentos({ params }: { params: Promise<{ i
   if (!r) notFound();
   const { data: prof } = await sb.from("profissionais").select("nome, profissao, especialidade, conselho").eq("id", user!.id).maybeSingle();
   const dados = (r.dados ?? {}) as Record<string, string | number | null>;
+  const { data: tele } = await sb.from("teleconsultas").select("paciente_telefone").eq("registro_id", id).maybeSingle();
+  const telefone = String(dados.paciente_telefone ?? tele?.paciente_telefone ?? "");
   return (
     <>
       <div className="row">
@@ -23,6 +25,8 @@ export default async function PaginaDocumentos({ params }: { params: Promise<{ i
       </p>
       <FormDocumentos
         dados={dados}
+        registroId={id}
+        telefone={telefone}
         prof={{ nome: prof?.nome ?? "", especialidade: prof?.especialidade ?? "", conselho: prof?.conselho ?? "" }}
       />
     </>

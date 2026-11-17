@@ -1,0 +1,201 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { reais } from "@/lib/pix";
+import {
+  dataCurta, linkWhatsApp, mensagemConvite, mensagemLembrete, novoCodigo, type Teleconsulta,
+} from "@/lib/teleconsulta";
+
+type Prof = { nome: string; pix_chave: string | null };
+
+function Selo({ ok, texto, alerta }: { ok: boolean; texto: string; alerta?: boolean }) {
+  return <span className={ok ? "selo selo-ok" : alerta ? "selo selo-alerta" : "selo"}>{texto}</span>;
+}
+
+export default function Teleconsultas() {
+  const [lista, setLista] = useState<Teleconsulta[]>([]);
+  const [prof, setProf] = useState<Prof | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [form, setForm] = useState({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "" });
+  const [erro, setErro] = useState("");
+  const [criada, setCriada] = useState<Teleconsulta | null>(null);
+  const [copiado, setCopiado] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [origem, setOrigem] = useState("");
+
+  const carregar = useCallback(async () => {
+    const sb = supabaseBrowser();
+    const desde = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+    const { data } = await sb.from("teleconsultas").select("*").gte("inicio", desde).neq("status", "cancelada").order("inicio");
+    setLista((data as Teleconsulta[]) ?? []);
+    setCarregando(false);
+  }, []);
+
+  useEffect(() => {
+    setOrigem(window.location.origin);
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      const { data } = await sb.from("profissionais").select("nome, pix_chave").eq("id", user.id).maybeSingle();
+      setProf((data as Prof) ?? { nome: "", pix_chave: null });
+    })();
+    carregar();
+    const t = setInterval(carregar, 10000);
+    return () => clearInterval(t);
+  }, [carregar]);
+
+  const link = (t: Teleconsulta) => `${origem}/t/${t.codigo}`;
+  const nomeProf = prof?.nome || "o profissional";
+
+  async function criar(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(""); setCriada(null);
+    if (!form.nome.trim()) return setErro("Informe o nome do paciente.");
+    if (!form.data || !form.hora) return setErro("Informe a data e a hora da consulta.");
+    const inicio = new Date(`${form.data}T${form.hora}:00-03:00`);
+    if (isNaN(inicio.getTime())) return setErro("Data ou hora inválida.");
+    const valor = form.valor.trim() ? Number(form.valor.replace(/\./g, "").replace(",", ".")) : null;
+    if (valor !== null && (isNaN(valor) || valor < 0)) return setErro("Valor inválido. Use o formato 150,00.");
+    if (valor && !prof?.pix_chave) return setErro("Para cobrar antes da consulta, cadastre a sua chave Pix em Perfil.");
+    setSalvando(true);
+    const { data, error } = await supabaseBrowser().from("teleconsultas").insert({
+      paciente_nome: form.nome.trim(),
+      paciente_telefone: form.telefone.replace(/\D/g, "") || null,
+      inicio: inicio.toISOString(),
+      duracao_min: Number(form.duracao) || 30,
+      valor: valor || null,
+      pagamento_status: valor ? "pendente" : "isento",
+      codigo: novoCodigo(),
+    }).select("*").single();
+    setSalvando(false);
+    if (error) return setErro("Não foi possível agendar: " + error.message);
+    setCriada(data as Teleconsulta);
+    setForm({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "" });
+    carregar();
+  }
+
+  async function copiar(t: Teleconsulta) {
+    try { await navigator.clipboard.writeText(link(t)); setCopiado(t.id); setTimeout(() => setCopiado(""), 3000); } catch { /* sem permissão */ }
+  }
+  async function confirmarPagamento(t: Teleconsulta) {
+    await supabaseBrowser().from("teleconsultas").update({ pagamento_status: "confirmado", pagamento_confirmado_em: new Date().toISOString() }).eq("id", t.id);
+    carregar();
+  }
+  async function cancelar(t: Teleconsulta) {
+    await supabaseBrowser().from("teleconsultas").update({ status: "cancelada" }).eq("id", t.id);
+    carregar();
+  }
+
+  const proximas = lista.filter((t) => t.status !== "encerrada");
+  const encerradas = lista.filter((t) => t.status === "encerrada");
+
+  return (
+    <>
+      <div className="row">
+        <h1>Teleconsultas</h1>
+        <a className="btn btn-sec" href="/">Voltar</a>
+      </div>
+
+      {prof && !prof.pix_chave && (
+        <div className="aviso">Para cobrar a consulta antes da chamada, cadastre a sua chave Pix em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
+      )}
+
+      <form className="card" onSubmit={criar}>
+        <h2 style={{ marginTop: 0 }}>Agendar teleconsulta</h2>
+        <div className="grid">
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="tc-nome">Nome do paciente</label>
+            <input id="tc-nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="tc-tel">WhatsApp do paciente</label>
+            <input id="tc-tel" inputMode="tel" placeholder="(91) 99999-9999" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="tc-data">Data</label>
+            <input id="tc-data" type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="tc-hora">Hora</label>
+            <input id="tc-hora" type="time" value={form.hora} onChange={(e) => setForm({ ...form, hora: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="tc-dur">Duração</label>
+            <select id="tc-dur" value={form.duracao} onChange={(e) => setForm({ ...form, duracao: e.target.value })}>
+              {["20", "30", "40", "60"].map((m) => <option key={m} value={m}>{m} minutos</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="tc-valor">Valor (vazio = sem cobrança)</label>
+            <input id="tc-valor" inputMode="decimal" placeholder="150,00" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+          </div>
+        </div>
+        {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
+        <button type="submit" disabled={salvando} style={{ width: "100%", marginTop: 14 }}>{salvando ? "Agendando" : "Agendar e gerar o link do paciente"}</button>
+      </form>
+
+      {criada && (
+        <div className="card ok-card">
+          <b>Teleconsulta agendada para {dataCurta(criada.inicio)}.</b>
+          <p className="muted" style={{ margin: "6px 0 12px" }}>Envie o convite ao paciente. Pelo link, ele aceita o termo, paga (se houver valor), responde a pré-consulta e entra na sala.</p>
+          <div className="acoes-ficha">
+            <a className="btn" href={linkWhatsApp(criada.paciente_telefone, mensagemConvite(criada, nomeProf, link(criada)))} target="_blank" rel="noreferrer">Enviar convite pelo WhatsApp</a>
+            <button type="button" className="btn-sec" onClick={() => copiar(criada)}>{copiado === criada.id ? "Link copiado" : "Copiar link"}</button>
+          </div>
+        </div>
+      )}
+
+      <h2>Próximas</h2>
+      {carregando && <p className="muted">Carregando.</p>}
+      {!carregando && proximas.length === 0 && <p className="muted">Nenhuma teleconsulta agendada.</p>}
+      {proximas.map((t) => (
+        <div className="card" key={t.id}>
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <div>
+              <b>{t.paciente_nome}</b>
+              <div className="muted">{dataCurta(t.inicio)}, {t.duracao_min} min{t.valor ? `, ${reais(Number(t.valor))}` : ""}</div>
+            </div>
+            {t.paciente_na_espera_em && t.status !== "em_andamento" && <span className="selo selo-alerta">Na sala de espera</span>}
+            {t.status === "em_andamento" && <span className="selo selo-ok">Em andamento</span>}
+          </div>
+          <div className="selos">
+            <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
+            {t.pagamento_status !== "isento" && (
+              <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}
+                texto={t.pagamento_status === "confirmado" ? "Pagamento confirmado" : t.pagamento_status === "informado" ? "Paciente informou o pagamento" : "Pagamento pendente"} />
+            )}
+            <Selo ok={!!t.preconsulta} texto={t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta pendente"} />
+          </div>
+          {t.pagamento_status === "informado" && (
+            <div className="aviso" style={{ marginTop: 10 }}>
+              Confira no aplicativo do seu banco se o Pix de {t.valor ? reais(Number(t.valor)) : ""} entrou, e confirme aqui.
+              <div style={{ marginTop: 8 }}><button type="button" onClick={() => confirmarPagamento(t)}>Confirmar pagamento recebido</button></div>
+            </div>
+          )}
+          <div className="acoes-ficha" style={{ marginTop: 12 }}>
+            <Link className="btn" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
+            <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete</a>
+            <button type="button" className="btn-sec" onClick={() => copiar(t)}>{copiado === t.id ? "Link copiado" : "Copiar link"}</button>
+            <button type="button" className="link" onClick={() => cancelar(t)}>Cancelar</button>
+          </div>
+        </div>
+      ))}
+
+      {encerradas.length > 0 && (
+        <>
+          <h2>Encerradas hoje</h2>
+          {encerradas.map((t) => (
+            <div className="card" key={t.id}>
+              <div className="row">
+                <div><b>{t.paciente_nome}</b><div className="muted">{dataCurta(t.inicio)}</div></div>
+                {t.registro_id ? <Link className="btn btn-sec" href={`/registro/${t.registro_id}`}>Ver ficha</Link> : <span className="muted">Ficha não salva</span>}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+}

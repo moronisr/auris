@@ -15,7 +15,7 @@ export const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 /** Corpo de uma ficha (usado no PDF individual e no PDF do dia). */
-export default function FichaConteudo({ r, prof, assinatura = true }: { r: Registro; prof: Profissional; assinatura?: boolean }) {
+export default function FichaConteudo({ r, prof, assinatura = true, modalidade }: { r: Registro; prof: Profissional; assinatura?: boolean; modalidade?: string }) {
   const dados: Ficha = r.dados && Object.keys(r.dados).length ? r.dados : (r as unknown as Ficha);
   const modelo = MODELOS[r.modelo] ?? MODELOS.geral;
   const campos = camposDoModelo(modelo.id).filter((c) => valorCampo(c.chave, dados[c.chave]) !== "");
@@ -32,6 +32,12 @@ export default function FichaConteudo({ r, prof, assinatura = true }: { r: Regis
           {new Date(r.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}
         </div>
       </header>
+      {modalidade && (
+        <section className="ficha-sec">
+          <h2>Modalidade</h2>
+          <div style={{ fontSize: 14 }}>{modalidade}</div>
+        </section>
+      )}
       {grupos.map((g) => (
         <section key={g} className="ficha-sec">
           <h2>{g}</h2>

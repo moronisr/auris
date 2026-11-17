@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
+import { TIPOS_CHAVE, normalizarChave, type TipoChave } from "@/lib/pix";
 
 export default function Perfil() {
   const router = useRouter();
@@ -11,6 +12,10 @@ export default function Perfil() {
   const [especialidade, setEspecialidade] = useState("Clínica médica");
   const [conselho, setConselho] = useState("");
   const [preferencias, setPreferencias] = useState("");
+  const [pixTipo, setPixTipo] = useState<TipoChave>("cpf_cnpj");
+  const [pixChave, setPixChave] = useState("");
+  const [pixNome, setPixNome] = useState("");
+  const [pixCidade, setPixCidade] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [id, setId] = useState<string | null>(null);
 
@@ -27,6 +32,10 @@ export default function Perfil() {
         setEspecialidade(data.especialidade ?? "");
         setConselho(data.conselho ?? "");
         setPreferencias(data.preferencias ?? "");
+        setPixTipo((data.pix_tipo as TipoChave) ?? "cpf_cnpj");
+        setPixChave(data.pix_chave ?? "");
+        setPixNome(data.pix_nome ?? "");
+        setPixCidade(data.pix_cidade ?? "");
       }
     })();
   }, []);
@@ -34,7 +43,16 @@ export default function Perfil() {
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     if (!id) return;
-    const { error } = await supabaseBrowser().from("profissionais").upsert({ id, nome, profissao, especialidade, conselho, preferencias });
+    let chave: string | null = null;
+    if (pixChave.trim()) {
+      chave = normalizarChave(pixTipo, pixChave);
+      if (!chave) return setMsg({ tipo: "erro", texto: "A chave Pix não está no formato certo para o tipo escolhido." });
+      if (!pixNome.trim() || !pixCidade.trim()) return setMsg({ tipo: "erro", texto: "Para receber por Pix, informe o nome do titular da conta e a cidade." });
+    }
+    const { error } = await supabaseBrowser().from("profissionais").upsert({
+      id, nome, profissao, especialidade, conselho, preferencias,
+      pix_tipo: chave ? pixTipo : null, pix_chave: chave, pix_nome: chave ? pixNome.trim() : null, pix_cidade: chave ? pixCidade.trim() : null,
+    });
     setMsg(error ? { tipo: "erro", texto: "Não foi possível salvar: " + error.message } : { tipo: "ok", texto: "Perfil salvo." });
     if (!error) setTimeout(() => { router.push("/"); router.refresh(); }, 800);
   }
@@ -74,6 +92,29 @@ export default function Perfil() {
         <label>Preferências de escrita (opcional)</label>
         <textarea rows={3} placeholder="Ex.: usar abreviações HAS e DM; escrever conduta em tópicos; não usar termos em inglês." value={preferencias} onChange={(e) => setPreferencias(e.target.value)} />
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
+        <h2>Recebimento das teleconsultas</h2>
+        <p className="muted" style={{ marginTop: -4 }}>O paciente paga por Pix antes da consulta e o valor vai direto para esta conta. O Auris não recebe nem guarda dinheiro.</p>
+        <div className="grid">
+          <div>
+            <label htmlFor="pix-tipo">Tipo de chave Pix</label>
+            <select id="pix-tipo" value={pixTipo} onChange={(e) => setPixTipo(e.target.value as TipoChave)}>
+              {TIPOS_CHAVE.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="pix-chave">Chave Pix</label>
+            <input id="pix-chave" value={pixChave} onChange={(e) => setPixChave(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="pix-nome">Nome do titular da conta</label>
+            <input id="pix-nome" value={pixNome} onChange={(e) => setPixNome(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="pix-cidade">Cidade da conta</label>
+            <input id="pix-cidade" value={pixCidade} onChange={(e) => setPixCidade(e.target.value)} />
+          </div>
+        </div>
+        <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
         <button type="submit" style={{ width: "100%" }}>Salvar perfil</button>
       </form>
