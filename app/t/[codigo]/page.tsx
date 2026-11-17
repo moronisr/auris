@@ -153,7 +153,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
       <p className="muted" style={{ marginBottom: 2 }}>Olá, {info.paciente}</p>
       <h1>Sua consulta com {info.profissional}</h1>
       <div className="card">
-        <b style={{ textTransform: "capitalize" }}>{dataHora(info.inicio)}</b>
+        <b>{(() => { const d = dataHora(info.inicio); return d.charAt(0).toUpperCase() + d.slice(1); })()}</b>
         <div className="muted">{[info.especialidade, info.conselho].filter(Boolean).join(", ")}{temValor ? `. Valor: ${reais(Number(info.valor))}` : ""}</div>
       </div>
 
