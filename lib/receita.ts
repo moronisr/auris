@@ -69,7 +69,7 @@ export async function gerarPdfReceita(d: DadosReceita): Promise<Uint8Array> {
   };
 
   escrever(d.profissional, { fonte: negrito, tam: 16 });
-  escrever([d.especialidade, d.registro].filter(Boolean).join(" · "), { cor: cinza, tam: 10.5 });
+  escrever([d.especialidade, d.registro].filter(Boolean).join(", "), { cor: cinza, tam: 10.5 });
   if (d.enderecoConsultorio) escrever(d.enderecoConsultorio, { cor: cinza, tam: 10.5 });
   y -= 6;
   pag.drawLine({ start: { x: M, y }, end: { x: M + L, y }, thickness: 1, color: verde });

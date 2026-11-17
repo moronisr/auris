@@ -233,7 +233,7 @@ export default function Novo() {
             ))}
           </select>
           <div style={{ height: 10 }} />
-          <label>Formato da ficha (quais campos aparecem — escolhido pela especialidade, mas você pode trocar)</label>
+          <label>Formato da ficha (define quais campos aparecem; já vem escolhido pela especialidade, e você pode trocar)</label>
           <select value={modelo} onChange={(e) => setModelo(e.target.value)} disabled={etapa === "gravando"}>
             {Object.values(MODELOS).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>
@@ -246,13 +246,13 @@ export default function Novo() {
         </div>
       )}
 
-      {etapa === "processando" && <div className="card">Transcrevendo e organizando o registro...</div>}
+      {etapa === "processando" && <div className="card">Transcrevendo e organizando o registro. Isso leva alguns segundos.</div>}
 
       {(etapa === "revisar" || etapa === "salvando") && ficha && (
         <>
           {avisos.map((a) => <div className="aviso" key={a}>{a}</div>)}
           <div className="card">
-            <div className="muted">{MODELOS[res?.modelo ?? modelo]?.nome} · revise antes de aprovar</div>
+            <div className="muted">{MODELOS[res?.modelo ?? modelo]?.nome}. Revise antes de aprovar.</div>
             {grupos.map((g) => (
               <div key={g}>
                 <div className="olho">{g}</div>

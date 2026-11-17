@@ -16,7 +16,7 @@ export default async function PaginaReceita({ params }: { params: Promise<{ id: 
   return (
     <>
       <div className="row">
-        <a className="btn btn-sec" href={`/registro/${id}`}>← Voltar à ficha</a>
+        <a className="btn btn-sec" href={`/registro/${id}`}>Voltar à ficha</a>
       </div>
       <h1>Receita</h1>
       <FormReceita

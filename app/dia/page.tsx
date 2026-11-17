@@ -31,7 +31,7 @@ export default async function PdfDoDia({ searchParams }: { searchParams: Promise
   return (
     <>
       <div className="row nao-imprimir" style={{ flexWrap: "wrap", gap: 8 }}>
-        <a className="btn btn-sec" href="/">← Início</a>
+        <a className="btn btn-sec" href="/">Voltar ao início</a>
         <SeletorData data={data} />
         <BotaoPdf />
       </div>
@@ -44,20 +44,20 @@ export default async function PdfDoDia({ searchParams }: { searchParams: Promise
             <div style={{ textTransform: "capitalize" }}>{dataExtenso}</div>
           </div>
           <div className="muted" style={{ textAlign: "right" }}>
-            {prof?.nome}<br />{[prof?.especialidade, prof?.conselho].filter(Boolean).join(" · ")}
+            {prof?.nome}<br />{[prof?.especialidade, prof?.conselho].filter(Boolean).join(", ")}
           </div>
         </header>
         <section className="ficha-sec">
-          <h2>Sumário — {registros.length} atendimento{registros.length === 1 ? "" : "s"}</h2>
+          <h2>Sumário: {registros.length} atendimento{registros.length === 1 ? "" : "s"}</h2>
           {registros.length === 0 && <p className="muted">Nenhum atendimento registrado nesta data.</p>}
           {registros.map((r, i) => (
             <div key={r.id} className="ficha-linha">
               <span className="ficha-rot">{i + 1}. {hora(r.created_at)}</span>
-              <span className="ficha-val">{String(r.paciente_nome ?? "Paciente")} — {MODELOS[r.modelo]?.nome ?? r.modelo}</span>
+              <span className="ficha-val">{String(r.paciente_nome ?? "Paciente")}, {MODELOS[r.modelo]?.nome ?? r.modelo}</span>
             </div>
           ))}
         </section>
-        <div className="ficha-rodape">Gerado em {geradoEm} · Documento confidencial — contém dados de saúde de vários pacientes.</div>
+        <div className="ficha-rodape">Gerado em {geradoEm}. Documento confidencial: contém dados de saúde de vários pacientes.</div>
       </article>
 
       {registros.map((r, i) => (

@@ -1,4 +1,4 @@
-/* ===== Direção A — Clínica serena ===== */
+/* ===== Direção A: clínica serena ===== */
 :root {
   --fundo: #F7F7F4;
   --superficie: #FFFFFF;
@@ -116,4 +116,12 @@ button.link:hover { background: none; color: var(--destaque-escuro); text-decora
 
 .atalho-receita { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; text-decoration: none; color: var(--tinta); border-color: var(--destaque); background: var(--destaque-claro); }
 .atalho-receita b { color: var(--destaque); }
-.atalho-seta { font-size: 20px; color: var(--destaque); }
+.atalho-seta { display: inline-flex; color: var(--destaque); flex: none; }
+.atalho-doc { background: var(--superficie); border-color: var(--linha); }
+.atalho-doc b { color: var(--tinta); }
+
+.abas-doc { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.abas-doc .aba-doc { background: var(--superficie); color: var(--suave); border: 1px solid var(--linha); min-height: 44px; padding: 8px 14px; border-radius: 11px; font-size: 14px; font-weight: 600; }
+.abas-doc .aba-doc:hover { background: #F1F3EF; color: var(--tinta); }
+.abas-doc .aba-doc.ativa { background: var(--destaque-claro); color: var(--destaque-escuro); border-color: var(--destaque); }
+.acoes-ficha { display: flex; flex-wrap: wrap; gap: 8px; }

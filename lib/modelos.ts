@@ -96,10 +96,10 @@ export const MODELOS: Record<string, Modelo> = {
     descricao: "Consulta de retorno ou acompanhamento, no formato SOAP.",
     instrucoes: "Organize no formato SOAP: Subjetivo (o que o paciente relata), Objetivo (exame e resultados), Avaliação (impressão do profissional) e Plano.",
     campos: [
-      { chave: "subjetivo", rotulo: "S — Subjetivo (relato do paciente)", tipo: "longo", grupo: "SOAP" },
-      { chave: "objetivo", rotulo: "O — Objetivo (exame, sinais vitais, resultados)", tipo: "longo", grupo: "SOAP" },
-      { chave: "avaliacao", rotulo: "A — Avaliação do profissional", tipo: "longo", grupo: "SOAP" },
-      { chave: "plano", rotulo: "P — Plano", tipo: "longo", grupo: "SOAP" },
+      { chave: "subjetivo", rotulo: "S: Subjetivo (relato do paciente)", tipo: "longo", grupo: "SOAP" },
+      { chave: "objetivo", rotulo: "O: Objetivo (exame, sinais vitais, resultados)", tipo: "longo", grupo: "SOAP" },
+      { chave: "avaliacao", rotulo: "A: Avaliação do profissional", tipo: "longo", grupo: "SOAP" },
+      { chave: "plano", rotulo: "P: Plano", tipo: "longo", grupo: "SOAP" },
       RETORNO,
     ],
   },
@@ -210,7 +210,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "peso_kg", rotulo: "Peso (kg)", tipo: "numero", grupo: "Antropometria" },
       { chave: "altura_cm", rotulo: "Altura (cm)", tipo: "numero", grupo: "Antropometria" },
       { chave: "imc", rotulo: "IMC", tipo: "numero", grupo: "Antropometria" },
-      { chave: "circunferencias", rotulo: "Circunferências (cintura, quadril…)", tipo: "texto", grupo: "Antropometria" },
+      { chave: "circunferencias", rotulo: "Circunferências (cintura, quadril e outras)", tipo: "texto", grupo: "Antropometria" },
       { chave: "diagnostico_nutricional", rotulo: "Diagnóstico nutricional", tipo: "longo", grupo: "Plano" },
       { chave: "plano_alimentar", rotulo: "Plano alimentar / condutas", tipo: "longo", grupo: "Plano" },
       { chave: "suplementacao", rotulo: "Suplementação", tipo: "texto", grupo: "Plano" },
@@ -278,7 +278,7 @@ export const ESPECIALIDADES_MEDICAS = [
 
 /** Lista única para o seletor do registro: especialidades médicas + demais profissões de saúde. */
 export const AREAS_ATENDIMENTO: { grupo: string; itens: string[] }[] = [
-  { grupo: "Medicina — especialidades (CFM)", itens: ESPECIALIDADES_MEDICAS.filter((e) => e !== "Outra") },
+  { grupo: "Medicina: especialidades (CFM)", itens: ESPECIALIDADES_MEDICAS.filter((e) => e !== "Outra") },
   { grupo: "Outras profissões de saúde", itens: PROFISSOES.filter((p) => p !== "Médico(a)") },
 ];
 

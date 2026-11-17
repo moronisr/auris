@@ -25,7 +25,7 @@ export default function FichaConteudo({ r, prof, assinatura = true }: { r: Regis
       <header className="ficha-topo">
         <div>
           <b style={{ fontSize: 18 }}>{prof?.nome || "Profissional"}</b>
-          <div className="muted">{[prof?.profissao, prof?.especialidade, prof?.conselho].filter(Boolean).join(" · ")}</div>
+          <div className="muted">{[prof?.profissao, prof?.especialidade, prof?.conselho].filter(Boolean).join(", ")}</div>
         </div>
         <div className="muted" style={{ textAlign: "right" }}>
           {modelo.nome}<br />
@@ -52,7 +52,7 @@ export default function FichaConteudo({ r, prof, assinatura = true }: { r: Regis
       {assinatura && (
         <footer className="ficha-rodape">
           Registro elaborado com apoio de inteligência artificial e revisado e aprovado pelo profissional responsável.
-          <div className="assinatura">_______________________________<br />{prof?.nome}{prof?.conselho ? ` — ${prof.conselho}` : ""}</div>
+          <div className="assinatura">_______________________________<br />{prof?.nome}{prof?.conselho ? `, ${prof.conselho}` : ""}</div>
         </footer>
       )}
     </>

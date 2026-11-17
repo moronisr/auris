@@ -51,8 +51,10 @@ export default async function Inicio() {
           </div>
           <div className="muted" style={{ marginTop: 6 }}>
             {MODELOS[r.modelo]?.nome ?? r.modelo}
-            {r.retorno_data && <> · Retorno {new Date(r.retorno_data + "T12:00").toLocaleDateString("pt-BR")}</>}
-            {" · Ver ficha · PDF · Receita gov.br →"}
+            {r.retorno_data && <>, retorno em {new Date(r.retorno_data + "T12:00").toLocaleDateString("pt-BR")}</>}
+          </div>
+          <div className="muted" style={{ marginTop: 2 }}>
+            Abrir a ficha para ver, baixar o PDF, emitir receita gov.br e outros documentos
           </div>
         </Link>
       ))}
