@@ -23,6 +23,16 @@ export default function Teleconsultas() {
   const [copiado, setCopiado] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [origem, setOrigem] = useState("");
+  const [whats, setWhats] = useState(false);
+  const [envio, setEnvio] = useState<Record<string, string>>({});
+
+  async function enviarWhats(tipo: "convite" | "lembrete", t: Teleconsulta) {
+    setEnvio((e) => ({ ...e, [t.id]: "Enviando" }));
+    const r = await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo, teleconsultaId: t.id }) });
+    const d = await r.json().catch(() => ({}));
+    setEnvio((e) => ({ ...e, [t.id]: r.ok ? (tipo === "convite" ? "Convite enviado pelo WhatsApp" : "Lembrete enviado pelo WhatsApp") : d.erro || "Não foi possível enviar." }));
+    return r.ok;
+  }
 
   const carregar = useCallback(async () => {
     const sb = supabaseBrowser();
@@ -34,6 +44,7 @@ export default function Teleconsultas() {
 
   useEffect(() => {
     setOrigem(window.location.origin);
+    fetch("/api/whatsapp").then((r) => r.json()).then((d) => setWhats(!!d.ativo)).catch(() => setWhats(false));
     (async () => {
       const sb = supabaseBrowser();
       const { data: { user } } = await sb.auth.getUser();
@@ -72,6 +83,7 @@ export default function Teleconsultas() {
     setSalvando(false);
     if (error) return setErro("Não foi possível agendar: " + error.message);
     setCriada(data as Teleconsulta);
+    if (whats && (data as Teleconsulta).paciente_telefone) enviarWhats("convite", data as Teleconsulta);
     setForm({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "" });
     carregar();
   }
@@ -101,6 +113,8 @@ export default function Teleconsultas() {
       {prof && !prof.pix_chave && (
         <div className="aviso">Para cobrar a consulta antes da chamada, cadastre a sua chave Pix em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
       )}
+
+      {whats && <p className="muted" style={{ marginTop: -6 }}>WhatsApp automático ligado: convite ao agendar e lembretes um dia antes e uma hora antes.</p>}
 
       <form className="card" onSubmit={criar}>
         <h2 style={{ marginTop: 0 }}>Agendar teleconsulta</h2>
@@ -139,9 +153,12 @@ export default function Teleconsultas() {
       {criada && (
         <div className="card ok-card">
           <b>Teleconsulta agendada para {dataCurta(criada.inicio)}.</b>
-          <p className="muted" style={{ margin: "6px 0 12px" }}>Envie o convite ao paciente. Pelo link, ele aceita o termo, paga (se houver valor), responde a pré-consulta e entra na sala.</p>
+          <p className="muted" style={{ margin: "6px 0 12px" }}>Pelo link, o paciente aceita o termo, paga (se houver valor), responde a pré-consulta e entra na sala.{whats && criada.paciente_telefone ? " O convite sai automaticamente pelo WhatsApp do Auris, e os lembretes vão um dia antes e uma hora antes." : ""}</p>
+          {envio[criada.id] && <p className={/enviado/.test(envio[criada.id]) ? "ok" : envio[criada.id] === "Enviando" ? "muted" : "erro"} style={{ marginTop: 0 }}>{envio[criada.id]}</p>}
           <div className="acoes-ficha">
-            <a className="btn" href={linkWhatsApp(criada.paciente_telefone, mensagemConvite(criada, nomeProf, link(criada)))} target="_blank" rel="noreferrer">Enviar convite pelo WhatsApp</a>
+            {(!whats || !criada.paciente_telefone || (envio[criada.id] && !/enviado|Enviando/.test(envio[criada.id]))) && (
+              <a className="btn" href={linkWhatsApp(criada.paciente_telefone, mensagemConvite(criada, nomeProf, link(criada)))} target="_blank" rel="noreferrer">Enviar convite pelo meu WhatsApp</a>
+            )}
             <button type="button" className="btn-sec" onClick={() => copiar(criada)}>{copiado === criada.id ? "Link copiado" : "Copiar link"}</button>
           </div>
         </div>
@@ -168,6 +185,7 @@ export default function Teleconsultas() {
             )}
             <Selo ok={!!t.preconsulta} texto={t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta pendente"} />
           </div>
+          {envio[t.id] && t.id !== criada?.id && <p className={/enviado/.test(envio[t.id]) ? "ok" : envio[t.id] === "Enviando" ? "muted" : "erro"} style={{ margin: "10px 0 0" }}>{envio[t.id]}</p>}
           {t.pagamento_status === "informado" && (
             <div className="aviso" style={{ marginTop: 10 }}>
               Confira no aplicativo do seu banco se o Pix de {t.valor ? reais(Number(t.valor)) : ""} entrou, e confirme aqui.
@@ -176,7 +194,11 @@ export default function Teleconsultas() {
           )}
           <div className="acoes-ficha" style={{ marginTop: 12 }}>
             <Link className="btn" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
-            <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete</a>
+            {whats && t.paciente_telefone ? (
+              <button type="button" className="btn-sec" onClick={() => enviarWhats("lembrete", t)} disabled={envio[t.id] === "Enviando"}>Enviar lembrete agora</button>
+            ) : (
+              <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete</a>
+            )}
             <button type="button" className="btn-sec" onClick={() => copiar(t)}>{copiado === t.id ? "Link copiado" : "Copiar link"}</button>
             <button type="button" className="link" onClick={() => cancelar(t)}>Cancelar</button>
           </div>

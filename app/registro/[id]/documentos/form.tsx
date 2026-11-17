@@ -37,8 +37,12 @@ export default function FormDocumentos({ dados, prof, registroId, telefone }: Pr
   const [linkPaciente, setLinkPaciente] = useState("");
   const [criandoLink, setCriandoLink] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
+  const [whats, setWhats] = useState(false);
+  const [codigoCriado, setCodigoCriado] = useState({ codigo: "", hash: "" });
+  const [envioWhats, setEnvioWhats] = useState("");
 
   useEffect(() => {
+    fetch("/api/whatsapp").then((r) => r.json()).then((d) => setWhats(!!d.ativo)).catch(() => setWhats(false));
     try {
       setEndereco(localStorage.getItem("auris_endereco_consultorio") ?? "");
       setCidade(localStorage.getItem("auris_cidade") ?? "");
@@ -95,10 +99,22 @@ export default function FormDocumentos({ dados, prof, registroId, telefone }: Pr
       data: new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }),
       documentos: escolhidos.map((x) => ({ tipo: x.id, nome: x.nome, titulo: x.titulo, texto: textos[x.id] })),
     };
-    const { error } = await supabaseBrowser().from("entregas").insert({ registro_id: registroId, codigo_hash: await sha256(codigo), nascimento: nasc, conteudo });
+    const hash = await sha256(codigo);
+    const { error } = await supabaseBrowser().from("entregas").insert({ registro_id: registroId, codigo_hash: hash, nascimento: nasc, conteudo });
     setCriandoLink(false);
     if (error) return setErroEnvio("Não foi possível criar o link: " + error.message);
     setLinkPaciente(`${window.location.origin}/p/${codigo}`);
+    setCodigoCriado({ codigo, hash });
+    setEnvioWhats("");
+  }
+
+  async function enviarPeloAuris() {
+    if (!telEnvio.replace(/\D/g, "")) return setEnvioWhats("Informe o WhatsApp do paciente.");
+    setEnvioWhats("Enviando");
+    const r = await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "documentos", codigo: codigoCriado.codigo, codigoHash: codigoCriado.hash, telefone: telEnvio, paciente }) });
+    const d = await r.json().catch(() => ({}));
+    setEnvioWhats(r.ok ? "Enviado pelo WhatsApp do Auris." : d.erro || "Não foi possível enviar.");
   }
 
   async function copiarLink() {
@@ -207,9 +223,11 @@ export default function FormDocumentos({ dados, prof, registroId, telefone }: Pr
           <div className="ok" style={{ marginTop: 12 }}>
             Link criado. Envie agora ao paciente.
             <div className="acoes-ficha" style={{ marginTop: 10 }}>
-              <a className="btn" href={linkWhatsApp(telEnvio, mensagemPaciente)} target="_blank" rel="noreferrer">Enviar pelo WhatsApp</a>
+              {whats && <button type="button" onClick={enviarPeloAuris} disabled={envioWhats === "Enviando"}>Enviar pelo WhatsApp do Auris</button>}
+              <a className={whats ? "btn btn-sec" : "btn"} href={linkWhatsApp(telEnvio, mensagemPaciente)} target="_blank" rel="noreferrer">{whats ? "Enviar pelo meu WhatsApp" : "Enviar pelo WhatsApp"}</a>
               <button type="button" className="btn-sec" onClick={copiarLink}>{copiadoLink ? "Link copiado" : "Copiar link"}</button>
             </div>
+            {envioWhats && <p style={{ margin: "10px 0 0" }}>{envioWhats}</p>}
           </div>
         )}
       </div>
