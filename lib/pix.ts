@@ -57,4 +57,18 @@ export function codigoPix(o: { chave: string; nome: string; cidade: string; valo
   return corpo + crc16(corpo);
 }
 
+/** Aceita só endereço https; devolve o link limpo ou null. */
+export function linkPagamentoValido(link: string): string | null {
+  const l = link.trim();
+  if (!l) return null;
+  try {
+    const u = new URL(l);
+    return u.protocol === "https:" && u.hostname.includes(".") ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export const hostDoLink = (link: string) => { try { return new URL(link).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
 export const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

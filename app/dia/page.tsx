@@ -41,7 +41,7 @@ export default async function PdfDoDia({ searchParams }: { searchParams: Promise
         <header className="ficha-topo">
           <div>
             <b style={{ fontSize: 20 }}>Atendimentos do dia</b>
-            <div style={{ textTransform: "capitalize" }}>{dataExtenso}</div>
+            <div>{dataExtenso.charAt(0).toUpperCase() + dataExtenso.slice(1)}</div>
           </div>
           <div className="muted" style={{ textAlign: "right" }}>
             {prof?.nome}<br />{[prof?.especialidade, prof?.conselho].filter(Boolean).join(", ")}

@@ -16,7 +16,7 @@ export type Teleconsulta = {
   id: string; created_at: string; paciente_nome: string; paciente_telefone: string | null;
   inicio: string; duracao_min: number; valor: number | null; codigo: string; status: StatusTele;
   confirmada_em: string | null; consentimento_em: string | null; pagamento_status: PagamentoTele;
-  pagamento_informado_em: string | null; pagamento_confirmado_em: string | null;
+  pagamento_informado_em: string | null; pagamento_confirmado_em: string | null; pagamento_metodo?: string | null; cartao_link?: string | null;
   preconsulta: { motivo?: string; medicamentos?: string; alergias?: string } | null;
   paciente_na_espera_em: string | null; iniciada_em: string | null; encerrada_em: string | null; registro_id: string | null;
 };

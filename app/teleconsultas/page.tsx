@@ -2,12 +2,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { reais } from "@/lib/pix";
+import { linkPagamentoValido, reais } from "@/lib/pix";
 import {
   dataCurta, linkWhatsApp, mensagemConvite, mensagemLembrete, novoCodigo, type Teleconsulta,
 } from "@/lib/teleconsulta";
 
-type Prof = { nome: string; pix_chave: string | null };
+type Prof = { nome: string; pix_chave: string | null; cartao_link: string | null };
 
 function Selo({ ok, texto, alerta }: { ok: boolean; texto: string; alerta?: boolean }) {
   return <span className={ok ? "selo selo-ok" : alerta ? "selo selo-alerta" : "selo"}>{texto}</span>;
@@ -17,7 +17,7 @@ export default function Teleconsultas() {
   const [lista, setLista] = useState<Teleconsulta[]>([]);
   const [prof, setProf] = useState<Prof | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [form, setForm] = useState({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "" });
+  const [form, setForm] = useState({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "", cartao: "" });
   const [erro, setErro] = useState("");
   const [criada, setCriada] = useState<Teleconsulta | null>(null);
   const [copiado, setCopiado] = useState("");
@@ -49,8 +49,8 @@ export default function Teleconsultas() {
       const sb = supabaseBrowser();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) return;
-      const { data } = await sb.from("profissionais").select("nome, pix_chave").eq("id", user.id).maybeSingle();
-      setProf((data as Prof) ?? { nome: "", pix_chave: null });
+      const { data } = await sb.from("profissionais").select("nome, pix_chave, cartao_link").eq("id", user.id).maybeSingle();
+      setProf((data as Prof) ?? { nome: "", pix_chave: null, cartao_link: null });
     })();
     carregar();
     const t = setInterval(carregar, 10000);
@@ -69,7 +69,9 @@ export default function Teleconsultas() {
     if (isNaN(inicio.getTime())) return setErro("Data ou hora inválida.");
     const valor = form.valor.trim() ? Number(form.valor.replace(/\./g, "").replace(",", ".")) : null;
     if (valor !== null && (isNaN(valor) || valor < 0)) return setErro("Valor inválido. Use o formato 150,00.");
-    if (valor && !prof?.pix_chave) return setErro("Para cobrar antes da consulta, cadastre a sua chave Pix em Perfil.");
+    const cartao = form.cartao.trim() ? linkPagamentoValido(form.cartao) : null;
+    if (form.cartao.trim() && !cartao) return setErro("O link de pagamento por cartão precisa começar com https://");
+    if (valor && !prof?.pix_chave && !prof?.cartao_link && !cartao) return setErro("Para cobrar antes da consulta, cadastre a sua chave Pix ou um link de pagamento por cartão em Perfil.");
     setSalvando(true);
     const { data, error } = await supabaseBrowser().from("teleconsultas").insert({
       paciente_nome: form.nome.trim(),
@@ -78,13 +80,14 @@ export default function Teleconsultas() {
       duracao_min: Number(form.duracao) || 30,
       valor: valor || null,
       pagamento_status: valor ? "pendente" : "isento",
+      cartao_link: valor ? cartao : null,
       codigo: novoCodigo(),
     }).select("*").single();
     setSalvando(false);
     if (error) return setErro("Não foi possível agendar: " + error.message);
     setCriada(data as Teleconsulta);
     if (whats && (data as Teleconsulta).paciente_telefone) enviarWhats("convite", data as Teleconsulta);
-    setForm({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "" });
+    setForm({ nome: "", telefone: "", data: "", hora: "", duracao: "30", valor: "", cartao: "" });
     carregar();
   }
 
@@ -110,8 +113,8 @@ export default function Teleconsultas() {
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
 
-      {prof && !prof.pix_chave && (
-        <div className="aviso">Para cobrar a consulta antes da chamada, cadastre a sua chave Pix em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
+      {prof && !prof.pix_chave && !prof.cartao_link && (
+        <div className="aviso">Para cobrar a consulta antes da chamada, cadastre a sua chave Pix ou um link de pagamento por cartão em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
       )}
 
       {whats && <p className="muted" style={{ marginTop: -6 }}>WhatsApp automático ligado: convite ao agendar e lembretes um dia antes e uma hora antes.</p>}
@@ -145,6 +148,12 @@ export default function Teleconsultas() {
             <label htmlFor="tc-valor">Valor (vazio = sem cobrança)</label>
             <input id="tc-valor" inputMode="decimal" placeholder="150,00" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
           </div>
+          {form.valor.trim() && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="tc-cartao">Link de pagamento por cartão para este valor (opcional)</label>
+              <input id="tc-cartao" inputMode="url" placeholder={prof?.cartao_link ? "Vazio = usar o link do seu perfil" : "https://"} value={form.cartao} onChange={(e) => setForm({ ...form, cartao: e.target.value })} />
+            </div>
+          )}
         </div>
         {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
         <button type="submit" disabled={salvando} style={{ width: "100%", marginTop: 14 }}>{salvando ? "Agendando" : "Agendar e gerar o link do paciente"}</button>
@@ -181,14 +190,14 @@ export default function Teleconsultas() {
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}
-                texto={t.pagamento_status === "confirmado" ? "Pagamento confirmado" : t.pagamento_status === "informado" ? "Paciente informou o pagamento" : "Pagamento pendente"} />
+                texto={t.pagamento_status === "confirmado" ? "Pagamento confirmado" : t.pagamento_status === "informado" ? `Paciente informou o pagamento${t.pagamento_metodo === "cartao" ? " (cartão)" : " (Pix)"}` : "Pagamento pendente"} />
             )}
             <Selo ok={!!t.preconsulta} texto={t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta pendente"} />
           </div>
           {envio[t.id] && t.id !== criada?.id && <p className={/enviado/.test(envio[t.id]) ? "ok" : envio[t.id] === "Enviando" ? "muted" : "erro"} style={{ margin: "10px 0 0" }}>{envio[t.id]}</p>}
           {t.pagamento_status === "informado" && (
             <div className="aviso" style={{ marginTop: 10 }}>
-              Confira no aplicativo do seu banco se o Pix de {t.valor ? reais(Number(t.valor)) : ""} entrou, e confirme aqui.
+              Confira no aplicativo do seu banco ou da sua conta de pagamentos se o valor de {t.valor ? reais(Number(t.valor)) : ""} entrou, e confirme aqui.
               <div style={{ marginTop: 8 }}><button type="button" onClick={() => confirmarPagamento(t)}>Confirmar pagamento recebido</button></div>
             </div>
           )}

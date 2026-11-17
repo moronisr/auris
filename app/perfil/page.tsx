@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
-import { TIPOS_CHAVE, normalizarChave, type TipoChave } from "@/lib/pix";
+import { TIPOS_CHAVE, linkPagamentoValido, normalizarChave, type TipoChave } from "@/lib/pix";
 
 export default function Perfil() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function Perfil() {
   const [pixChave, setPixChave] = useState("");
   const [pixNome, setPixNome] = useState("");
   const [pixCidade, setPixCidade] = useState("");
+  const [cartaoLink, setCartaoLink] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [id, setId] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export default function Perfil() {
         setPixChave(data.pix_chave ?? "");
         setPixNome(data.pix_nome ?? "");
         setPixCidade(data.pix_cidade ?? "");
+        setCartaoLink(data.cartao_link ?? "");
       }
     })();
   }, []);
@@ -49,7 +51,10 @@ export default function Perfil() {
       if (!chave) return setMsg({ tipo: "erro", texto: "A chave Pix não está no formato certo para o tipo escolhido." });
       if (!pixNome.trim() || !pixCidade.trim()) return setMsg({ tipo: "erro", texto: "Para receber por Pix, informe o nome do titular da conta e a cidade." });
     }
+    const link = cartaoLink.trim() ? linkPagamentoValido(cartaoLink) : null;
+    if (cartaoLink.trim() && !link) return setMsg({ tipo: "erro", texto: "O link de pagamento por cartão precisa começar com https://" });
     const { error } = await supabaseBrowser().from("profissionais").upsert({
+      cartao_link: link,
       id, nome, profissao, especialidade, conselho, preferencias,
       pix_tipo: chave ? pixTipo : null, pix_chave: chave, pix_nome: chave ? pixNome.trim() : null, pix_cidade: chave ? pixCidade.trim() : null,
     });
@@ -93,7 +98,7 @@ export default function Perfil() {
         <textarea rows={3} placeholder="Ex.: usar abreviações HAS e DM; escrever conduta em tópicos; não usar termos em inglês." value={preferencias} onChange={(e) => setPreferencias(e.target.value)} />
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
         <h2>Recebimento das teleconsultas</h2>
-        <p className="muted" style={{ marginTop: -4 }}>O paciente paga por Pix antes da consulta e o valor vai direto para esta conta. O Auris não recebe nem guarda dinheiro.</p>
+        <p className="muted" style={{ marginTop: -4 }}>O paciente paga antes da consulta, por Pix ou cartão, e o valor vai direto para a sua conta. O Auris não recebe nem guarda dinheiro.</p>
         <div className="grid">
           <div>
             <label htmlFor="pix-tipo">Tipo de chave Pix</label>
@@ -113,6 +118,11 @@ export default function Perfil() {
             <label htmlFor="pix-cidade">Cidade da conta</label>
             <input id="pix-cidade" value={pixCidade} onChange={(e) => setPixCidade(e.target.value)} />
           </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label htmlFor="cartao-link">Link de pagamento por cartão (opcional)</label>
+          <input id="cartao-link" inputMode="url" placeholder="https://" value={cartaoLink} onChange={(e) => setCartaoLink(e.target.value)} />
+          <p className="muted" style={{ marginBottom: 0 }}>Crie um link de pagamento com o valor da consulta na sua conta do Mercado Pago, PagBank, InfinitePay ou da sua maquininha, e cole aqui. O paciente paga no site desse serviço, no crédito ou no débito, conforme o que a sua conta aceita.</p>
         </div>
         <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}

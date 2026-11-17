@@ -2,7 +2,7 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { codigoPix, reais } from "@/lib/pix";
+import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
 import { TERMO_TELECONSULTA, dataHora } from "@/lib/teleconsulta";
 
@@ -11,6 +11,7 @@ type Info = {
   inicio: string; duracao_min: number; valor: number | null; status: string;
   consentimento_em: string | null; pagamento_status: string; preconsulta_ok: boolean; na_espera: boolean;
   pix: { chave: string; nome: string | null; cidade: string | null } | null;
+  cartao_link: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -29,6 +30,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [enviando, setEnviando] = useState(false);
   const [qr, setQr] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [metodo, setMetodo] = useState<"pix" | "cartao" | null>(null);
+  const [abriuCartao, setAbriuCartao] = useState(false);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
@@ -175,18 +178,35 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
         <div className="card">
           <Passos atual={2} total={total} />
           <h2 style={{ marginTop: 12 }}>Pagamento da consulta</h2>
-          {info.pix ? (
-            <>
-              <p className="muted">Pague com Pix pelo aplicativo do seu banco. O valor de {reais(Number(info.valor))} vai direto para {info.pix.nome || info.profissional}.</p>
-              {qr && <img src={qr} alt="QR Code do Pix" className="qr" />}
-              <label htmlFor="pix-cc">Pix copia e cola</label>
-              <textarea id="pix-cc" readOnly rows={3} value={pix} onFocus={(e) => e.currentTarget.select()} />
-              <button type="button" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
-              <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado")}>Já fiz o pagamento</button>
-              <p className="muted" style={{ marginBottom: 0 }}>O consultório confere o pagamento no banco. Você já pode seguir para os próximos passos.</p>
-            </>
-          ) : (
+          {!info.pix && !info.cartao_link ? (
             <p className="muted" style={{ marginBottom: 0 }}>O consultório ainda não cadastrou a forma de pagamento. Entre em contato com o consultório.</p>
+          ) : (
+            <>
+              <p className="muted">Valor da consulta: <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b>. O pagamento vai direto para {info.pix?.nome || info.profissional}.</p>
+              {info.pix && info.cartao_link && (
+                <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                  <button type="button" aria-pressed={(metodo ?? "pix") === "pix"} className={(metodo ?? "pix") === "pix" ? "opcao ativa" : "opcao"} onClick={() => setMetodo("pix")}>Pix</button>
+                  <button type="button" aria-pressed={metodo === "cartao"} className={metodo === "cartao" ? "opcao ativa" : "opcao"} onClick={() => setMetodo("cartao")}>Cartão</button>
+                </div>
+              )}
+              {(metodo ?? (info.pix ? "pix" : "cartao")) === "pix" && info.pix ? (
+                <>
+                  <p className="muted">Pague com Pix pelo aplicativo do seu banco.</p>
+                  {qr && <img src={qr} alt="QR Code do Pix" className="qr" />}
+                  <label htmlFor="pix-cc">Pix copia e cola</label>
+                  <textarea id="pix-cc" readOnly rows={3} value={pix} onFocus={(e) => e.currentTarget.select()} />
+                  <button type="button" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
+                  <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "pix" })}>Já fiz o pagamento</button>
+                </>
+              ) : (
+                <>
+                  <p className="muted">Você vai pagar no site seguro de <b>{hostDoLink(info.cartao_link!)}</b>, no crédito ou no débito. Os dados do cartão ficam só nesse site; o Auris não vê nem guarda.</p>
+                  <a className="btn" href={info.cartao_link!} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center" }} onClick={() => setAbriuCartao(true)}>Pagar com cartão</a>
+                  <button type="button" className={abriuCartao ? "" : "btn-sec"} disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "cartao" })}>Já fiz o pagamento</button>
+                </>
+              )}
+              <p className="muted" style={{ marginBottom: 0 }}>O consultório confere o pagamento. Você já pode seguir para os próximos passos.</p>
+            </>
           )}
         </div>
       ) : !info.preconsulta_ok && !pulouPre ? (
