@@ -203,10 +203,12 @@ export default function Teleconsultas() {
           )}
           <div className="acoes-ficha" style={{ marginTop: 12 }}>
             <Link className="btn" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
-            {whats && t.paciente_telefone ? (
+            {whats && t.paciente_telefone && (
               <button type="button" className="btn-sec" onClick={() => enviarWhats("lembrete", t)} disabled={envio[t.id] === "Enviando"}>Enviar lembrete agora</button>
-            ) : (
-              <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete</a>
+            )}
+            {/* Pelo WhatsApp do próprio profissional: sempre disponível sem o automático e quando o envio automático falha. */}
+            {(!whats || !t.paciente_telefone || (envio[t.id] && !/enviado|Enviando/.test(envio[t.id]))) && (
+              <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete pelo meu WhatsApp</a>
             )}
             <button type="button" className="btn-sec" onClick={() => copiar(t)}>{copiado === t.id ? "Link copiado" : "Copiar link"}</button>
             <button type="button" className="link" onClick={() => cancelar(t)}>Cancelar</button>
