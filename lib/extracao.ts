@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELOS, camposDoModelo, type Ficha } from "./modelos";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// O SDK já repete sozinho quando a API está sobrecarregada ou fora do ar.
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 4 });
 
 const BASE = `Sempre responda chamando a ferramenta "registrar_ficha" (nunca em texto livre).
 Você é um assistente de registro clínico para profissionais de saúde no Brasil.

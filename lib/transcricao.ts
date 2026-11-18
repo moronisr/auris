@@ -1,3 +1,5 @@
+import { comTentativas, ErroHttp } from "@/lib/tentativas";
+
 type Palavra = { text: string; type?: string; speaker_id?: string; channel_index?: number };
 
 /**
@@ -21,13 +23,17 @@ export async function transcrever(audio: Blob, consulta = false, doisCanais = fa
     form.append("num_speakers", "2");
   }
 
-  const r = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-    method: "POST",
-    headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY || "" },
-    body: form,
-  });
-  if (!r.ok) throw new Error(`Falha na transcrição (${r.status}): ${await r.text()}`);
-  const data = (await r.json()) as { text?: string; words?: Palavra[] };
+  // Se a ElevenLabs falhar por instabilidade, tenta de novo sozinho (até 3 vezes) sem perder o áudio.
+  const data = await comTentativas(async () => {
+    const r = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+      method: "POST",
+      headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY || "" },
+      body: form,
+      signal: AbortSignal.timeout(180_000),
+    });
+    if (!r.ok) throw new ErroHttp(`Falha na transcrição (${r.status}): ${await r.text()}`, r.status);
+    return (await r.json()) as { text?: string; words?: Palavra[] };
+  }, { nome: "transcrição" });
   if (!data.text?.trim()) throw new Error("Não foi possível entender o áudio. Grave novamente.");
   if (!consulta || !data.words?.length) return data.text.trim();
 

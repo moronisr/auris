@@ -186,7 +186,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     await supabaseBrowser().from("teleconsultas").update({ status: "encerrada", encerrada_em: new Date().toISOString() }).eq("id", id);
   }
 
-  async function enviarAudio() {
+  async function enviarAudio(tentativa = 1) {
     const audio = audioFinal.current;
     if (!audio || audio.size < 2000) { setEtapa("falhou"); return setErro("A gravação ficou vazia: o microfone não captou a conversa. Use Gravar, no menu, para ditar o atendimento."); }
     setEtapa("processando");
@@ -215,12 +215,19 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       }
       const r = await fetch("/api/processar", { method: "POST", body: fd });
       const data = await r.json().catch(() => ({ erro: `Falha de conexão com o servidor (código ${r.status}).` }));
-      if (!r.ok) throw new Error(data.erro || "Falha ao processar.");
+      if (!r.ok) throw Object.assign(new Error(data.erro || "Falha ao processar."), { repetir: r.status >= 500 });
       try { sessionStorage.setItem("auris_tele_resultado", JSON.stringify({ tele: id, area, res: data })); } catch { /* armazenamento indisponível */ }
       router.push(`/novo?tele=${id}`);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      const semRede = msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("Load failed");
+      // Uma segunda tentativa automática antes de mostrar o erro; a gravação continua na memória.
+      if (tentativa === 1 && (semRede || (e as { repetir?: boolean }).repetir)) {
+        await new Promise((ok) => setTimeout(ok, 4000));
+        return enviarAudio(2);
+      }
       setEtapa("falhou");
-      setErro((e instanceof Error ? e.message : "") || "Falha ao processar.");
+      setErro((semRede ? "Sem conexão com a internet no momento do envio." : msg || "Falha ao processar.") + " A gravação continua guardada: use o botão abaixo para tentar de novo, sem regravar. Não feche esta página.");
     }
   }
 
@@ -251,7 +258,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
         <div className="card" style={{ marginTop: 14 }}>
           <p style={{ marginTop: 0 }}>A consulta foi encerrada, mas a ficha não foi montada.</p>
           <div className="acoes-ficha">
-            {audioFinal.current && audioFinal.current.size > 2000 && <button type="button" onClick={enviarAudio}>Tentar montar a ficha de novo</button>}
+            {audioFinal.current && audioFinal.current.size > 2000 && <button type="button" onClick={() => enviarAudio()}>Tentar montar a ficha de novo</button>}
             <a className="btn btn-sec" href="/novo">Ditar o atendimento</a>
           </div>
         </div>

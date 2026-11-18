@@ -11,6 +11,7 @@ function formatoSuportado(): string | undefined {
   return opcoes.find((t) => MediaRecorder.isTypeSupported?.(t));
 }
 import { formatarCpf, validarFicha } from "@/lib/validacao";
+import { guardarPendente, apagarPendente, lerPendente, type AudioPendente, type ConfigEnvio } from "@/lib/audioPendente";
 
 type Resultado = { transcricao: string; ficha: Ficha; avisos: string[]; modelo: string; modo: string; tempo_processamento_ms: number };
 type Modo = "ditado" | "consulta";
@@ -39,6 +40,15 @@ export default function Novo() {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [tele, setTele] = useState<string | null>(null);
   const veioDeTele = useRef(false);
+  const ultimoEnvio = useRef<{ audio: Blob; cfg: ConfigEnvio } | null>(null);
+  const [temReenvio, setTemReenvio] = useState(false);
+  const [pendente, setPendente] = useState<AudioPendente | null>(null);
+
+  // Gravação que não virou ficha (queda de internet ou navegador fechado): oferece enviar de novo.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tele")) return;
+    lerPendente().then((p) => p && setPendente(p));
+  }, []);
 
   // Ficha vinda de uma teleconsulta encerrada: abre direto na revisão.
   useEffect(() => {
@@ -117,7 +127,7 @@ export default function Novo() {
     setEtapa("processando");
   }
 
-  async function enviar(audio: Blob) {
+  async function enviar(audio: Blob, cfg: ConfigEnvio = { area, modelo, modo, consentimento }) {
     const fd = new FormData();
     if (audio.size < 2000) {
       setErro("A gravação ficou vazia. Verifique se o microfone está liberado e grave novamente.");
@@ -131,30 +141,64 @@ export default function Novo() {
     }
     const ext = audio.type.includes("mp4") || audio.type.includes("aac") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
     fd.append("audio", audio, `gravacao.${ext}`);
-    fd.append("area", area);
-    fd.append("modelo", modelo);
-    fd.append("modo", modo);
-    if (modo === "consulta" && consentimento) fd.append("consentimento", "sim");
-    try {
-      const r = await fetch("/api/processar", { method: "POST", body: fd });
-      const bruto = await r.text();
-      let data: { erro?: string } & Partial<Resultado>;
+    fd.append("area", cfg.area);
+    fd.append("modelo", cfg.modelo);
+    fd.append("modo", cfg.modo);
+    if (cfg.modo === "consulta" && cfg.consentimento) fd.append("consentimento", "sim");
+    // Guarda a gravação neste aparelho até a ficha ficar pronta, para nunca precisar regravar.
+    ultimoEnvio.current = { audio, cfg };
+    setTemReenvio(false);
+    setPendente(null);
+    setErro(null);
+    setEtapa("processando");
+    await guardarPendente({ ...cfg, audio, em: Date.now() });
+    const semRede = (m: string) => m === "Failed to fetch" || m.includes("NetworkError") || m.includes("Load failed");
+    let ultimoErro = "";
+    // Até 2 envios automáticos: se a internet oscilar ou o servidor falhar, tenta de novo sozinho.
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
       try {
-        data = JSON.parse(bruto);
-      } catch {
-        throw new Error(r.status === 413 ? "A gravação ficou grande demais para envio." : `Falha de conexão com o servidor (código ${r.status}). Tente novamente.`);
+        const r = await fetch("/api/processar", { method: "POST", body: fd });
+        const bruto = await r.text();
+        let data: { erro?: string } & Partial<Resultado>;
+        try {
+          data = JSON.parse(bruto);
+        } catch {
+          throw Object.assign(new Error(r.status === 413 ? "A gravação ficou grande demais para envio." : `Falha de conexão com o servidor (código ${r.status}).`), { repetir: r.status >= 500 });
+        }
+        if (!r.ok) throw Object.assign(new Error(data.erro || "Falha ao processar."), { repetir: r.status >= 500 });
+        await apagarPendente();
+        ultimoEnvio.current = null;
+        setRes(data as Resultado);
+        setFicha((data as Resultado).ficha);
+        setEtapa("revisar");
+        return;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        ultimoErro = semRede(msg) ? "Sem conexão com a internet no momento do envio." : msg || "Falha ao processar.";
+        const repetir = semRede(msg) || (e as { repetir?: boolean }).repetir === true;
+        if (tentativa === 2 || !repetir) break;
+        await new Promise((ok) => setTimeout(ok, 4000));
       }
-      if (!r.ok) throw new Error(data.erro || "Falha ao processar.");
-      setRes(data as Resultado);
-      setFicha((data as Resultado).ficha);
-      setEtapa("revisar");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      setErro(msg === "Failed to fetch" || msg.includes("NetworkError") || msg.includes("Load failed")
-        ? "Sem conexão com a internet no momento do envio. Verifique o sinal e tente novamente."
-        : msg || "Falha ao processar.");
-      setEtapa("pronto");
     }
+    setErro(`${ultimoErro} A gravação ficou guardada neste aparelho: toque em "Enviar a gravação de novo" quando quiser, sem precisar gravar outra vez.`);
+    setTemReenvio(true);
+    setEtapa("pronto");
+  }
+
+  function reenviar() {
+    if (ultimoEnvio.current) enviar(ultimoEnvio.current.audio, ultimoEnvio.current.cfg);
+  }
+
+  function enviarPendente() {
+    if (!pendente) return;
+    const { audio, em: _em, ...cfg } = pendente;
+    setModo(cfg.modo); setArea(cfg.area); setModelo(cfg.modelo); setConsentimento(cfg.consentimento);
+    enviar(audio, cfg);
+  }
+
+  async function descartarPendente() {
+    await apagarPendente();
+    setPendente(null);
   }
 
   function alterar(c: Campo, valor: string) {
@@ -230,6 +274,22 @@ export default function Novo() {
       </div>
 
       {erro && <div className="erro" style={{ marginBottom: 12 }}>{erro}</div>}
+      {temReenvio && etapa === "pronto" && (
+        <div className="acoes-ficha" style={{ marginBottom: 12 }}>
+          <button type="button" onClick={reenviar}>Enviar a gravação de novo</button>
+        </div>
+      )}
+      {pendente && etapa === "pronto" && !temReenvio && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <p style={{ marginTop: 0 }}>
+            Há uma gravação de {new Date(pendente.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} que ainda não virou ficha. Ela está guardada só neste aparelho.
+          </p>
+          <div className="acoes-ficha">
+            <button type="button" onClick={enviarPendente}>Montar a ficha dessa gravação</button>
+            <button type="button" className="btn-sec" onClick={descartarPendente}>Descartar</button>
+          </div>
+        </div>
+      )}
 
       {(etapa === "pronto" || etapa === "gravando") && (
         <div className="card">

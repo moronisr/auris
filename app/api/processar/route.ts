@@ -4,6 +4,7 @@ import { transcrever } from "@/lib/transcricao";
 import { extrairFicha } from "@/lib/extracao";
 import { validarFicha } from "@/lib/validacao";
 import { MODELOS } from "@/lib/modelos";
+import { comTentativas } from "@/lib/tentativas";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -47,7 +48,11 @@ export async function POST(req: Request) {
     } finally {
       if (caminho) await supabase.storage.from("audios").remove([caminho]).catch(() => {});
     }
-    const ficha = await extrairFicha(transcricao, modelo, perfil?.preferencias, consulta, area, teleconsulta);
+    // Se a IA não devolver a ficha no formato certo, pede de novo uma vez antes de mostrar erro.
+    const ficha = await comTentativas(
+      () => extrairFicha(transcricao, modelo, perfil?.preferencias, consulta, area, teleconsulta),
+      { tentativas: 2, esperaMs: 1000, nome: "ficha", repetirSe: (e) => e instanceof Error && e.message.startsWith("A IA") },
+    );
     const avisos = validarFicha(ficha, modelo);
 
     return NextResponse.json({ transcricao, ficha, avisos, modelo, modo: consulta ? "consulta" : "ditado", tempo_processamento_ms: Date.now() - inicio });
