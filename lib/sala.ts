@@ -129,7 +129,7 @@ export async function abrirCameraMicrofone(): Promise<{ stream?: MediaStream; er
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-      audio: { echoCancellation: true, noiseSuppression: true },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     });
     return { stream };
   } catch (e) {

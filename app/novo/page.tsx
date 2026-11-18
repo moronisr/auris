@@ -80,7 +80,7 @@ export default function Novo() {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
       return setErro("Este navegador não permite gravar áudio. No iPhone use o Safari atualizado; no Android, o Chrome.");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       const mimeType = formatoSuportado();
       // Áudio de voz em qualidade leve: mantém consultas longas dentro do limite de envio.
       let mr: MediaRecorder;

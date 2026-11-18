@@ -67,7 +67,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     if (videoRemoto.current) videoRemoto.current.srcObject = remoto;
     // Voz do paciente no canal 2 da gravação (o canal 1 é o profissional).
     if (remoto && audioCtx.current && juntador.current && remotoLigado.current !== remoto && remoto.getAudioTracks().length) {
-      audioCtx.current.createMediaStreamSource(new MediaStream(remoto.getAudioTracks())).connect(juntador.current, 0, 1);
+      nivelador(audioCtx.current, new MediaStream(remoto.getAudioTracks())).connect(juntador.current, 0, 1);
       remotoLigado.current = remoto;
     }
   }, [remoto]);
@@ -79,6 +79,30 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     localRef.current?.getTracks().forEach((tr) => tr.stop());
     audioCtx.current?.close().catch(() => {});
   }, []);
+
+  /** Nivela a voz: eleva falas baixas e segura picos, para a transcrição captar tudo. */
+  function nivelador(ctx: AudioContext, origem: MediaStream): AudioNode {
+    const fonte = ctx.createMediaStreamSource(origem);
+    const filtro = ctx.createBiquadFilter();
+    filtro.type = "highpass";
+    filtro.frequency.value = 80; // tira ronco e vibração de mesa
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -45;
+    comp.knee.value = 20;
+    comp.ratio.value = 6;
+    comp.attack.value = 0.005;
+    comp.release.value = 0.25;
+    const ganho = ctx.createGain();
+    ganho.gain.value = 2.5;
+    const limite = ctx.createDynamicsCompressor();
+    limite.threshold.value = -3;
+    limite.knee.value = 0;
+    limite.ratio.value = 20;
+    limite.attack.value = 0.001;
+    limite.release.value = 0.1;
+    fonte.connect(filtro).connect(comp).connect(ganho).connect(limite);
+    return limite;
+  }
 
   function criarGravador(fonte: MediaStream, bits: number): MediaRecorder {
     const tipo = formatoAudio();
@@ -98,14 +122,14 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
         dest.channelInterpretation = "discrete";
         const merger = ctx.createChannelMerger(2);
         merger.connect(dest);
-        ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(merger, 0, 0);
+        nivelador(ctx, new MediaStream(stream.getAudioTracks())).connect(merger, 0, 0);
         audioCtx.current = ctx;
         destino.current = dest;
         juntador.current = merger;
         doisCanais.current = true;
         fonte = dest.stream;
         if (remoto && remoto.getAudioTracks().length) {
-          ctx.createMediaStreamSource(new MediaStream(remoto.getAudioTracks())).connect(merger, 0, 1);
+          nivelador(ctx, new MediaStream(remoto.getAudioTracks())).connect(merger, 0, 1);
           remotoLigado.current = remoto;
         }
       } else {
