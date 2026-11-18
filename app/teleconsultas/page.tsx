@@ -30,7 +30,8 @@ export default function Teleconsultas() {
     setEnvio((e) => ({ ...e, [t.id]: "Enviando" }));
     const r = await fetch("/api/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo, teleconsultaId: t.id }) });
     const d = await r.json().catch(() => ({}));
-    setEnvio((e) => ({ ...e, [t.id]: r.ok ? (tipo === "convite" ? "Convite enviado pelo WhatsApp" : "Lembrete enviado pelo WhatsApp") : d.erro || "Não foi possível enviar." }));
+    setEnvio((e) => ({ ...e, [t.id]: r.ok ? (tipo === "convite" ? "Convite enviado pelo WhatsApp" : "Lembrete enviado pelo WhatsApp") : "O envio automático pelo WhatsApp não está disponível agora. Use o botão abaixo para enviar pelo seu WhatsApp." }));
+    if (!r.ok) console.warn("WhatsApp automático:", d.erro);
     return r.ok;
   }
 
