@@ -9,6 +9,7 @@ const ITENS = [
   { href: "/novo", rotulo: "Gravar", icone: <><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><path d="M12 18v3" /></> },
   { href: "/teleconsultas", rotulo: "Teleconsulta", icone: <><rect x="3" y="6" width="13" height="12" rx="2" /><path d="M16 10l5-3v10l-5-3" /></> },
   { href: "/dia", rotulo: "PDF do dia", icone: <><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></> },
+  { href: "/financas", rotulo: "Finanças", icone: <><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h4" /></> },
   { href: "/perfil", rotulo: "Perfil", icone: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></> },
 ];
 
