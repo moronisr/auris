@@ -17,7 +17,8 @@ export default function Privacidade() {
       <h2>2. Quais dados</h2>
       <ul>
         <li><b>Do profissional:</b> nome, e-mail, profissão, especialidade, registro no conselho, preferências, horários de agenda e a conexão com a instituição de pagamento que ele escolher.</li>
-        <li><b>Do paciente:</b> nome, contato, CPF e idade quando informados, e as informações de saúde ditas no atendimento e registradas na ficha. Na teleconsulta, também o aceite do termo, a escolha sobre o assistente de IA e o status do pagamento.</li>
+        <li><b>Do paciente:</b> nome, contato, CPF e idade quando informados, e as informações de saúde ditas no atendimento e registradas na ficha. Na teleconsulta, também o aceite do termo, a escolha sobre o assistente de IA e os dados do pagamento descritos abaixo.</li>
+        <li><b>Do pagamento da teleconsulta:</b> o Auris guarda o valor, a forma de pagamento (Pix, crédito ou débito), a data e a hora da aprovação, o número da transação na instituição de pagamento, o status e, quando houver, a devolução e o motivo do cancelamento informado pelo paciente.</li>
         <li><b>Áudio:</b> usado apenas para gerar o texto da ficha e apagado depois da transcrição. O vídeo da teleconsulta não é gravado.</li>
       </ul>
 
@@ -40,25 +41,35 @@ export default function Privacidade() {
         <li><b>Vercel:</b> hospedagem do site.</li>
         <li><b>ElevenLabs:</b> transcrição do áudio em texto.</li>
         <li><b>Anthropic:</b> organização do texto nos campos da ficha.</li>
-        <li><b>Mercado Pago ou PagBank:</b> pagamento da teleconsulta, na conta do próprio profissional. Os dados do cartão são digitados na página da instituição e não passam pelo Auris.</li>
+        <li><b>Mercado Pago (instituição de pagamento):</b> processa o pagamento e a devolução da teleconsulta, na conta do próprio profissional. Veja os detalhes no item 6 abaixo.</li>
         <li><b>Meta (WhatsApp):</b> envio de lembretes de consulta, quando ativado.</li>
       </ul>
       <p>Alguns desses fornecedores processam dados fora do Brasil. Essa transferência ocorre para a execução do serviço contratado pelo profissional, com fornecedores que adotam padrões de segurança compatíveis com a LGPD (art. 33).</p>
 
-      <h2>6. Por quanto tempo</h2>
+      <h2>6. Dados de pagamento</h2>
+      <ul>
+        <li><b>Cartão:</b> o número, a validade, o código de segurança e o nome do titular são digitados em um formulário seguro do Mercado Pago, que funciona dentro da página do Auris. Esses dados vão direto para o Mercado Pago e <b>nunca passam pelo Auris nem ficam guardados nele</b>. O Auris recebe apenas um código de uso único (token) para concluir a cobrança.</li>
+        <li><b>E-mail e CPF do pagador</b> pedidos no pagamento com cartão passam pelo servidor do Auris apenas para serem enviados ao Mercado Pago junto com a cobrança. O Auris não os guarda.</li>
+        <li><b>Pix:</b> o Auris não recebe dados da conta bancária de quem paga. O banco do paciente e o Mercado Pago tratam esses dados conforme as regras do Pix.</li>
+        <li>O Mercado Pago trata os dados de quem paga também como controlador, para processar o pagamento, prevenir fraudes e cumprir obrigações legais, conforme a política de privacidade dele.</li>
+        <li><b>Bases legais:</b> execução do contrato de prestação do serviço (LGPD, art. 7º, V) e exercício regular de direitos, inclusive para comprovar pagamentos e devoluções em caso de reclamação (art. 7º, VI).</li>
+      </ul>
+
+      <h2>7. Por quanto tempo</h2>
       <ul>
         <li><b>Áudio:</b> apagado depois da transcrição.</li>
         <li><b>Prontuário:</b> guardado enquanto o profissional mantiver a conta. A lei pede guarda mínima de 20 anos (Lei nº 13.787/2018); por isso o profissional pode exportar todas as suas fichas a qualquer momento, em Perfil.</li>
+        <li><b>Registros de pagamento e devolução:</b> junto com o registro da consulta e, depois do encerramento da conta, pelo prazo necessário para comprovação fiscal e para defesa em eventual reclamação, em regra 5 anos.</li>
         <li><b>Dados de conta:</b> enquanto a conta existir e pelo prazo exigido por lei depois do encerramento.</li>
       </ul>
 
-      <h2>7. Segurança</h2>
+      <h2>8. Segurança</h2>
       <p>Conexões criptografadas, acesso de cada profissional restrito às próprias fichas, chaves de pagamento guardadas apenas no servidor e registros de acesso. Nenhum sistema é totalmente imune a falhas; em caso de incidente relevante, os profissionais afetados e a Autoridade Nacional de Proteção de Dados serão comunicados, conforme a lei.</p>
 
-      <h2>8. Seus direitos</h2>
-      <p>A LGPD garante acesso, correção, informação sobre compartilhamento, portabilidade, eliminação quando cabível e revogação do consentimento, entre outros. Pacientes: falem com o profissional que os atendeu, que é quem responde pelo prontuário. Profissionais: falem com o Auris pelo e-mail abaixo.</p>
+      <h2>9. Seus direitos</h2>
+      <p>A LGPD garante acesso, correção, informação sobre compartilhamento, portabilidade, eliminação quando cabível e revogação do consentimento, entre outros. Pacientes: falem com o profissional que os atendeu, que é quem responde pelo prontuário e pelos pagamentos da consulta. Profissionais: falem com o Auris pelo e-mail abaixo.</p>
 
-      <h2>9. Contato</h2>
+      <h2>10. Contato</h2>
       <p>Dúvidas e pedidos sobre privacidade: <a href="mailto:aurismedical2@gmail.com">aurismedical2@gmail.com</a>.</p>
     </PaginaInfo>
   );

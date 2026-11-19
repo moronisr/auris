@@ -59,6 +59,7 @@ export default function CancelarDevolver({ t, onFeito }: { t: Teleconsulta; onFe
                 <button type="button" className="btn-sec" disabled={enviando} onClick={() => agir("cancelar")}>Cancelar sem devolver</button>
                 <button type="button" className="link" disabled={enviando} onClick={() => setAberto(false)}>Voltar</button>
               </div>
+              <p className="muted" style={{ margin: "8px 0 0" }}>Quando o consultório cancela, o paciente tem direito à devolução integral. Use &quot;Cancelar sem devolver&quot; só se já combinou outra solução com ele, como a remarcação.</p>
             </>
           ) : pago ? (
             <>
