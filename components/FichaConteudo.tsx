@@ -1,5 +1,6 @@
 import { MODELOS, camposDoModelo, type Ficha } from "@/lib/modelos";
 import { formatarCpf } from "@/lib/validacao";
+import { grupoProfissao, linhaIA } from "@/lib/conselhos";
 
 export type Registro = { id: string; created_at: string; modelo: string; dados: Ficha | null; retorno_data: string | null } & Record<string, unknown>;
 export type Profissional = { nome?: string | null; profissao?: string | null; especialidade?: string | null; conselho?: string | null } | null;
@@ -55,9 +56,9 @@ export default function FichaConteudo({ r, prof, assinatura = true, modalidade }
           <div>{new Date(r.retorno_data + "T12:00").toLocaleDateString("pt-BR")}</div>
         </section>
       )}
+      <p className="ficha-ia">{linhaIA(grupoProfissao(prof?.profissao))}</p>
       {assinatura && (
         <footer className="ficha-rodape">
-          Registro elaborado com apoio de inteligência artificial e revisado e aprovado pelo profissional responsável.
           <div className="assinatura">_______________________________<br />{prof?.nome}{prof?.conselho ? `, ${prof.conselho}` : ""}</div>
         </footer>
       )}

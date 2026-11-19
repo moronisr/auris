@@ -164,7 +164,9 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
     localRef.current = r.stream;
     setLocal(r.stream);
     setAtivo(true);
-    await iniciarGravacao(r.stream, ctx);
+    // Sem autorização do paciente para IA, a chamada acontece sem gravar o áudio.
+    if (t?.ia_autorizada !== false) await iniciarGravacao(r.stream, ctx);
+    else ctx?.close().catch(() => {});
     await supabaseBrowser().from("teleconsultas").update({ status: "em_andamento", iniciada_em: new Date().toISOString() }).eq("id", id);
     carregar();
   }
@@ -276,7 +278,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
               <video ref={videoRemoto} autoPlay playsInline />
               {!remoto && <div className="video-vazio">{ativo ? textoEstado : "Entre na sala para iniciar a chamada"}</div>}
               {local && <video ref={videoLocal} className="video-local" autoPlay playsInline muted />}
-              {ativo && <span className="video-tag"><span className={gravando ? "ponto ponto-ativo" : "ponto"} aria-hidden="true" />{gravando ? `Registro por voz ativo, ${tempo}` : "Registro por voz pausado"}</span>}
+              {ativo && <span className="video-tag"><span className={gravando ? "ponto ponto-ativo" : "ponto"} aria-hidden="true" />{t.ia_autorizada === false ? "Sem IA: o paciente não autorizou" : gravando ? `Registro por voz ativo, ${tempo}` : "Registro por voz pausado"}</span>}
             </div>
             {!ativo ? (
               <button type="button" className="gravar" onClick={entrar} style={{ marginTop: 12 }}>Entrar na sala</button>
@@ -284,12 +286,18 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
               <div className="controles">
                 <button type="button" className="btn-sec" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
                 <button type="button" className="btn-sec" onClick={alternarCam} aria-pressed={!camOn}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
-                <button type="button" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
-                <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
+                {t.ia_autorizada === false ? (
+                  <button type="button" onClick={encerrarSemFicha}>Encerrar consulta</button>
+                ) : (
+                  <>
+                    <button type="button" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
+                    <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
+                  </>
+                )}
               </div>
             )}
             {ativo && segundos >= LIMITE_S && <p className="muted">O registro por voz cobre os primeiros 60 minutos. O restante você pode completar na revisão da ficha.</p>}
-            <p className="muted">A chamada não é gravada em vídeo. Ao encerrar, a conversa é transcrita e vira a ficha para a sua revisão.</p>
+            <p className="muted">{t.ia_autorizada === false ? "O paciente não autorizou o uso de IA. A chamada acontece normalmente e nada é gravado; depois, faça o registro do atendimento por conta própria." : "A chamada não é gravada em vídeo. Ao encerrar, a conversa é transcrita e vira a ficha para a sua revisão."}</p>
           </section>
 
           <aside className="sala-lado">
@@ -297,6 +305,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
               <h2 style={{ marginTop: 0 }}>Antes da consulta</h2>
               <ul className="lista-check">
                 <li className={t.consentimento_em ? "feito" : ""}>{t.consentimento_em ? `Termo aceito às ${horaDe(t.consentimento_em)}` : "Termo ainda não aceito"}</li>
+                {t.consentimento_em && <li className={t.ia_autorizada === false ? "" : "feito"}>{t.ia_autorizada === false ? "Paciente não autorizou o uso de IA no registro" : "Paciente autorizou o uso de IA no registro"}</li>}
                 {t.pagamento_status !== "isento" && (
                   <li className={t.pagamento_status === "confirmado" ? "feito" : ""}>
                     {t.pagamento_status === "confirmado" ? `Pagamento confirmado${t.valor ? `, ${reais(Number(t.valor))}` : ""}` : t.pagamento_status === "informado" ? "Paciente informou o pagamento; confira no banco" : "Pagamento pendente"}

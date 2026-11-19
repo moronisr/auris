@@ -4,7 +4,8 @@ import QRCode from "qrcode";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
-import { TERMO_TELECONSULTA, dataHora } from "@/lib/teleconsulta";
+import { dataHora } from "@/lib/teleconsulta";
+import { grupoProfissao, termoTeleconsulta } from "@/lib/conselhos";
 
 type Info = {
   paciente: string; profissional: string; especialidade: string | null; conselho: string | null;
@@ -12,7 +13,7 @@ type Info = {
   consentimento_em: string | null; pagamento_status: string; preconsulta_ok: boolean; na_espera: boolean;
   pix: { chave: string; nome: string | null; cidade: string | null } | null;
   cartao_link: string | null;
-  pagamento_online?: boolean; reserva_expira_em?: string | null;
+  pagamento_online?: boolean; reserva_expira_em?: string | null; profissao?: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -27,6 +28,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const { codigo } = use(params);
   const [info, setInfo] = useState<Info | null | undefined>(undefined);
   const [aceito, setAceito] = useState(false);
+  const [usoIA, setUsoIA] = useState<"sim" | "nao" | null>(null);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [qr, setQr] = useState("");
@@ -133,6 +135,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     </div>
   );
 
+  const termo = termoTeleconsulta(grupoProfissao(info.profissao));
+
   const cabecalho = (
     <div className="paciente-topo">
       <span className="paciente-marca">Auris</span>
@@ -195,12 +199,18 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
         <div className="card">
           <Passos atual={1} total={total} />
           <h2 style={{ marginTop: 12 }}>Termo de consentimento</h2>
-          <div className="termo">{TERMO_TELECONSULTA}</div>
+          <div className="termo">{termo}</div>
+          <p style={{ marginBottom: 6 }}><b>Uso de inteligência artificial no registro</b></p>
+          <div className="opcoes" role="radiogroup" aria-label="Uso de inteligência artificial no registro">
+            <button type="button" role="radio" aria-checked={usoIA === "sim"} className={usoIA === "sim" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("sim")}>Autorizo</button>
+            <button type="button" role="radio" aria-checked={usoIA === "nao"} className={usoIA === "nao" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("nao")}>Não autorizo</button>
+          </div>
+          <p className="muted" style={{ marginTop: 6 }}>{usoIA === "nao" ? "Tudo bem. O atendimento acontece normalmente, e o profissional faz o registro sem IA." : "A IA só ajuda a escrever o registro. Quem avalia e decide é sempre o profissional."}</p>
           <label className="aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
-            <span>Li e concordo em ser atendido(a) por teleconsulta.</span>
+            <span>Li e concordo em ser atendido(a) online.</span>
           </label>
-          <button type="button" disabled={!aceito || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: TERMO_TELECONSULTA })}>Concordar e continuar</button>
+          <button type="button" disabled={!aceito || !usoIA || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
           <p className="muted" style={{ marginBottom: 0 }}>Seu aceite fica guardado no prontuário, com data e hora.</p>
         </div>
       ) : precisaPagar ? (

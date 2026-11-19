@@ -1,13 +1,9 @@
 /** Textos e utilidades da teleconsulta, usados pelo profissional e pelo paciente. */
 
-export const TERMO_TELECONSULTA = `Termo de consentimento para teleconsulta
+import { termoTeleconsulta } from "@/lib/conselhos";
 
-1. A consulta será feita por vídeo, pela internet, conforme a Resolução CFM nº 2.314/2022 e a Lei nº 14.510/2022.
-2. A teleconsulta tem limites: não há exame físico presencial. Se o profissional achar necessário, ele pode pedir uma consulta presencial.
-3. A chamada de vídeo não é gravada. O áudio da conversa é usado apenas para montar o registro clínico, que o profissional revisa antes de salvar. O áudio é apagado depois da transcrição.
-4. O registro do atendimento fica no prontuário eletrônico, com sigilo profissional e proteção de dados conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
-5. Você pode desistir da teleconsulta a qualquer momento e pedir atendimento presencial.
-6. Para a consulta, use um lugar reservado, com boa conexão, e tenha à mão a lista dos remédios que você usa.`;
+/** Termo padrão (medicina). O termo de cada atendimento vem de termoTeleconsulta(grupo). */
+export const TERMO_TELECONSULTA = termoTeleconsulta("medicina");
 
 export type StatusTele = "agendada" | "confirmada" | "em_andamento" | "encerrada" | "cancelada";
 export type PagamentoTele = "pendente" | "informado" | "confirmado" | "isento";
@@ -16,7 +12,7 @@ export type Teleconsulta = {
   id: string; created_at: string; paciente_nome: string; paciente_telefone: string | null;
   inicio: string; duracao_min: number; valor: number | null; codigo: string; status: StatusTele;
   confirmada_em: string | null; consentimento_em: string | null; pagamento_status: PagamentoTele;
-  pagamento_informado_em: string | null; pagamento_confirmado_em: string | null; pagamento_metodo?: string | null; cartao_link?: string | null; origem?: string; reserva_expira_em?: string | null;
+  pagamento_informado_em: string | null; pagamento_confirmado_em: string | null; pagamento_metodo?: string | null; cartao_link?: string | null; origem?: string; reserva_expira_em?: string | null; ia_autorizada?: boolean | null;
   preconsulta: { motivo?: string; medicamentos?: string; alergias?: string } | null;
   paciente_na_espera_em: string | null; iniciada_em: string | null; encerrada_em: string | null; registro_id: string | null;
 };

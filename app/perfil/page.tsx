@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 import { TIPOS_CHAVE, linkPagamentoValido, normalizarChave, type TipoChave } from "@/lib/pix";
 import AgendaOnline from "@/components/AgendaOnline";
+import { SIGLA_CONSELHO, grupoProfissao } from "@/lib/conselhos";
 
 export default function Perfil() {
   const router = useRouter();
@@ -86,12 +87,18 @@ export default function Perfil() {
                 {ESPECIALIDADES_MEDICAS.map((s) => <option key={s}>{s}</option>)}
               </select>
             ) : (
-              <input placeholder="Opcional" value={especialidade} onChange={(e) => setEspecialidade(e.target.value)} />
+              <>
+                <input list="lista-especialidades" placeholder="Opcional" value={especialidade} onChange={(e) => setEspecialidade(e.target.value)} />
+                <datalist id="lista-especialidades">
+                  {(profissao === "Dentista" ? ["Harmonização orofacial", "Dentística (estética)", "Clínico geral", "Ortodontia", "Implantodontia", "Endodontia", "Periodontia", "Prótese dentária", "Odontopediatria", "Cirurgia bucomaxilofacial"]
+                    : grupoProfissao(profissao) === "psicologia" ? ["Psicologia clínica", "Terapia cognitivo-comportamental", "Psicanálise", "Neuropsicologia", "Psicologia infantil", "Terapia de casal e família"] : []).map((x) => <option key={x} value={x} />)}
+                </datalist>
+              </>
             )}
           </div>
           <div>
             <label>Registro no conselho</label>
-            <input value={conselho} onChange={(e) => setConselho(e.target.value)} />
+            <input placeholder={`Ex.: ${SIGLA_CONSELHO[grupoProfissao(profissao)] === "conselho profissional" ? "registro" : SIGLA_CONSELHO[grupoProfissao(profissao)]}-PA 12345`} value={conselho} onChange={(e) => setConselho(e.target.value)} />
           </div>
         </div>
         <div style={{ height: 10 }} />

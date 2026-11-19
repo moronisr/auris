@@ -179,6 +179,25 @@ export const MODELOS: Record<string, Modelo> = {
       RETORNO,
     ],
   },
+  harmonizacao: {
+    id: "harmonizacao",
+    nome: "Harmonização orofacial (avaliação e procedimento)",
+    descricao: "Avaliação facial, plano e registro de procedimento estético de HOF.",
+    instrucoes:
+      "Registro de harmonização orofacial ditado pelo cirurgião-dentista. Registre a queixa estética e a expectativa do paciente, a análise facial por regiões (terço superior, médio e inferior), contraindicações e histórico relevante (alergias, procedimentos anteriores, uso de anticoagulantes, gestação). No procedimento, registre produto, marca, lote e validade quando ditados, quantidade por região, técnica e intercorrências. Não invente produto, lote ou quantidade que não foram ditados.",
+    campos: [
+      { chave: "queixa_estetica", rotulo: "Queixa estética e expectativa do paciente", tipo: "longo", grupo: "Avaliação" },
+      { chave: "historico_saude", rotulo: "Histórico de saúde, alergias, medicamentos e procedimentos anteriores", tipo: "longo", grupo: "Avaliação" },
+      { chave: "contraindicacoes", rotulo: "Contraindicações e cuidados", tipo: "longo", grupo: "Avaliação" },
+      { chave: "analise_facial", rotulo: "Análise facial (terços, simetria, pele, perfil)", tipo: "longo", grupo: "Avaliação" },
+      { chave: "plano_tratamento", rotulo: "Plano de tratamento proposto", tipo: "longo", grupo: "Planejamento" },
+      { chave: "produtos_lotes", rotulo: "Produtos utilizados (marca, lote, validade)", tipo: "longo", grupo: "Procedimento" },
+      { chave: "regioes_quantidades", rotulo: "Regiões tratadas e quantidades", tipo: "longo", grupo: "Procedimento" },
+      { chave: "tecnica_intercorrencias", rotulo: "Técnica, anestesia e intercorrências", tipo: "longo", grupo: "Procedimento" },
+      { chave: "orientacoes", rotulo: "Orientações pós-procedimento", tipo: "longo", grupo: "Pós" },
+      RETORNO,
+    ],
+  },
   fisioterapia: {
     id: "fisioterapia",
     nome: "Fisioterapia",
@@ -279,7 +298,7 @@ export const ESPECIALIDADES_MEDICAS = [
 /** Lista única para o seletor do registro: especialidades médicas + demais profissões de saúde. */
 export const AREAS_ATENDIMENTO: { grupo: string; itens: string[] }[] = [
   { grupo: "Medicina: especialidades (CFM)", itens: ESPECIALIDADES_MEDICAS.filter((e) => e !== "Outra") },
-  { grupo: "Outras profissões de saúde", itens: PROFISSOES.filter((p) => p !== "Médico(a)") },
+  { grupo: "Outras profissões de saúde", itens: PROFISSOES.filter((p) => p !== "Médico(a)").flatMap((p) => (p === "Dentista" ? [p, "Dentista: harmonização orofacial"] : [p])) },
 ];
 
 /** Modelo de campos para uma área de atendimento escolhida no registro. */
@@ -290,7 +309,7 @@ export function modeloDaArea(area: string): string {
     "Psiquiatria": "psiquiatria",
     "Pediatria": "pediatria",
     "Ginecologia e obstetrícia": "pre_natal",
-    "Dentista": "odontologia",
+    "Dentista": "odontologia", "Dentista: harmonização orofacial": "harmonizacao",
     "Fisioterapeuta": "fisioterapia", "Medicina física e reabilitação": "fisioterapia",
     "Nutricionista": "nutricao", "Nutrologia": "nutricao",
     "Enfermeiro(a)": "enfermagem", "Técnico(a) de enfermagem": "enfermagem",
@@ -303,6 +322,9 @@ export function modeloDaArea(area: string): string {
 export function modeloPadrao(profissao?: string | null, especialidade?: string | null): string {
   if (especialidade === "Oftalmologia") return "oftalmologia";
   if (["Psicólogo(a)", "Psicanalista", "Psicopedagogo(a)"].includes(profissao ?? "")) return "psicologia";
+  if (profissao === "Dentista") return /harmoniza|hof|estétic|estetic/i.test(especialidade ?? "") ? "harmonizacao" : "odontologia";
+  if (especialidade === "Psiquiatria") return "psiquiatria";
+  if (especialidade === "Pediatria") return "pediatria";
   return "geral";
 }
 
