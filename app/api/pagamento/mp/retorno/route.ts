@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     const admin = supabaseAdmin();
     const { error } = await admin.from("profissionais_segredos").upsert({
       profissional_id: user.id, mp_access_token: t.access_token, mp_refresh_token: t.refresh_token,
-      mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), mp_user_id: String(t.user_id), pagbank_token: null, atualizado_em: new Date().toISOString(),
+      mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), mp_user_id: String(t.user_id), mp_public_key: t.public_key || null, pagbank_token: null, atualizado_em: new Date().toISOString(),
     });
     if (error) throw error;
     await admin.from("profissionais").update({ mp_conectado: true, mp_modo: t.live_mode === false ? "teste" : "producao", pg_provedor: "mercadopago" }).eq("id", user.id);

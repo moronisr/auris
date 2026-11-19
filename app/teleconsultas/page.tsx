@@ -38,7 +38,7 @@ export default function Teleconsultas() {
   const carregar = useCallback(async () => {
     const sb = supabaseBrowser();
     const desde = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-    const { data } = await sb.from("teleconsultas").select("*").gte("inicio", desde).neq("status", "cancelada").order("inicio");
+    const { data } = await sb.from("teleconsultas").select("*").gte("inicio", desde).or("status.neq.cancelada,pagamento_alerta.not.is.null").order("inicio");
     setLista((data as Teleconsulta[]) ?? []);
     setCarregando(false);
   }, []);
@@ -194,6 +194,7 @@ export default function Teleconsultas() {
           <div className="selos">
             {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
             {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
+            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : "Pago, mas a consulta foi cancelada"} />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}

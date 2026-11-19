@@ -1,6 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import CartaoMP from "@/components/CartaoMP";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -39,6 +40,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [voltouPg, setVoltouPg] = useState(false);
   const [pixOnline, setPixOnline] = useState<{ codigo: string; imagem: string } | null>(null);
   const [copiadoOnline, setCopiadoOnline] = useState(false);
+  const [cartaoOnline, setCartaoOnline] = useState<{ metodo: "credito" | "debito"; publicKey: string } | null>(null);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
@@ -77,10 +79,15 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
 
   async function pagarOnline(m: "pix" | "credito" | "debito") {
     setErro(""); setAbrindoPg(true);
+    if (m !== "pix") {
+      // Cartão: formulário seguro do Mercado Pago na própria página, sem conta. Se não houver, usa a página da instituição.
+      const k = await fetch(`/api/pagamento/chave-publica?codigo=${encodeURIComponent(codigo)}`).then((x) => x.json()).catch(() => ({}));
+      if (k?.publicKey) { setAbrindoPg(false); setPixOnline(null); setCartaoOnline({ metodo: m, publicKey: k.publicKey }); return; }
+    }
     const r = await fetch("/api/pagamento/criar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo, metodo: m }) });
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.pix?.codigo) {
-      setAbrindoPg(false); setPixOnline(d.pix); setCopiadoOnline(false); setVoltouPg(true);
+      setAbrindoPg(false); setCartaoOnline(null); setPixOnline(d.pix); setCopiadoOnline(false); setVoltouPg(true);
       if (!d.pix.imagem) QRCode.toDataURL(d.pix.codigo, { margin: 1, width: 360, color: { dark: "#101817", light: "#FFFFFF" } }).then((u) => setPixOnline({ codigo: d.pix.codigo, imagem: u })).catch(() => {});
       return;
     }
@@ -227,6 +234,14 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           {info.pagamento_online ? (
             reservaVencida ? (
               <p style={{ marginBottom: 0 }}>O prazo de 30 minutos para pagar este horário terminou e ele foi liberado. Volte à página do profissional e escolha um novo horário.</p>
+            ) : cartaoOnline && info.pagamento_status !== "confirmado" ? (
+              <>
+                <p className="muted">Pague <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b> no cartão de {cartaoOnline.metodo === "credito" ? "crédito, à vista" : "débito"}. Os dados do cartão ficam só no Mercado Pago; o Auris não vê nem guarda. Não precisa de conta no Mercado Pago.</p>
+                <CartaoMP key={cartaoOnline.metodo} codigo={codigo} publicKey={cartaoOnline.publicKey} valor={Number(info.valor)} metodo={cartaoOnline.metodo}
+                  onAprovado={() => { setErro(""); verificarPagamento(); }} onErro={setErro} />
+                {cartaoOnline.metodo === "debito" && <p className="muted">No débito online, nem todos os bancos aceitam. Se o seu não aceitar, use o crédito ou o Pix.</p>}
+                <button type="button" className="link" onClick={() => { setCartaoOnline(null); setErro(""); }}>Escolher outra forma de pagamento</button>
+              </>
             ) : pixOnline && info.pagamento_status !== "confirmado" ? (
               <>
                 <p className="muted">Pague <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b> com Pix pelo aplicativo do seu banco. Não precisa de conta em nenhuma outra instituição.</p>

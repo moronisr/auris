@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { codigo?: string; metodo?: Metodo } | null;
   if (!b?.codigo || !["pix", "credito", "debito"].includes(b.metodo || "")) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   const sb = supabaseAdmin();
-  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, codigo, valor, status, pagamento_status, consentimento_em, reserva_expira_em, inicio, paciente_email")
+  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, codigo, valor, status, pagamento_status, consentimento_em, reserva_expira_em, inicio, paciente_email, mp_pagamento_id")
     .eq("codigo", b.codigo).maybeSingle();
   if (!t || t.status === "cancelada" || t.status === "encerrada") return NextResponse.json({ erro: "Consulta não encontrada ou cancelada." }, { status: 404 });
   if (!(Number(t.valor) > 0) || t.pagamento_status === "confirmado") return NextResponse.json({ erro: "Esta consulta não tem pagamento pendente." }, { status: 409 });
@@ -24,10 +24,12 @@ export async function POST(req: Request) {
       // Pix: QR Code e copia e cola na própria página, pago por qualquer banco, sem conta no Mercado Pago.
       const px = await criarPixOnline({
         profissionalId: t.profissional_id, teleId: t.id, codigo: t.codigo, valor: Number(t.valor), titulo: `Teleconsulta com ${p?.nome || "profissional"}`,
-        expira, base, email: t.paciente_email,
+        expira, base, email: t.paciente_email, anterior: t.mp_pagamento_id,
       });
       if (px) {
-        await sb.from("teleconsultas").update({ mp_pagamento_id: px.pagamentoId, pg_provedor: "mercadopago", pagamento_metodo: "pix" }).eq("id", t.id);
+        // A reserva do horário dura até o código Pix vencer: quem paga dentro do prazo nunca perde o horário.
+        const reserva = t.reserva_expira_em && new Date(px.expira) > new Date(t.reserva_expira_em) ? px.expira : t.reserva_expira_em;
+        await sb.from("teleconsultas").update({ mp_pagamento_id: px.pagamentoId, pg_provedor: "mercadopago", pagamento_metodo: "pix", reserva_expira_em: reserva }).eq("id", t.id);
         return NextResponse.json({ pix: { codigo: px.codigo, imagem: px.imagem } });
       }
     }

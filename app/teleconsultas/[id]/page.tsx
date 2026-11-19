@@ -253,6 +253,14 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       </div>
 
       {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
+      {t.pagamento_alerta && (
+        <div className="erro" role="alert" style={{ marginBottom: 12 }}>
+          {t.pagamento_alerta === "duplicado"
+            ? "O paciente pagou esta consulta mais de uma vez. Devolva o valor extra pelo Mercado Pago (Atividade, abrir a venda, Devolver dinheiro)."
+            : "O paciente pagou esta consulta, mas ela está cancelada. Remarque com o paciente ou devolva o valor pelo Mercado Pago (Atividade, abrir a venda, Devolver dinheiro)."}
+          {t.mp_pagamento_id ? ` Transação ${t.mp_pagamento_id}.` : ""}
+        </div>
+      )}
       {Number(t.valor) > 0 && pagamentoPendente && (
         <div className="aviso" style={{ margin: "12px 0" }}>
           Pagamento ainda não confirmado. O paciente só consegue entrar na sala de espera depois da confirmação{t.origem === "pagina" ? ", que o sistema faz automaticamente" : t.pagamento_status === "informado" ? ". Ele informou que pagou: confira no seu banco e confirme na agenda" : ""}.

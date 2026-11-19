@@ -44,7 +44,7 @@ export async function chaveDoProfissional(profissionalId: string): Promise<strin
       const t = await renovar(data.mp_refresh_token);
       await admin.from("profissionais_segredos").update({
         mp_access_token: t.access_token, mp_refresh_token: t.refresh_token,
-        mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), atualizado_em: new Date().toISOString(),
+        mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), ...(t.public_key ? { mp_public_key: t.public_key } : {}), atualizado_em: new Date().toISOString(),
       }).eq("profissional_id", profissionalId);
       return t.access_token;
     } catch (e) {
@@ -52,6 +52,69 @@ export async function chaveDoProfissional(profissionalId: string): Promise<strin
     }
   }
   return data.mp_access_token;
+}
+
+/**
+ * Chave pública da conta conectada, usada no formulário de cartão seguro do Mercado Pago (os dados do cartão
+ * vão direto para o Mercado Pago, sem passar pelo Auris). Se ainda não estiver guardada, renova a conexão para obtê-la.
+ */
+export async function chavePublicaDoProfissional(profissionalId: string): Promise<string | null> {
+  const admin = supabaseAdmin();
+  const { data } = await admin.from("profissionais_segredos").select("mp_public_key, mp_refresh_token").eq("profissional_id", profissionalId).maybeSingle();
+  if (data?.mp_public_key) return data.mp_public_key;
+  if (!data?.mp_refresh_token) return null;
+  try {
+    const t = await renovar(data.mp_refresh_token);
+    await admin.from("profissionais_segredos").update({
+      mp_access_token: t.access_token, mp_refresh_token: t.refresh_token, mp_public_key: t.public_key || null,
+      mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), atualizado_em: new Date().toISOString(),
+    }).eq("profissional_id", profissionalId);
+    return t.public_key || null;
+  } catch (e) {
+    console.error("mp chave publica", e);
+    return null;
+  }
+}
+
+/** Cancela um Pix ainda não pago, para o paciente nunca ter dois códigos válidos para a mesma consulta. */
+export async function cancelarPixPendente(token: string, pagamentoId: string): Promise<void> {
+  if (!/^\d+$/.test(pagamentoId)) return;
+  try {
+    const pg = await mp<{ status: string; payment_type_id: string }>(token, `/v1/payments/${pagamentoId}`);
+    if (pg.payment_type_id === "bank_transfer" && (pg.status === "pending" || pg.status === "in_process")) {
+      await mp(token, `/v1/payments/${pagamentoId}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+    }
+  } catch (e) {
+    console.error("cancelar pix anterior", e);
+  }
+}
+
+export type ResultadoCartao = { status: string; detalhe: string; pagamentoId: string };
+
+/** Cobra o cartão (crédito ou débito) com o token gerado pelo formulário seguro do Mercado Pago. Valor sempre do servidor. */
+export async function cobrarCartaoMercadoPago(o: {
+  token: string; teleId: string; valor: number; titulo: string; base: string; chave: string;
+  cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer: { email: string; identification?: { type: string; number: string } } };
+}): Promise<ResultadoCartao> {
+  const pg = await mp<{ id: number; status: string; status_detail: string }>(o.token, "/v1/payments", {
+    method: "POST",
+    headers: { "X-Idempotency-Key": `${o.teleId}-cartao-${o.chave}` },
+    body: JSON.stringify({
+      transaction_amount: Number(o.valor.toFixed(2)),
+      token: o.cartao.token,
+      description: o.titulo.slice(0, 120),
+      installments: 1,
+      payment_method_id: o.cartao.payment_method_id,
+      ...(o.cartao.issuer_id ? { issuer_id: Number(o.cartao.issuer_id) } : {}),
+      payer: { email: o.cartao.payer.email, ...(o.cartao.payer.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
+      external_reference: o.teleId,
+      notification_url: `${o.base}/api/pagamento/webhook?t=${o.teleId}`,
+      statement_descriptor: "AURIS CONSULTA",
+      binary_mode: true,
+      capture: true,
+    }),
+  });
+  return { status: pg.status, detalhe: pg.status_detail, pagamentoId: String(pg.id) };
 }
 
 const EXCLUIR: Record<Metodo, string[]> = {
@@ -124,28 +187,34 @@ const metodoDoTipo = (tipo: string): string => (tipo === "credit_card" ? "credit
  */
 export async function confirmarPeloMercadoPago(teleId: string, pagamentoId?: string): Promise<string> {
   const sb = supabaseAdmin();
-  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, valor, pagamento_status, status").eq("id", teleId).maybeSingle();
+  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, valor, pagamento_status, status, mp_pagamento_id, pagamento_alerta").eq("id", teleId).maybeSingle();
   if (!t) return "nao_encontrada";
-  if (t.pagamento_status === "confirmado" || t.pagamento_status === "isento") return t.pagamento_status;
+  if (t.pagamento_status === "isento") return t.pagamento_status;
   const token = await chaveDoProfissional(t.profissional_id);
   if (!token) return t.pagamento_status;
 
-  let candidatos: Pagamento[] = [];
-  if (pagamentoId && /^\d+$/.test(pagamentoId)) {
-    candidatos = [await mp<Pagamento>(token, `/v1/payments/${pagamentoId}`)];
-  } else {
-    const r = await mp<{ results: Pagamento[] }>(token, `/v1/payments/search?external_reference=${encodeURIComponent(teleId)}&sort=date_created&criteria=desc`);
-    candidatos = r.results || [];
+  // Sempre a lista completa de pagamentos desta consulta, para achar também pagamentos em duplicidade.
+  const r = await mp<{ results: Pagamento[] }>(token, `/v1/payments/search?external_reference=${encodeURIComponent(teleId)}&sort=date_created&criteria=asc`);
+  let candidatos = r.results || [];
+  if (pagamentoId && /^\d+$/.test(pagamentoId) && !candidatos.some((p) => String(p.id) === pagamentoId)) {
+    candidatos = [...candidatos, await mp<Pagamento>(token, `/v1/payments/${pagamentoId}`)];
   }
-  const ok = candidatos.find((p) => p.status === "approved" && p.external_reference === teleId && Number(p.transaction_amount) + 0.001 >= Number(t.valor || 0));
-  if (!ok) return t.pagamento_status;
+  const aprovados = candidatos.filter((p) => p.status === "approved" && p.external_reference === teleId && Number(p.transaction_amount) + 0.001 >= Number(t.valor || 0));
+  if (!aprovados.length) return t.pagamento_status;
 
+  const alerta = aprovados.length > 1 ? "duplicado" : t.status === "cancelada" ? "pago_cancelada" : null;
+  if (t.pagamento_status === "confirmado") {
+    if (alerta && t.pagamento_alerta !== alerta) await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
+    return "confirmado";
+  }
+  const ok = aprovados[0];
   await sb.from("teleconsultas").update({
     pagamento_status: "confirmado",
     pagamento_confirmado_em: ok.date_approved || new Date().toISOString(),
     pagamento_metodo: metodoDoTipo(ok.payment_type_id),
     mp_pagamento_id: String(ok.id),
     reserva_expira_em: null,
+    pagamento_alerta: alerta,
     status: t.status === "agendada" ? "confirmada" : t.status,
   }).eq("id", teleId).neq("pagamento_status", "confirmado");
   return "confirmado";

@@ -14,7 +14,7 @@ export function urlAutorizacao(base: string, estado: string) {
   return `${AUTH}?${q}`;
 }
 
-export type TokensMp = { access_token: string; refresh_token: string; expires_in: number; user_id: number; live_mode: boolean };
+export type TokensMp = { access_token: string; refresh_token: string; expires_in: number; user_id: number; live_mode: boolean; public_key?: string };
 
 async function pedirToken(corpo: Record<string, string>): Promise<TokensMp> {
   const r = await fetch(TOKEN, {
