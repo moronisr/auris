@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/admin";
-import { chaveDoProfissional, confirmarPeloMercadoPago, criarCobranca, type Metodo } from "@/lib/mercadopago";
+import { chaveDoProfissional, confirmarPeloMercadoPago, criarCobranca, criarPixMercadoPago, type Metodo } from "@/lib/mercadopago";
 import { criarCobrancaPagBank, pagamentoPagBank } from "@/lib/pagbank";
 
 /** Pagamento online do profissional, pela instituição que ele conectou (Mercado Pago ou PagBank). */
@@ -16,6 +16,15 @@ async function credencial(profissionalId: string) {
   }
   const token = await chaveDoProfissional(profissionalId);
   return token ? { provedor: "mercadopago" as const, token, sandbox: false } : null;
+}
+
+/** Pix direto (QR Code na página do Auris). Hoje só pelo Mercado Pago; nos outros casos retorna null. */
+export async function criarPixOnline(o: {
+  profissionalId: string; teleId: string; codigo: string; valor: number; titulo: string; expira: Date; base: string; email?: string | null;
+}): Promise<{ pagamentoId: string; codigo: string; imagem: string; expira: string } | null> {
+  const c = await credencial(o.profissionalId);
+  if (!c || c.provedor !== "mercadopago") return null;
+  return criarPixMercadoPago({ token: c.token, ...o });
 }
 
 export async function criarCobrancaOnline(o: {

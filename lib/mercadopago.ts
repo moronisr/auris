@@ -85,6 +85,35 @@ export async function criarCobranca(opts: {
   return { url, preferenciaId: pref.id };
 }
 
+/**
+ * Pix direto pela API de pagamentos: o Auris mostra o QR Code e o copia e cola na própria página,
+ * e o paciente paga pelo app de qualquer banco, sem conta no Mercado Pago.
+ */
+export async function criarPixMercadoPago(opts: {
+  token: string; teleId: string; codigo: string; valor: number; titulo: string; expira: Date; base: string; email?: string | null;
+}): Promise<{ pagamentoId: string; codigo: string; imagem: string; expira: string }> {
+  const minimo = Date.now() + 31 * 60_000;
+  const expira = new Date(Math.max(opts.expira.getTime(), minimo));
+  const email = opts.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(opts.email) ? opts.email : `aurismedical2+${opts.teleId.slice(0, 8)}@gmail.com`;
+  const pg = await mp<{ id: number; point_of_interaction?: { transaction_data?: { qr_code?: string; qr_code_base64?: string } } }>(opts.token, "/v1/payments", {
+    method: "POST",
+    headers: { "X-Idempotency-Key": `${opts.teleId}-pix-${Math.floor(Date.now() / 60000)}` },
+    body: JSON.stringify({
+      transaction_amount: Number(opts.valor.toFixed(2)),
+      description: opts.titulo.slice(0, 120),
+      payment_method_id: "pix",
+      payer: { email },
+      external_reference: opts.teleId,
+      notification_url: `${opts.base}/api/pagamento/webhook?t=${opts.teleId}`,
+      date_of_expiration: expira.toISOString(),
+      statement_descriptor: "AURIS CONSULTA",
+    }),
+  });
+  const td = pg.point_of_interaction?.transaction_data;
+  if (!td?.qr_code) throw new Error(`Mercado Pago Pix sem QR Code (pagamento ${pg.id})`);
+  return { pagamentoId: String(pg.id), codigo: td.qr_code, imagem: td.qr_code_base64 ? `data:image/png;base64,${td.qr_code_base64}` : "", expira: expira.toISOString() };
+}
+
 type Pagamento = { id: number; status: string; transaction_amount: number; payment_type_id: string; external_reference: string | null; date_approved: string | null };
 
 const metodoDoTipo = (tipo: string): string => (tipo === "credit_card" ? "credito" : tipo === "debit_card" ? "debito" : "pix");

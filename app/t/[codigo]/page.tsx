@@ -37,6 +37,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [abriuCartao, setAbriuCartao] = useState(false);
   const [abrindoPg, setAbrindoPg] = useState(false);
   const [voltouPg, setVoltouPg] = useState(false);
+  const [pixOnline, setPixOnline] = useState<{ codigo: string; imagem: string } | null>(null);
+  const [copiadoOnline, setCopiadoOnline] = useState(false);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
@@ -77,6 +79,11 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     setErro(""); setAbrindoPg(true);
     const r = await fetch("/api/pagamento/criar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo, metodo: m }) });
     const d = await r.json().catch(() => ({}));
+    if (r.ok && d.pix?.codigo) {
+      setAbrindoPg(false); setPixOnline(d.pix); setCopiadoOnline(false); setVoltouPg(true);
+      if (!d.pix.imagem) QRCode.toDataURL(d.pix.codigo, { margin: 1, width: 360, color: { dark: "#101817", light: "#FFFFFF" } }).then((u) => setPixOnline({ codigo: d.pix.codigo, imagem: u })).catch(() => {});
+      return;
+    }
     if (!r.ok || !d.url) { setAbrindoPg(false); setErro(d.erro || "Não foi possível abrir o pagamento."); return; }
     window.location.href = d.url;
   }
@@ -220,6 +227,16 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           {info.pagamento_online ? (
             reservaVencida ? (
               <p style={{ marginBottom: 0 }}>O prazo de 30 minutos para pagar este horário terminou e ele foi liberado. Volte à página do profissional e escolha um novo horário.</p>
+            ) : pixOnline && info.pagamento_status !== "confirmado" ? (
+              <>
+                <p className="muted">Pague <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b> com Pix pelo aplicativo do seu banco. Não precisa de conta em nenhuma outra instituição.</p>
+                {pixOnline.imagem && <img src={pixOnline.imagem} alt="QR Code do Pix" className="qr" />}
+                <label htmlFor="pix-online">Pix copia e cola</label>
+                <textarea id="pix-online" readOnly rows={3} value={pixOnline.codigo} onFocus={(e) => e.currentTarget.select()} />
+                <button type="button" style={{ width: "100%", marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pixOnline.codigo).then(() => setCopiadoOnline(true)).catch(() => {}); }}>{copiadoOnline ? "Código copiado" : "Copiar código Pix"}</button>
+                <p className="muted">No app do banco, escolha Pix, depois Pix Copia e Cola (ou ler QR Code). Assim que o pagamento cair, esta página libera a consulta sozinha, em poucos segundos.</p>
+                <button type="button" className="link" onClick={() => setPixOnline(null)}>Escolher outra forma de pagamento</button>
+              </>
             ) : voltouPg && info.pagamento_status !== "confirmado" ? (
               <>
                 <p>Estamos aguardando a confirmação do pagamento. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>

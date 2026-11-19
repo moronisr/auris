@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import type { Metodo } from "@/lib/mercadopago";
-import { criarCobrancaOnline } from "@/lib/pagamentos";
+import { criarCobrancaOnline, criarPixOnline } from "@/lib/pagamentos";
 
 export const runtime = "nodejs";
 
@@ -20,6 +20,17 @@ export async function POST(req: Request) {
   const expira = t.reserva_expira_em ? new Date(t.reserva_expira_em) : new Date(Math.min(new Date(t.inicio).getTime(), Date.now() + 24 * 3600e3));
   const base = new URL(req.url).origin;
   try {
+    if (b.metodo === "pix") {
+      // Pix: QR Code e copia e cola na própria página, pago por qualquer banco, sem conta no Mercado Pago.
+      const px = await criarPixOnline({
+        profissionalId: t.profissional_id, teleId: t.id, codigo: t.codigo, valor: Number(t.valor), titulo: `Teleconsulta com ${p?.nome || "profissional"}`,
+        expira, base, email: t.paciente_email,
+      });
+      if (px) {
+        await sb.from("teleconsultas").update({ mp_pagamento_id: px.pagamentoId, pg_provedor: "mercadopago", pagamento_metodo: "pix" }).eq("id", t.id);
+        return NextResponse.json({ pix: { codigo: px.codigo, imagem: px.imagem } });
+      }
+    }
     const r = await criarCobrancaOnline({
       profissionalId: t.profissional_id, teleId: t.id, codigo: t.codigo, valor: Number(t.valor), titulo: `Teleconsulta com ${p?.nome || "profissional"}`,
       metodo: b.metodo as Metodo, expira, base, email: t.paciente_email,
