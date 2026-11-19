@@ -45,7 +45,7 @@ export default function Termos() {
       <p>Estes termos seguem a legislação brasileira.</p>
 
       <h2>10. Contato</h2>
-      <p><a href="mailto:srurmoroni@gmail.com">srurmoroni@gmail.com</a></p>
+      <p><a href="mailto:aurismedical2@gmail.com">aurismedical2@gmail.com</a></p>
     </PaginaInfo>
   );
 }

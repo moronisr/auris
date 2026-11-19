@@ -59,7 +59,7 @@ export default function Privacidade() {
       <p>A LGPD garante acesso, correção, informação sobre compartilhamento, portabilidade, eliminação quando cabível e revogação do consentimento, entre outros. Pacientes: falem com o profissional que os atendeu, que é quem responde pelo prontuário. Profissionais: falem com o Auris pelo e-mail abaixo.</p>
 
       <h2>9. Contato</h2>
-      <p>Dúvidas e pedidos sobre privacidade: <a href="mailto:srurmoroni@gmail.com">srurmoroni@gmail.com</a>.</p>
+      <p>Dúvidas e pedidos sobre privacidade: <a href="mailto:aurismedical2@gmail.com">aurismedical2@gmail.com</a>.</p>
     </PaginaInfo>
   );
 }
