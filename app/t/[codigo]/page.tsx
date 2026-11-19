@@ -12,6 +12,7 @@ type Info = {
   consentimento_em: string | null; pagamento_status: string; preconsulta_ok: boolean; na_espera: boolean;
   pix: { chave: string; nome: string | null; cidade: string | null } | null;
   cartao_link: string | null;
+  pagamento_online?: boolean; reserva_expira_em?: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -32,6 +33,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [copiado, setCopiado] = useState(false);
   const [metodo, setMetodo] = useState<"pix" | "credito" | "debito" | null>(null);
   const [abriuCartao, setAbriuCartao] = useState(false);
+  const [abrindoPg, setAbrindoPg] = useState(false);
+  const [voltouPg, setVoltouPg] = useState(false);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
@@ -52,6 +55,29 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     const p = setInterval(carregar, 8000);
     return () => clearInterval(p);
   }, [carregar]);
+
+  // Voltou do Mercado Pago: o servidor consulta o Mercado Pago e confirma. Repete por alguns minutos (Pix pode demorar).
+  const verificarPagamento = useCallback(async () => {
+    await fetch("/api/pagamento/verificar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo }) }).catch(() => {});
+    await carregar();
+  }, [codigo, carregar]);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("pg")) { setVoltouPg(true); verificarPagamento(); }
+  }, [verificarPagamento]);
+  useEffect(() => {
+    if (!voltouPg || !info || !info.pagamento_online || info.pagamento_status === "confirmado") return;
+    let n = 0;
+    const t = setInterval(() => { if (++n > 40) clearInterval(t); else verificarPagamento(); }, 6000);
+    return () => clearInterval(t);
+  }, [voltouPg, info?.pagamento_online, info?.pagamento_status, verificarPagamento]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function pagarOnline(m: "pix" | "credito" | "debito") {
+    setErro(""); setAbrindoPg(true);
+    const r = await fetch("/api/pagamento/criar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo, metodo: m }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.url) { setAbrindoPg(false); setErro(d.erro || "Não foi possível abrir o pagamento."); return; }
+    window.location.href = d.url;
+  }
 
   const { remoto, estado } = useSala(codigo, "paciente", local, naSala);
   useEffect(() => { if (videoLocal.current) videoLocal.current.srcObject = local; }, [local, naSala]);
@@ -124,7 +150,10 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
 
   const temValor = !!info.valor && Number(info.valor) > 0;
   const total = temValor ? 4 : 3;
-  const precisaPagar = temValor && info.pagamento_status === "pendente";
+  // Trava: com valor, só segue para a sala depois do pagamento confirmado (pelo Mercado Pago ou pelo consultório).
+  const pago = info.pagamento_status === "confirmado" || info.pagamento_status === "isento";
+  const precisaPagar = temValor && !pago;
+  const reservaVencida = !!info.reserva_expira_em && new Date(info.reserva_expira_em) < new Date();
 
   // Chamada em andamento
   if (naSala) return (
@@ -178,7 +207,35 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
         <div className="card">
           <Passos atual={2} total={total} />
           <h2 style={{ marginTop: 12 }}>Pagamento da consulta</h2>
-          {!info.pix && !info.cartao_link ? (
+          {info.pagamento_online ? (
+            reservaVencida ? (
+              <p style={{ marginBottom: 0 }}>O prazo de 30 minutos para pagar este horário terminou e ele foi liberado. Volte à página do profissional e escolha um novo horário.</p>
+            ) : voltouPg && info.pagamento_status !== "confirmado" ? (
+              <>
+                <p>Estamos aguardando a confirmação do Mercado Pago. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>
+                <p className="muted">Se você fechou o pagamento sem concluir, escolha a forma de pagamento de novo:</p>
+                <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="muted">Valor da consulta: <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b>. O pagamento vai direto para {info.profissional} e confirma a sua consulta automaticamente.</p>
+                <p className="muted" style={{ marginBottom: 6 }}>Escolha como pagar:</p>
+                <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
+                  <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
+                </div>
+                <p className="muted">{abrindoPg ? "Abrindo o pagamento seguro do Mercado Pago." : "Você paga no ambiente seguro do Mercado Pago e volta para cá. Os dados do cartão não passam pelo Auris."}</p>
+                {info.reserva_expira_em && <p className="muted" style={{ marginBottom: 0 }}>Seu horário fica reservado até as {new Date(info.reserva_expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}.</p>}
+              </>
+            )
+          ) : info.pagamento_status === "informado" ? (
+            <p style={{ marginBottom: 0 }}>Recebemos o seu aviso de pagamento. Assim que o consultório confirmar o recebimento, esta página libera os próximos passos e a sala de espera. Ela atualiza sozinha.</p>
+          ) : !info.pix && !info.cartao_link ? (
             <p className="muted" style={{ marginBottom: 0 }}>O consultório ainda não cadastrou a forma de pagamento. Entre em contato com o consultório.</p>
           ) : (
             <>
@@ -215,7 +272,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                   </>
                 ) : <p className="muted">Este consultório ainda não recebe por cartão. Escolha Pix.</p>;
               })()}
-              <p className="muted" style={{ marginBottom: 0 }}>O consultório confere o pagamento. Você já pode seguir para os próximos passos.</p>
+              <p className="muted" style={{ marginBottom: 0 }}>Depois de pagar, toque em &quot;Já fiz o pagamento&quot;. O consultório confere e libera a sala de espera.</p>
             </>
           )}
         </div>
@@ -248,7 +305,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
         <div className="card">
           <Passos atual={total} total={total} />
           <h2 style={{ marginTop: 12 }}>Sala de espera</h2>
-          {temValor && info.pagamento_status === "informado" && <p className="muted">Pagamento informado. O consultório vai conferir.</p>}
+          {temValor && pago && <p className="ok" style={{ marginTop: 0 }}>Pagamento confirmado.</p>}
           <div className="video-remoto video-teste">
             {local ? <video ref={videoLocal} autoPlay playsInline muted /> : <div className="video-vazio">Teste a câmera e o microfone antes de entrar.</div>}
           </div>

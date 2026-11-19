@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 import { TIPOS_CHAVE, linkPagamentoValido, normalizarChave, type TipoChave } from "@/lib/pix";
+import AgendaOnline from "@/components/AgendaOnline";
 
 export default function Perfil() {
   const router = useRouter();
@@ -97,8 +98,8 @@ export default function Perfil() {
         <label>Preferências de escrita (opcional)</label>
         <textarea rows={3} placeholder="Ex.: usar abreviações HAS e DM; escrever conduta em tópicos; não usar termos em inglês." value={preferencias} onChange={(e) => setPreferencias(e.target.value)} />
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
-        <h2>Recebimento das teleconsultas</h2>
-        <p className="muted" style={{ marginTop: -4 }}>O paciente paga antes da consulta, por Pix ou cartão, e o valor vai direto para a sua conta. O Auris não recebe nem guarda dinheiro.</p>
+        <h2>Recebimento manual (teleconsultas agendadas por você)</h2>
+        <p className="muted" style={{ marginTop: -4 }}>Usado quando você mesmo agenda a teleconsulta e não conectou o Mercado Pago (abaixo). Nesse caso, você confere o pagamento e confirma no Auris. Com o Mercado Pago conectado, a confirmação é automática.</p>
         <div className="grid">
           <div>
             <label htmlFor="pix-tipo">Tipo de chave Pix</label>
@@ -128,6 +129,7 @@ export default function Perfil() {
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
         <button type="submit" style={{ width: "100%" }}>Salvar perfil</button>
       </form>
+      <AgendaOnline nome={nome} />
     </>
   );
 }

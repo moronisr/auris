@@ -176,3 +176,26 @@ main.container:has(.sala-medico) { max-width: 1200px; }
 .doc-titulo { width: 100%; justify-content: space-between; background: none; color: var(--tinta); padding: 0; min-height: 44px; font-size: 16px; }
 .doc-titulo:hover { background: none; color: var(--tinta); }
 .doc-texto { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--linha); }
+
+/* Agenda online */
+h3.sub { font-size: 15px; margin: 22px 0 8px; color: var(--tinta); }
+.passos-lista { padding-left: 18px; margin: 6px 0 10px; line-height: 1.6; }
+.link-prefixo { display: flex; align-items: center; border: 1px solid #D9DDD8; border-radius: 12px; overflow: hidden; background: var(--superficie); }
+.link-prefixo span { padding: 0 4px 0 12px; color: var(--suave); font-size: 14px; white-space: nowrap; }
+.link-prefixo input { border: 0; border-radius: 0; padding-left: 0; }
+.semana { display: grid; gap: 8px; }
+.dia-agenda { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 12px; }
+.dia-nome { display: flex; gap: 8px; align-items: center; min-width: 110px; margin: 6px 0 0; font-size: 14px; color: var(--tinta); }
+.dia-nome input { width: auto; }
+.faixas { display: grid; gap: 6px; flex: 1; }
+.faixa { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.faixa input[type="time"] { width: 120px; }
+.lista-ajustes { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+.lista-ajustes li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--linha); border-radius: 10px; font-size: 14px; }
+.horarios-dia { margin-bottom: 14px; }
+.horarios-dia h3 { font-size: 14px; margin: 0 0 8px; text-transform: capitalize; }
+.grade-horarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.grade-horarios .opcao { padding: 10px 0; background: var(--superficie); color: var(--tinta); border: 1px solid #D9DDD8; }
+.grade-horarios .opcao:hover { background: #F1F3EF; color: var(--tinta); }
+.grade-horarios .opcao.ativa { background: var(--destaque); color: #fff; border-color: var(--destaque); }
+@media (max-width: 560px) { .dia-agenda { flex-direction: column; gap: 6px; } }

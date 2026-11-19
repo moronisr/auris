@@ -106,7 +106,9 @@ export default function Teleconsultas() {
     carregar();
   }
 
-  const proximas = lista.filter((t) => t.status !== "encerrada");
+  // Reservas da página pública que venceram sem pagamento não aparecem (o horário volta a ficar livre).
+  const reservaVencida = (t: Teleconsulta) => t.origem === "pagina" && t.pagamento_status === "pendente" && !!t.reserva_expira_em && new Date(t.reserva_expira_em) < new Date();
+  const proximas = lista.filter((t) => t.status !== "encerrada" && !reservaVencida(t));
   const encerradas = lista.filter((t) => t.status === "encerrada");
 
   return (
@@ -190,6 +192,8 @@ export default function Teleconsultas() {
             {t.status === "em_andamento" && <span className="selo selo-ok">Em andamento</span>}
           </div>
           <div className="selos">
+            {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
+            {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}

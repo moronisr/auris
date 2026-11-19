@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { horariosLivres, limparAgenda, limparExcecoes } from "@/lib/agenda";
 import { supabaseServer } from "@/lib/supabase/server";
 import BotaoSair from "./sair";
 import { MODELOS } from "@/lib/modelos";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Inicio() {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
-  const { data: perfil } = await sb.from("profissionais").select("nome").eq("id", user!.id).maybeSingle();
+  const { data: perfil } = await sb.from("profissionais").select("nome, slug, agenda_ativa, agenda, agenda_excecoes, duracao_consulta, antecedencia_horas, mp_conectado").eq("id", user!.id).maybeSingle();
   const { data: registros } = await sb
     .from("registros")
     .select("id, created_at, modelo, paciente_nome, retorno_data, corrigido_pelo_medico")
@@ -36,6 +37,19 @@ export default async function Inicio() {
         <BotaoSair />
       </div>
 
+      {perfil && (() => {
+        // Lembrete da agenda online: sem horários abertos, os pacientes não conseguem marcar.
+        const livres = perfil.agenda_ativa ? horariosLivres({ agenda: limparAgenda(perfil.agenda), excecoes: limparExcecoes(perfil.agenda_excecoes), duracao: perfil.duracao_consulta ?? 30, ocupados: [], dias: 7, antecedenciaHoras: perfil.antecedencia_horas ?? 2 }).length : 0;
+        if (perfil.agenda_ativa && livres > 0) return null;
+        return (
+          <div className="aviso" style={{ marginBottom: 14 }}>
+            {perfil.agenda_ativa
+              ? "Sua agenda online não tem horários abertos nos próximos 7 dias, então os pacientes não conseguem marcar. "
+              : "Abra a sua agenda online: o paciente escolhe o horário, paga e recebe o link da teleconsulta sozinho, sem ninguém aprovar. "}
+            <Link href="/perfil#agenda-online">{perfil.agenda_ativa ? "Ajustar meus horários" : "Configurar agora"}</Link>
+          </div>
+        );
+      })()}
       <Link href="/novo" className="btn gravar">Novo registro</Link>
       <Link href="/teleconsultas" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>Teleconsultas</Link>
       <Link href="/dia" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>PDF dos atendimentos do dia</Link>

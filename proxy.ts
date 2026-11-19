@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { RESERVADOS } from "@/lib/agenda";
 
 export async function proxy(req: NextRequest) {
   let res = NextResponse.next({ request: req });
@@ -18,7 +19,10 @@ export async function proxy(req: NextRequest) {
     }
   );
   const { data: { user } } = await supabase.auth.getUser();
-  const publica = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/auth") || req.nextUrl.pathname.startsWith("/nova-senha") || req.nextUrl.pathname.startsWith("/t/") || req.nextUrl.pathname.startsWith("/p/");
+  const segmentos = req.nextUrl.pathname.split("/").filter(Boolean);
+  // Página pública do profissional: aurisclinica.vercel.app/<link-do-profissional>
+  const paginaProfissional = segmentos.length === 1 && !RESERVADOS.has(segmentos[0].toLowerCase());
+  const publica = paginaProfissional || req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/auth") || req.nextUrl.pathname.startsWith("/nova-senha") || req.nextUrl.pathname.startsWith("/t/") || req.nextUrl.pathname.startsWith("/p/");
   if (!user && !publica && !req.nextUrl.pathname.startsWith("/api")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
