@@ -72,7 +72,9 @@ export default function Teleconsultas() {
     if (valor !== null && (isNaN(valor) || valor < 0)) return setErro("Valor inválido. Use o formato 150,00.");
     const cartao = form.cartao.trim() ? linkPagamentoValido(form.cartao) : null;
     if (form.cartao.trim() && !cartao) return setErro("O link de pagamento por cartão precisa começar com https://");
-    if (valor && !prof?.pix_chave && !prof?.cartao_link && !cartao) return setErro("Para cobrar antes da consulta, cadastre a sua chave Pix ou um link de pagamento por cartão em Perfil.");
+    // Teleconsulta paga oferece sempre as três formas: Pix, crédito e débito.
+    if (valor && !prof?.pix_chave) return setErro("Para cobrar antes da consulta, cadastre a sua chave Pix em Perfil.");
+    if (valor && !prof?.cartao_link && !cartao) return setErro("Para o paciente poder pagar no cartão de crédito ou de débito, cadastre o seu link de pagamento por cartão em Perfil (ou cole um link no campo abaixo do valor).");
     setSalvando(true);
     const { data, error } = await supabaseBrowser().from("teleconsultas").insert({
       paciente_nome: form.nome.trim(),
@@ -114,8 +116,8 @@ export default function Teleconsultas() {
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
 
-      {prof && !prof.pix_chave && !prof.cartao_link && (
-        <div className="aviso">Para cobrar a consulta antes da chamada, cadastre a sua chave Pix ou um link de pagamento por cartão em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
+      {prof && (!prof.pix_chave || !prof.cartao_link) && (
+        <div className="aviso">Para o paciente pagar antes da consulta por Pix, cartão de crédito ou cartão de débito, cadastre {!prof.pix_chave && !prof.cartao_link ? "a sua chave Pix e o seu link de pagamento por cartão" : !prof.pix_chave ? "a sua chave Pix" : "o seu link de pagamento por cartão"} em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
       )}
 
       {whats && <p className="muted" style={{ marginTop: -6 }}>WhatsApp automático ligado: convite ao agendar e lembretes um dia antes e uma hora antes.</p>}
@@ -151,7 +153,7 @@ export default function Teleconsultas() {
           </div>
           {form.valor.trim() && (
             <div style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="tc-cartao">Link de pagamento por cartão para este valor (opcional)</label>
+              <label htmlFor="tc-cartao">Link de pagamento por cartão (crédito e débito) para este valor</label>
               <input id="tc-cartao" inputMode="url" placeholder={prof?.cartao_link ? "Vazio = usar o link do seu perfil" : "https://"} value={form.cartao} onChange={(e) => setForm({ ...form, cartao: e.target.value })} />
             </div>
           )}
@@ -191,7 +193,7 @@ export default function Teleconsultas() {
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}
-                texto={t.pagamento_status === "confirmado" ? "Pagamento confirmado" : t.pagamento_status === "informado" ? `Paciente informou o pagamento${t.pagamento_metodo === "cartao" ? " (cartão)" : " (Pix)"}` : "Pagamento pendente"} />
+                texto={t.pagamento_status === "confirmado" ? "Pagamento confirmado" : t.pagamento_status === "informado" ? `Paciente informou o pagamento (${t.pagamento_metodo === "credito" ? "crédito" : t.pagamento_metodo === "debito" ? "débito" : t.pagamento_metodo === "cartao" ? "cartão" : "Pix"})` : "Pagamento pendente"} />
             )}
             <Selo ok={!!t.preconsulta} texto={t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta pendente"} />
           </div>

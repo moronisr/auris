@@ -120,9 +120,9 @@ export default function Perfil() {
           </div>
         </div>
         <div style={{ marginTop: 14 }}>
-          <label htmlFor="cartao-link">Link de pagamento por cartão (opcional)</label>
+          <label htmlFor="cartao-link">Link de pagamento por cartão de crédito e débito</label>
           <input id="cartao-link" inputMode="url" placeholder="https://" value={cartaoLink} onChange={(e) => setCartaoLink(e.target.value)} />
-          <p className="muted" style={{ marginBottom: 0 }}>Crie um link de pagamento com o valor da consulta na sua conta do Mercado Pago, PagBank, InfinitePay ou da sua maquininha, e cole aqui. O paciente paga no site desse serviço, no crédito ou no débito, conforme o que a sua conta aceita.</p>
+          <p className="muted" style={{ marginBottom: 0 }}>Crie um link de pagamento com o valor da consulta na sua conta do Mercado Pago, PagBank, InfinitePay ou da sua maquininha, e cole aqui. O paciente paga no site desse serviço, no crédito ou no débito. Necessário para cobrar teleconsultas: o paciente sempre vê as três opções, Pix, crédito e débito.</p>
         </div>
         <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}

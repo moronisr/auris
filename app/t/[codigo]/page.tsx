@@ -30,7 +30,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [enviando, setEnviando] = useState(false);
   const [qr, setQr] = useState("");
   const [copiado, setCopiado] = useState(false);
-  const [metodo, setMetodo] = useState<"pix" | "cartao" | null>(null);
+  const [metodo, setMetodo] = useState<"pix" | "credito" | "debito" | null>(null);
   const [abriuCartao, setAbriuCartao] = useState(false);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
@@ -183,28 +183,38 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           ) : (
             <>
               <p className="muted">Valor da consulta: <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b>. O pagamento vai direto para {info.pix?.nome || info.profissional}.</p>
-              {info.pix && info.cartao_link && (
-                <div className="opcoes" role="group" aria-label="Forma de pagamento">
-                  <button type="button" aria-pressed={(metodo ?? "pix") === "pix"} className={(metodo ?? "pix") === "pix" ? "opcao ativa" : "opcao"} onClick={() => setMetodo("pix")}>Pix</button>
-                  <button type="button" aria-pressed={metodo === "cartao"} className={metodo === "cartao" ? "opcao ativa" : "opcao"} onClick={() => setMetodo("cartao")}>Cartão</button>
-                </div>
-              )}
-              {(metodo ?? (info.pix ? "pix" : "cartao")) === "pix" && info.pix ? (
-                <>
-                  <p className="muted">Pague com Pix pelo aplicativo do seu banco.</p>
-                  {qr && <img src={qr} alt="QR Code do Pix" className="qr" />}
-                  <label htmlFor="pix-cc">Pix copia e cola</label>
-                  <textarea id="pix-cc" readOnly rows={3} value={pix} onFocus={(e) => e.currentTarget.select()} />
-                  <button type="button" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
-                  <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "pix" })}>Já fiz o pagamento</button>
-                </>
-              ) : (
-                <>
-                  <p className="muted">Você vai pagar no site seguro de <b>{hostDoLink(info.cartao_link!)}</b>, no crédito ou no débito. Os dados do cartão ficam só nesse site; o Auris não vê nem guarda.</p>
-                  <a className="btn" href={info.cartao_link!} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center" }} onClick={() => setAbriuCartao(true)}>Pagar com cartão</a>
-                  <button type="button" className={abriuCartao ? "" : "btn-sec"} disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "cartao" })}>Já fiz o pagamento</button>
-                </>
-              )}
+              <p className="muted" style={{ marginBottom: 6 }}>Escolha como pagar:</p>
+              <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                {(["pix", "credito", "debito"] as const).map((m) => {
+                  const atual = metodo ?? (info.pix ? "pix" : "credito");
+                  return (
+                    <button key={m} type="button" aria-pressed={atual === m} className={atual === m ? "opcao ativa" : "opcao"} onClick={() => { setMetodo(m); setAbriuCartao(false); }}>
+                      {m === "pix" ? "Pix" : m === "credito" ? "Cartão de crédito" : "Cartão de débito"}
+                    </button>
+                  );
+                })}
+              </div>
+              {(() => {
+                const atual = metodo ?? (info.pix ? "pix" : "credito");
+                if (atual === "pix") return info.pix ? (
+                  <>
+                    <p className="muted">Pague com Pix pelo aplicativo do seu banco.</p>
+                    {qr && <img src={qr} alt="QR Code do Pix" className="qr" />}
+                    <label htmlFor="pix-cc">Pix copia e cola</label>
+                    <textarea id="pix-cc" readOnly rows={3} value={pix} onFocus={(e) => e.currentTarget.select()} />
+                    <button type="button" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
+                    <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "pix" })}>Já fiz o pagamento</button>
+                  </>
+                ) : <p className="muted">Este consultório não recebe por Pix. Escolha cartão de crédito ou de débito.</p>;
+                const nome = atual === "credito" ? "crédito" : "débito";
+                return info.cartao_link ? (
+                  <>
+                    <p className="muted">Você vai pagar no <b>cartão de {nome}</b>, no site seguro de <b>{hostDoLink(info.cartao_link)}</b>. Lá, escolha a opção {nome}. Os dados do cartão ficam só nesse site; o Auris não vê nem guarda.</p>
+                    <a className="btn" href={info.cartao_link} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center" }} onClick={() => setAbriuCartao(true)}>Pagar no cartão de {nome}</a>
+                    <button type="button" className={abriuCartao ? "" : "btn-sec"} disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: atual })}>Já fiz o pagamento</button>
+                  </>
+                ) : <p className="muted">Este consultório ainda não recebe por cartão. Escolha Pix.</p>;
+              })()}
               <p className="muted" style={{ marginBottom: 0 }}>O consultório confere o pagamento. Você já pode seguir para os próximos passos.</p>
             </>
           )}
