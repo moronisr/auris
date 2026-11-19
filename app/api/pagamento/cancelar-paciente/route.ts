@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 
 /** O próprio paciente cancela pelo link da consulta. Dentro do prazo da política, o valor volta automaticamente. */
 export async function POST(req: Request) {
-  const b = (await req.json().catch(() => null)) as { codigo?: string } | null;
-  if (!b?.codigo) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
+  const b = (await req.json().catch(() => null)) as { codigo?: string; motivo?: string } | null;
+  if (!b?.codigo || !b.motivo?.trim()) return NextResponse.json({ erro: "Escolha o motivo do cancelamento." }, { status: 400 });
+  const motivo = b.motivo.trim().slice(0, 120);
   const sb = supabaseAdmin();
   const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, inicio, status, pagamento_status, pg_provedor").eq("codigo", b.codigo).maybeSingle();
   if (!t) return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   if (t.pagamento_status === "informado") return NextResponse.json({ erro: "Seu pagamento ainda está em conferência. Para cancelar, fale com o consultório." }, { status: 409 });
   if (t.pagamento_status !== "confirmado") {
     // Sem pagamento aprovado: só libera o horário.
-    await sb.from("teleconsultas").update({ status: "cancelada", cancelado_por: "paciente" }).eq("id", t.id);
+    await sb.from("teleconsultas").update({ status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo }).eq("id", t.id);
     return NextResponse.json({ ok: true, devolvido: false });
   }
   if (!podeCancelarComDevolucao(t.inicio, horas)) {
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     total += r.valor; ultimo = r.id;
   }
   await sb.from("teleconsultas").update({
-    status: "cancelada", cancelado_por: "paciente", pagamento_status: aprovados.length ? "devolvido" : t.pagamento_status,
+    status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo, pagamento_status: aprovados.length ? "devolvido" : t.pagamento_status,
     devolvido_em: aprovados.length ? new Date().toISOString() : null, devolucao_valor: aprovados.length ? total : null, devolucao_id: ultimo || null, pagamento_alerta: null,
   }).eq("id", t.id);
   return NextResponse.json({ ok: true, devolvido: aprovados.length > 0, valor: total });

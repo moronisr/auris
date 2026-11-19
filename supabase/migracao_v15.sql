@@ -35,3 +35,4 @@ begin
     'cancelado_por', t.cancelado_por
   );
 end $$;
+alter table public.teleconsultas add column if not exists cancelamento_motivo text;

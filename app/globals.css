@@ -219,3 +219,8 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 .politica summary { cursor: pointer; color: var(--tinta); font-weight: 600; }
 .politica ul { margin: 8px 0 0; padding-left: 18px; color: var(--suave); }
 .politica li { margin-bottom: 4px; }
+
+.ajuda-link { text-align: center; font-size: 13px; margin-top: 18px; }
+.ajuda-link a { color: var(--suave); }
+.politica-lista { margin: 0; padding-left: 18px; color: var(--suave); font-size: 14px; }
+.politica-lista li { margin-bottom: 6px; }

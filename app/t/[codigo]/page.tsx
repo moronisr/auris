@@ -1,8 +1,8 @@
 "use client";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import Link from "next/link";
 import CartaoMP from "@/components/CartaoMP";
-import { podeCancelarComDevolucao, politicaCancelamento, prazoTexto } from "@/lib/cancelamento";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -46,7 +46,6 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [cartaoOnline, setCartaoOnline] = useState<{ metodo: "credito" | "debito"; publicKey: string } | null>(null);
   const [recusa, setRecusa] = useState<{ titulo: string; texto: string } | null>(null);
   const [recemPago, setRecemPago] = useState(false);
-  const [cancelando, setCancelando] = useState<"" | "perguntar" | "enviando">("");
   const [aviso, setAviso] = useState("");
   const statusAnterior = useRef<string | null>(null);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
@@ -107,14 +106,6 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     setEnviando(false);
   }
 
-  async function cancelarConsulta() {
-    setCancelando("enviando"); setErro("");
-    const r = await fetch("/api/pagamento/cancelar-paciente", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo }) });
-    const d = await r.json().catch(() => ({}));
-    setCancelando("");
-    if (!r.ok) { setErro(d.erro || "Não foi possível cancelar agora."); return; }
-    await carregar();
-  }
 
   async function pagarOnline(m: "pix" | "credito" | "debito") {
     setErro(""); setRecusa(null); setAbrindoPg(true);
@@ -438,31 +429,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
       )}
 
       {info.consentimento_em && (
-        <div className="card">
-          <details className="politica" style={{ marginTop: 0 }}>
-            <summary>Política de cancelamento e devolução</summary>
-            <ul>{politicaCancelamento(info.cancelamento_horas ?? 24, info.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
-          </details>
-          {(() => {
-            const horas = info.cancelamento_horas ?? 24;
-            const pagoOnline = info.pagamento_status === "confirmado" && info.pagamento_online;
-            const dentro = podeCancelarComDevolucao(info.inicio, horas);
-            if ((info.pagamento_status === "confirmado" && !pagoOnline) || info.pagamento_status === "informado") return <p className="muted" style={{ marginBottom: 0 }}>Para cancelar, fale com o consultório.</p>;
-            if (pagoOnline && !dentro) return <p className="muted" style={{ marginBottom: 0 }}>O cancelamento com devolução era possível {prazoTexto(horas)}. Para remarcar, fale com o consultório.</p>;
-            return cancelando === "" ? (
-              <button type="button" className="link" style={{ marginTop: 8 }} onClick={() => setCancelando("perguntar")}>Cancelar minha consulta</button>
-            ) : (
-              <div className="aviso" style={{ marginTop: 10, marginBottom: 0 }}>
-                <b>Cancelar a consulta?</b>
-                <div style={{ marginTop: 4 }}>{pagoOnline ? `Você recebe ${reais(Number(info.valor))} de volta, automaticamente, na mesma forma de pagamento.` : "O horário fica livre para outra pessoa."}</div>
-                <div className="acoes-ficha" style={{ marginTop: 10 }}>
-                  <button type="button" disabled={cancelando === "enviando"} onClick={cancelarConsulta}>{cancelando === "enviando" ? "Cancelando" : pagoOnline ? "Cancelar e receber o valor de volta" : "Cancelar consulta"}</button>
-                  <button type="button" className="link" disabled={cancelando === "enviando"} onClick={() => setCancelando("")}>Voltar</button>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
+        <p className="ajuda-link"><Link href={`/t/${codigo}/ajuda`}>Ajuda e política de cancelamento</Link></p>
       )}
     </div>
   );
