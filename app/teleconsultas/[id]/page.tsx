@@ -253,7 +253,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
       {Number(t.valor) > 0 && pagamentoPendente && (
         <div className="aviso" style={{ margin: "12px 0" }}>
-          Pagamento ainda não confirmado. O paciente só consegue entrar na sala de espera depois da confirmação{t.origem === "pagina" ? ", que o Mercado Pago faz automaticamente" : t.pagamento_status === "informado" ? ". Ele informou que pagou: confira no seu banco e confirme na agenda" : ""}.
+          Pagamento ainda não confirmado. O paciente só consegue entrar na sala de espera depois da confirmação{t.origem === "pagina" ? ", que o sistema faz automaticamente" : t.pagamento_status === "informado" ? ". Ele informou que pagou: confira no seu banco e confirme na agenda" : ""}.
         </div>
       )}
       {aviso && etapa === "sala" && <div className="aviso" style={{ margin: "12px 0" }}>{aviso}</div>}

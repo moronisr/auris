@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
-import { confirmarPeloMercadoPago } from "@/lib/mercadopago";
+import { confirmarPagamento } from "@/lib/pagamentos";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const { data: t } = await supabaseAdmin().from("teleconsultas").select("id").eq("codigo", b.codigo).maybeSingle();
   if (!t) return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
   try {
-    return NextResponse.json({ pagamento: await confirmarPeloMercadoPago(t.id) });
+    return NextResponse.json({ pagamento: await confirmarPagamento(t.id) });
   } catch (e) {
     console.error("verificar pagamento", e);
     return NextResponse.json({ pagamento: "pendente" });

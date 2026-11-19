@@ -8,7 +8,7 @@ const ANTECEDENCIAS = [1, 2, 4, 12, 24, 48];
 
 type Estado = {
   slug: string; agenda_ativa: boolean; valor: string; duracao: number; antecedencia: number;
-  agenda: Intervalo[]; excecoes: Excecao[]; apresentacao: string; mp_conectado: boolean; mp_modo: string | null;
+  agenda: Intervalo[]; excecoes: Excecao[]; apresentacao: string; mp_conectado: boolean; mp_modo: string | null; pg_provedor: string | null;
 };
 
 const dataBR = (iso: string) => new Date(`${iso}T12:00:00-03:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
@@ -27,6 +27,9 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const [copiado, setCopiado] = useState(false);
   const [slugSalvo, setSlugSalvo] = useState<string | null>(null);
   const [botaoMp, setBotaoMp] = useState(false);
+  const [inst, setInst] = useState<"mercadopago" | "pagbank">("mercadopago");
+  const [pbToken, setPbToken] = useState("");
+  const [pbTeste, setPbTeste] = useState(false);
 
   useEffect(() => {
     setOrigem(window.location.origin);
@@ -46,7 +49,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       if (!user) return;
       setId(user.id);
       const { data: d } = await sb.from("profissionais")
-        .select("slug, agenda_ativa, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, apresentacao, mp_conectado, mp_modo, nome")
+        .select("slug, agenda_ativa, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, apresentacao, mp_conectado, mp_modo, pg_provedor, nome")
         .eq("id", user.id).maybeSingle();
       setSlugSalvo(d?.slug || null);
       setE({
@@ -60,6 +63,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         apresentacao: d?.apresentacao || "",
         mp_conectado: !!d?.mp_conectado,
         mp_modo: d?.mp_modo || null,
+        pg_provedor: d?.pg_provedor || null,
       });
     })();
   }, [nome]);
@@ -71,20 +75,22 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const doDia = (d: number) => e.agenda.filter((i) => i.dia === d);
   const mudarDia = (d: number, lista: Intervalo[]) => set({ agenda: [...e.agenda.filter((i) => i.dia !== d), ...lista].sort((a, b) => a.dia - b.dia || a.inicio.localeCompare(b.inicio)) });
 
-  async function conectar() {
+  async function conectar(provedor: "mercadopago" | "pagbank") {
     setConectando(true); setMsgMp(null);
-    const r = await fetch("/api/pagamento/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+    const corpo = provedor === "pagbank" ? { provedor, token: pbToken, sandbox: pbTeste } : { provedor, token };
+    const r = await fetch("/api/pagamento/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
     const d = await r.json().catch(() => ({}));
     setConectando(false);
     if (!r.ok) return setMsgMp({ tipo: "erro", texto: d.erro || "Não foi possível conectar." });
-    setToken("");
-    setE({ ...e!, mp_conectado: true, mp_modo: d.modo });
-    setMsgMp({ tipo: "ok", texto: d.modo === "teste" ? "Mercado Pago conectado em modo de teste. Nenhum dinheiro real é cobrado." : "Mercado Pago conectado. Os pagamentos caem direto na sua conta." });
+    setToken(""); setPbToken("");
+    setE({ ...e!, mp_conectado: true, mp_modo: d.modo, pg_provedor: provedor });
+    const nome = provedor === "pagbank" ? "PagBank" : "Mercado Pago";
+    setMsgMp({ tipo: "ok", texto: d.modo === "teste" ? `${nome} conectado em modo de teste. Nenhum dinheiro real é cobrado.` : `${nome} conectado. Os pagamentos caem direto na sua conta.` });
   }
 
   async function desconectar() {
     const r = await fetch("/api/pagamento/conta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ desconectar: true }) });
-    if (r.ok) { setE({ ...e!, mp_conectado: false, mp_modo: null, agenda_ativa: false }); setMsgMp({ tipo: "ok", texto: "Mercado Pago desconectado. A agenda online foi pausada." }); }
+    if (r.ok) { setE({ ...e!, mp_conectado: false, mp_modo: null, pg_provedor: null, agenda_ativa: false }); setMsgMp({ tipo: "ok", texto: "Pagamento online desconectado. A agenda online foi pausada." }); }
   }
 
   async function salvar() {
@@ -94,7 +100,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
     if (!slugValido(slug)) return setMsg({ tipo: "erro", texto: "O link precisa ter de 3 a 60 letras ou números, separados por hífen. Ex.: dra-gabriela-bastos" });
     if (valor !== null && (isNaN(valor) || valor <= 0)) return setMsg({ tipo: "erro", texto: "Valor inválido. Use o formato 150,00." });
     if (e!.agenda_ativa) {
-      if (!e!.mp_conectado) return setMsg({ tipo: "erro", texto: "Para aceitar agendamentos online, conecte primeiro o Mercado Pago (acima). É ele que confirma o pagamento sozinho." });
+      if (!e!.mp_conectado) return setMsg({ tipo: "erro", texto: "Para aceitar agendamentos online, conecte primeiro a sua conta de pagamento (passo 1). É ela que confirma o pagamento sozinha." });
       if (!valor) return setMsg({ tipo: "erro", texto: "Informe o valor da consulta." });
       if (e!.agenda.length === 0 && !e!.excecoes.some((x) => x.tipo === "extra")) return setMsg({ tipo: "erro", texto: "Marque pelo menos um dia e horário de atendimento." });
     }
@@ -122,32 +128,55 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       <h2 style={{ marginTop: 0 }}>Agenda online e pagamento automático</h2>
       <p className="muted" style={{ marginTop: -4 }}>O paciente abre o seu link, escolhe um horário livre, paga por Pix, crédito ou débito e recebe o link da teleconsulta. Sem ninguém precisar aprovar. Você só entra na hora da consulta.</p>
 
-      <h3 className="sub">1. Pagamento online (Mercado Pago)</h3>
+      <h3 className="sub">1. Pagamento online</h3>
       {e.mp_conectado ? (
         <div className="ok" style={{ marginBottom: 8 }}>
-          Mercado Pago conectado{e.mp_modo === "teste" ? " em modo de teste (nenhum dinheiro real é cobrado)" : ""}. O pagamento é confirmado automaticamente, e o paciente só entra na consulta depois de pagar.
-          <div style={{ marginTop: 8 }}><button type="button" className="link" onClick={desconectar}>Desconectar</button></div>
+          {e.pg_provedor === "pagbank" ? "PagBank" : "Mercado Pago"} conectado{e.mp_modo === "teste" ? " em modo de teste (nenhum dinheiro real é cobrado)" : ""}. O pagamento é confirmado automaticamente, e o paciente só entra na consulta depois de pagar.
+          <div style={{ marginTop: 8 }}><button type="button" className="link" onClick={desconectar}>Desconectar ou trocar de instituição</button></div>
         </div>
       ) : (
         <>
-          <p className="muted">Conecte a sua conta do Mercado Pago. O dinheiro cai direto nela; o Auris não recebe nem guarda valores. Depois, você transfere para o seu banco quando quiser.</p>
-          {botaoMp && (
+          <p className="muted">Escolha onde você quer receber. O dinheiro cai direto na sua conta; o Auris não recebe nem guarda valores. O paciente paga por Pix, cartão de crédito ou cartão de débito.</p>
+          <div className="opcoes" role="group" aria-label="Instituição de pagamento" style={{ marginBottom: 12 }}>
+            <button type="button" aria-pressed={inst === "mercadopago"} className={inst === "mercadopago" ? "opcao ativa" : "opcao"} onClick={() => { setInst("mercadopago"); setMsgMp(null); }}>Mercado Pago</button>
+            <button type="button" aria-pressed={inst === "pagbank"} className={inst === "pagbank" ? "opcao ativa" : "opcao"} onClick={() => { setInst("pagbank"); setMsgMp(null); }}>PagBank</button>
+          </div>
+          {inst === "mercadopago" ? (
             <>
-              <a className="btn" href="/api/pagamento/mp/conectar" style={{ display: "block", textAlign: "center" }}>Conectar com Mercado Pago</a>
-              <p className="muted">Abre o site do Mercado Pago: entre na sua conta e toque em Autorizar. Você volta para cá já conectado.</p>
+              {botaoMp && (
+                <>
+                  <a className="btn" href="/api/pagamento/mp/conectar" style={{ display: "block", textAlign: "center" }}>Conectar com Mercado Pago</a>
+                  <p className="muted">Abre o site do Mercado Pago: entre na sua conta e toque em Autorizar. Você volta para cá já conectado.</p>
+                </>
+              )}
+              <details className="avancado" open={!botaoMp}>
+                <summary>{botaoMp ? "Outra forma: colar o Access Token" : "Conectar com o Access Token"}</summary>
+                <ol className="muted passos-lista">
+                  <li>Entre em <b>mercadopago.com.br/developers</b> com a sua conta e abra <b>Suas integrações</b>.</li>
+                  <li>Toque em <b>Criar aplicação</b> (nome: Auris; pagamentos online; Checkout Pro).</li>
+                  <li>Na aplicação, abra <b>Credenciais de produção</b> (ou <b>Credenciais de teste</b>, para testar sem dinheiro real) e copie o <b>Access Token</b>.</li>
+                </ol>
+                <label htmlFor="mp-token">Access Token do Mercado Pago</label>
+                <input id="mp-token" type="password" autoComplete="off" placeholder="APP_USR-... ou TEST-..." value={token} onChange={(x) => setToken(x.target.value)} />
+                <button type="button" className={botaoMp ? "btn-sec" : ""} disabled={!token.trim() || conectando} style={{ width: "100%", marginTop: 8 }} onClick={() => conectar("mercadopago")}>{conectando ? "Conferindo com o Mercado Pago" : "Conectar Mercado Pago"}</button>
+              </details>
+            </>
+          ) : (
+            <>
+              <ol className="muted passos-lista">
+                <li>Entre na sua conta em <b>pagbank.com.br</b> pelo computador.</li>
+                <li>No menu, abra <b>Vendas</b> (ou <b>Venda online</b>) e depois <b>Integrações</b>.</li>
+                <li>Toque em <b>Gerar token</b> e copie o código.</li>
+              </ol>
+              <label htmlFor="pb-token">Token do PagBank</label>
+              <input id="pb-token" type="password" autoComplete="off" placeholder="Cole o token gerado no PagBank" value={pbToken} onChange={(x) => setPbToken(x.target.value)} />
+              <label className="aceite" style={{ marginTop: 10 }}>
+                <input type="checkbox" checked={pbTeste} onChange={(x) => setPbTeste(x.target.checked)} />
+                <span>É um token de teste (ambiente sandbox do PagBank, sem dinheiro real)</span>
+              </label>
+              <button type="button" disabled={pbToken.trim().length < 20 || conectando} style={{ width: "100%", marginTop: 10 }} onClick={() => conectar("pagbank")}>{conectando ? "Conferindo com o PagBank" : "Conectar PagBank"}</button>
             </>
           )}
-          <details className="avancado" open={!botaoMp}>
-            <summary>{botaoMp ? "Outra forma: colar o Access Token" : "Conectar com o Access Token"}</summary>
-            <ol className="muted passos-lista">
-              <li>Entre em <b>mercadopago.com.br/developers</b> com a sua conta e abra <b>Suas integrações</b>.</li>
-              <li>Toque em <b>Criar aplicação</b> (nome: Auris; pagamentos online; Checkout Pro).</li>
-              <li>Na aplicação, abra <b>Credenciais de produção</b> (ou <b>Credenciais de teste</b>, para testar sem dinheiro real) e copie o <b>Access Token</b>.</li>
-            </ol>
-            <label htmlFor="mp-token">Access Token do Mercado Pago</label>
-            <input id="mp-token" type="password" autoComplete="off" placeholder="APP_USR-... ou TEST-..." value={token} onChange={(x) => setToken(x.target.value)} />
-            <button type="button" className={botaoMp ? "btn-sec" : ""} disabled={!token.trim() || conectando} style={{ width: "100%", marginTop: 8 }} onClick={conectar}>{conectando ? "Conferindo com o Mercado Pago" : "Conectar com o Access Token"}</button>
-          </details>
         </>
       )}
       {msgMp && <div className={msgMp.tipo} style={{ marginTop: 8 }}>{msgMp.texto}</div>}

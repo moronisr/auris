@@ -212,7 +212,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
               <p style={{ marginBottom: 0 }}>O prazo de 30 minutos para pagar este horário terminou e ele foi liberado. Volte à página do profissional e escolha um novo horário.</p>
             ) : voltouPg && info.pagamento_status !== "confirmado" ? (
               <>
-                <p>Estamos aguardando a confirmação do Mercado Pago. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>
+                <p>Estamos aguardando a confirmação do pagamento. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>
                 <p className="muted">Se você fechou o pagamento sem concluir, escolha a forma de pagamento de novo:</p>
                 <div className="opcoes" role="group" aria-label="Forma de pagamento">
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
@@ -229,7 +229,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
                 </div>
-                <p className="muted">{abrindoPg ? "Abrindo o pagamento seguro do Mercado Pago." : "Você paga no ambiente seguro do Mercado Pago e volta para cá. Os dados do cartão não passam pelo Auris."}</p>
+                <p className="muted">{abrindoPg ? "Abrindo a página de pagamento segura." : "Você paga na página segura da instituição de pagamento do consultório e volta para cá. Os dados do cartão não passam pelo Auris."}</p>
                 {info.reserva_expira_em && <p className="muted" style={{ marginBottom: 0 }}>Seu horário fica reservado até as {new Date(info.reserva_expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}.</p>}
               </>
             )

@@ -99,7 +99,7 @@ export default function Perfil() {
         <textarea rows={3} placeholder="Ex.: usar abreviações HAS e DM; escrever conduta em tópicos; não usar termos em inglês." value={preferencias} onChange={(e) => setPreferencias(e.target.value)} />
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
         <h2>Recebimento manual (teleconsultas agendadas por você)</h2>
-        <p className="muted" style={{ marginTop: -4 }}>Usado quando você mesmo agenda a teleconsulta e não conectou o Mercado Pago (abaixo). Nesse caso, você confere o pagamento e confirma no Auris. Com o Mercado Pago conectado, a confirmação é automática.</p>
+        <p className="muted" style={{ marginTop: -4 }}>Usado quando você mesmo agenda a teleconsulta e não conectou o pagamento online (abaixo). Nesse caso, você confere o pagamento e confirma no Auris. Com o pagamento online conectado (Mercado Pago ou PagBank), a confirmação é automática.</p>
         <div className="grid">
           <div>
             <label htmlFor="pix-tipo">Tipo de chave Pix</label>
