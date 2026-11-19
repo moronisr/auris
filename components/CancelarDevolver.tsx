@@ -51,7 +51,9 @@ export default function CancelarDevolver({ t, onFeito }: { t: Teleconsulta; onFe
           {pago && online ? (
             <>
               <b>Cancelar a consulta de {t.paciente_nome}?</b>
-              <div style={{ marginTop: 4 }}>O paciente pagou {reais(valor)} pelo Auris. Ao devolver, o Pix volta para a conta dele em poucos minutos; no cartão, o estorno aparece na fatura.</div>
+              <div style={{ marginTop: 4 }}>{t.pagamento_metodo === "credito" || t.pagamento_metodo === "debito"
+                ? `O paciente pagou ${reais(valor)} no cartão de ${t.pagamento_metodo === "credito" ? "crédito" : "débito"}. Ao devolver, o estorno aparece na fatura dele, conforme o banco.`
+                : `O paciente pagou ${reais(valor)} por Pix. Ao devolver, o valor volta para a conta dele, em geral em poucos minutos.`}</div>
               <div className="acoes-ficha" style={{ marginTop: 10 }}>
                 <button type="button" disabled={enviando} onClick={() => agir("cancelar_devolver")}>{enviando ? "Devolvendo" : `Cancelar e devolver ${reais(valor)}`}</button>
                 <button type="button" className="btn-sec" disabled={enviando} onClick={() => agir("cancelar")}>Cancelar sem devolver</button>
