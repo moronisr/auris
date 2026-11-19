@@ -240,3 +240,13 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 
 .card-link { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--tinta); }
 .card-link:hover { border-color: var(--destaque); }
+.plano-estatico { cursor: default; }
+.plano-estatico button { margin-top: 8px; }
+.upgrade { border-color: var(--destaque); }
+.acoes-pequenas { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+.tabela-simples { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela-simples th, .tabela-simples td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--linha); }
+.tabela-simples th { color: var(--suave); font-weight: 500; font-size: 13px; }
+.cancelar-rodape { text-align: center; margin: 28px 0 8px; }
+button.link.link-discreto { color: var(--suave); font-weight: 400; font-size: 13px; }
+.resumo-financas.alerta { border-color: var(--erro-borda); background: var(--erro-fundo); }

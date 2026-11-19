@@ -2,6 +2,7 @@ import Link from "next/link";
 import { horariosLivres, limparAgenda, limparExcecoes } from "@/lib/agenda";
 import { supabaseServer } from "@/lib/supabase/server";
 import BotaoSair from "./sair";
+import ResumoFinancas from "@/components/ResumoFinancas";
 import { MODELOS } from "@/lib/modelos";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export default async function Inicio() {
         <h1>Olá{perfil?.nome ? `, ${perfil.nome.split(" ")[0]}` : ""}</h1>
         <BotaoSair />
       </div>
+      <ResumoFinancas />
 
       {perfil && (() => {
         // Lembrete da agenda online: sem horários abertos, os pacientes não conseguem marcar.

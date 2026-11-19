@@ -33,6 +33,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     nome: p.nome, especialidade: p.especialidade, conselho: p.conselho, apresentacao: p.apresentacao,
     valor: Number(p.valor_consulta) || null, duracao: p.duracao_consulta, aceitando, horarios, previa,
     cancelamento_horas: p.cancelamento_horas ?? 24, cancelamento_obs: p.cancelamento_obs,
-    falta: aceitando ? [] : [bloqueado && "ativar um plano do Auris (Perfil, Plano e pagamento)", !p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
+    falta: aceitando ? [] : [bloqueado && "ativar um plano do Auris (Perfil, Finanças)", !p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
   }, { headers: { "Cache-Control": "no-store" } });
 }

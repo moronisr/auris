@@ -279,7 +279,7 @@ export default function Novo() {
         <div className="card bloqueio">
           <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
           <p className="muted">Você continua podendo consultar e exportar suas fichas e consultas. Para registrar novas fichas, ative um plano.</p>
-          <a className="btn" href="/assinatura">Ativar plano</a>
+          <a className="btn" href="/financas">Ativar plano</a>
         </div>
       )}
     </>

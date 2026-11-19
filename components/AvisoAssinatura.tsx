@@ -10,7 +10,7 @@ export default function AvisoAssinatura() {
   const rota = usePathname();
   if (!s || !s.cobrancaAtiva) return null;
   const a = s.assinatura;
-  const ir = rota.startsWith("/assinatura") ? null : <Link href="/assinatura">{s.acesso === "bloqueado" ? "Ativar plano" : s.acesso === "aviso" ? "Atualizar cartão" : "Escolher plano"}</Link>;
+  const ir = rota.startsWith("/financas") ? null : <Link href="/financas">{s.acesso === "bloqueado" ? "Ativar plano" : s.acesso === "aviso" ? "Atualizar cartão" : "Escolher plano"}</Link>;
   let texto: string | null = null;
   let tipo = "aviso";
   if (s.acesso === "bloqueado") {

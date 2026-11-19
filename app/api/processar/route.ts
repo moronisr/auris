@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ erro: "Faça login novamente." }, { status: 401 });
-  if ((await acessoDe(user.id)) === "bloqueado") return NextResponse.json({ erro: "Sua assinatura do Auris está inativa. Você pode consultar e exportar suas fichas; para registrar novas, ative um plano em Perfil, Plano e pagamento." }, { status: 402 });
+  if ((await acessoDe(user.id)) === "bloqueado") return NextResponse.json({ erro: "Sua assinatura do Auris está inativa. Você pode consultar e exportar suas fichas; para registrar novas, ative um plano em Perfil, Finanças." }, { status: 402 });
 
   const inicio = Date.now();
   try {

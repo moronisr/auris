@@ -125,7 +125,7 @@ export default function Teleconsultas() {
         <div className="card bloqueio">
           <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
           <p className="muted">Você continua podendo consultar e exportar suas fichas e consultas. Para marcar novas teleconsultas, ative um plano.</p>
-          <a className="btn" href="/assinatura">Ativar plano</a>
+          <a className="btn" href="/financas">Ativar plano</a>
         </div>
       )}
 

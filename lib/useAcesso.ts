@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 export type SituacaoAssinatura = {
   acesso: "liberado" | "teste" | "ativa" | "aviso" | "bloqueado";
   cobrancaAtiva: boolean; configurada: boolean; fimTeste: string | null; email?: string;
-  assinatura: null | { plano: string | null; status: string; cartao_final: string | null; cartao_bandeira: string | null; valor: number | null; pago_ate: string | null; ultimo_pagamento_em: string | null; falha_desde: string | null; proxima_cobranca: string | null; cancelada_em: string | null };
+  assinatura: null | { plano: string | null; status: string; cartao_final: string | null; cartao_bandeira: string | null; valor: number | null; pago_ate: string | null; ultimo_pagamento_em: string | null; falha_desde: string | null; proxima_cobranca: string | null; cancelada_em: string | null; recorrente?: boolean; renovacao_automatica?: boolean };
+  cobrancas?: { data: string; valor: number | null; status: string; origem: string; plano: string | null }[];
   planos: { id: string; nome: string; valor: number; resumo: string; recursos: string[]; destaque?: boolean; oculto?: boolean }[];
   publicKey: string | null;
 };

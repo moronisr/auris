@@ -52,7 +52,11 @@ type Preapproval = {
 export async function assinar(o: { uid: string; email: string; planoId: string; cardToken: string; payerEmail?: string; fimTeste: Date | null; base: string }) {
   const plano = planoPorId(o.planoId);
   if (!plano) return { ok: false as const, erro: "Plano inválido." };
-  const inicio = o.fimTeste && o.fimTeste.getTime() > Date.now() + 60_000 ? o.fimTeste : null;
+  const { data: atual } = await supabaseAdmin().from("assinaturas").select("pago_ate").eq("profissional_id", o.uid).maybeSingle();
+  const pagoAte = atual?.pago_ate ? new Date(atual.pago_ate) : null;
+  const candidatos = [o.fimTeste, pagoAte].filter((d): d is Date => !!d && d.getTime() > Date.now() + 60_000);
+  // Sem cobrar duas vezes: a renovação começa no fim do teste grátis ou do período que já foi pago.
+  const inicio = candidatos.length ? new Date(Math.max(...candidatos.map((d) => d.getTime()))) : null;
   try {
     const cartao = await dadosDoCartao(o.cardToken);
     const pa = await mp<Preapproval>("/preapproval", {
@@ -63,7 +67,7 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
         external_reference: o.uid,
         payer_email: o.payerEmail || o.email,
         card_token_id: o.cardToken,
-        back_url: `${o.base}/assinatura`,
+        back_url: `${o.base}/financas`,
         status: "authorized",
         auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: plano.valor, currency_id: "BRL", ...(inicio ? { start_date: inicio.toISOString() } : {}) },
       }),
@@ -73,13 +77,66 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
       cartao_final: cartao.final, cartao_bandeira: cartao.bandeira, teste_ate: o.fimTeste?.toISOString() ?? null,
       // No teste, o acesso já está garantido até o fim dele; fora do teste, até a confirmação da primeira cobrança.
       pago_ate: inicio ? inicio.toISOString() : new Date(Date.now() + 2 * 864e5).toISOString(),
-      falha_desde: null, falha_motivo: null, cancelada_em: null,
+      falha_desde: null, falha_motivo: null, cancelada_em: null, renovacao_automatica: true,
       proxima_cobranca: pa.next_payment_date || (inicio ? inicio.toISOString() : null), atualizado_em: new Date().toISOString(),
     });
     if (!inicio) await sincronizar(o.uid).catch(() => {});
     return { ok: true as const };
   } catch (e) {
     console.error("assinar", String(e).slice(0, 300));
+    return { ok: false as const, erro: motivoMp(e) };
+  }
+}
+
+/** Paga só um mês, sem guardar o cartão para as próximas cobranças. */
+export async function pagarAvulso(o: {
+  uid: string; email: string; planoId: string; fimTeste: Date | null;
+  cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer?: { email?: string; identification?: { type: string; number: string } } };
+}) {
+  const plano = planoPorId(o.planoId);
+  if (!plano) return { ok: false as const, erro: "Plano inválido." };
+  try {
+    const cartao = await dadosDoCartao(o.cartao.token);
+    const pg = await mp<{ id: number; status: string; status_detail: string; date_approved?: string }>("/v1/payments", {
+      method: "POST",
+      headers: { "X-Idempotency-Key": `avulso-${o.uid}-${o.cartao.token.slice(0, 16)}` },
+      body: JSON.stringify({
+        transaction_amount: plano.valor, token: o.cartao.token, installments: 1, description: `Auris - plano ${plano.nome} (1 mês)`,
+        payment_method_id: o.cartao.payment_method_id, ...(o.cartao.issuer_id ? { issuer_id: Number(o.cartao.issuer_id) } : {}),
+        payer: { email: o.cartao.payer?.email || o.email, ...(o.cartao.payer?.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
+        external_reference: `auris-${o.uid}`, statement_descriptor: "AURIS", binary_mode: true,
+      }),
+    });
+    const sb = supabaseAdmin();
+    await sb.from("auris_cobrancas").upsert({ profissional_id: o.uid, mp_pagamento_id: String(pg.id), origem: "avulso", plano: plano.id, valor: plano.valor, status: pg.status, data: new Date().toISOString() }, { onConflict: "mp_pagamento_id" });
+    if (pg.status !== "approved") return { ok: false as const, erro: "O cartão foi recusado pelo banco. Nenhum valor foi cobrado. Use outro cartão ou fale com o seu banco." };
+    const { data: atual } = await sb.from("assinaturas").select("pago_ate, mp_assinatura_id").eq("profissional_id", o.uid).maybeSingle();
+    const base = Math.max(Date.now(), o.fimTeste?.getTime() || 0, atual?.pago_ate ? new Date(atual.pago_ate).getTime() : 0);
+    const ate = new Date(base); ate.setMonth(ate.getMonth() + 1);
+    await sb.from("assinaturas").upsert({
+      profissional_id: o.uid, plano: plano.id, valor: plano.valor, status: "ativa", renovacao_automatica: !!atual?.mp_assinatura_id,
+      pago_ate: ate.toISOString(), ultimo_pagamento_em: new Date().toISOString(), ultimo_pagamento_id: String(pg.id),
+      ...(atual?.mp_assinatura_id ? {} : { cartao_final: cartao.final, cartao_bandeira: cartao.bandeira, proxima_cobranca: null }),
+      falha_desde: null, falha_motivo: null, cancelada_em: null, atualizado_em: new Date().toISOString(),
+    });
+    return { ok: true as const, ate: ate.toISOString() };
+  } catch (e) {
+    console.error("avulso", String(e).slice(0, 300));
+    return { ok: false as const, erro: motivoMp(e) };
+  }
+}
+
+/** Remove o cartão: a renovação automática para. O acesso continua até o fim do período já pago. */
+export async function removerCartao(uid: string) {
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("mp_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  if (!a) return { ok: false as const, erro: "Não há cartão cadastrado." };
+  try {
+    if (a.mp_assinatura_id) await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+    await sb.from("assinaturas").update({ mp_assinatura_id: null, cartao_final: null, cartao_bandeira: null, renovacao_automatica: false, proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    return { ok: true as const };
+  } catch (e) {
+    console.error("remover cartao", String(e).slice(0, 300));
     return { ok: false as const, erro: motivoMp(e) };
   }
 }
@@ -119,7 +176,7 @@ export async function cancelarAssinatura(uid: string) {
   if (!a?.mp_assinatura_id) return { ok: false as const, erro: "Você ainda não tem assinatura." };
   try {
     await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
-    await supabaseAdmin().from("assinaturas").update({ status: "cancelada", cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    await supabaseAdmin().from("assinaturas").update({ status: "cancelada", mp_assinatura_id: null, renovacao_automatica: false, cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
     console.error("cancelar assinatura", String(e).slice(0, 300));
@@ -140,6 +197,13 @@ export async function sincronizar(uid: string): Promise<void> {
   const pa = await mp<Preapproval>(`/preapproval/${a.mp_assinatura_id}`);
   const faturas = await mp<{ results?: Fatura[] }>(`/authorized_payments/search?preapproval_id=${encodeURIComponent(a.mp_assinatura_id)}&sort=date_created&criteria=desc&limit=10`).catch(() => ({ results: [] as Fatura[] }));
   const lista = faturas.results || [];
+  for (const f of lista) {
+    if (!f.payment?.id) continue;
+    await sb.from("auris_cobrancas").upsert({
+      profissional_id: uid, mp_pagamento_id: String(f.payment.id), origem: "assinatura", plano: a.plano, valor: f.transaction_amount ?? a.valor,
+      status: f.payment.status || f.status, data: f.debit_date || f.date_created || new Date().toISOString(),
+    }, { onConflict: "mp_pagamento_id" });
+  }
   const aprovada = lista.find((f) => f.payment?.status === "approved");
   const ultima = lista[0];
   const upd: Record<string, unknown> = { proxima_cobranca: pa.next_payment_date || null, atualizado_em: new Date().toISOString() };
