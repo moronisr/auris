@@ -132,6 +132,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       {e.mp_conectado ? (
         <div className="ok" style={{ marginBottom: 8 }}>
           {e.pg_provedor === "pagbank" ? "PagBank" : "Mercado Pago"} conectado{e.mp_modo === "teste" ? " em modo de teste (nenhum dinheiro real é cobrado)" : ""}. O pagamento é confirmado automaticamente, e o paciente só entra na consulta depois de pagar.
+          {e.pg_provedor !== "pagbank" && <p className="muted" style={{ margin: "8px 0 0" }}>Para o paciente conseguir pagar por Pix, a sua conta do Mercado Pago precisa ter uma chave Pix cadastrada (no app do Mercado Pago: Pix, Minhas chaves).</p>}
           <div style={{ marginTop: 8 }}><button type="button" className="link" onClick={desconectar}>Desconectar ou trocar de instituição</button></div>
         </div>
       ) : (
@@ -147,6 +148,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
                 <>
                   <a className="btn" href="/api/pagamento/mp/conectar" style={{ display: "block", textAlign: "center" }}>Conectar com Mercado Pago</a>
                   <p className="muted">Abre o site do Mercado Pago: entre na sua conta e toque em Autorizar. Você volta para cá já conectado.</p>
+                  <p className="muted"><b>Antes de conectar:</b> cadastre uma chave Pix na sua conta do Mercado Pago (no app: Pix, Minhas chaves, Cadastrar chave). Sem a chave, o paciente não consegue pagar por Pix.</p>
                 </>
               )}
               <details className="avancado" open={!botaoMp}>
