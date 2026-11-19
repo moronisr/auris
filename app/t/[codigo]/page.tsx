@@ -271,7 +271,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
                 </div>
-                <p className="muted">{abrindoPg ? "Abrindo a página de pagamento segura." : "Você paga na página segura da instituição de pagamento do consultório e volta para cá. Os dados do cartão não passam pelo Auris."}</p>
+                <p className="muted">{abrindoPg ? "Abrindo a página de pagamento segura." : "Você paga aqui mesmo, pelo app do seu banco (Pix) ou com o seu cartão, sem precisar de conta em outra instituição. Os dados do cartão não passam pelo Auris."}</p>
                 {info.reserva_expira_em && <p className="muted" style={{ marginBottom: 0 }}>Seu horário fica reservado até as {new Date(info.reserva_expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}.</p>}
               </>
             )
