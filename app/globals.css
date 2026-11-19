@@ -251,4 +251,5 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 button.link.link-discreto { color: var(--suave); font-weight: 400; font-size: 13px; }
 .resumo-financas.alerta { border-color: var(--erro-borda); background: var(--erro-fundo); }
 .topo-links a { white-space: nowrap; }
+.marca-desc { white-space: nowrap; }
 @media (max-width: 1100px) { .marca-desc { display: none; } }
