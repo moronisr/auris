@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { politicaCancelamento } from "@/lib/cancelamento";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { DIAS, criarSlug, horariosLivres, limparAgenda, limparExcecoes, slugValido, type Excecao, type Intervalo } from "@/lib/agenda";
 
@@ -8,7 +9,7 @@ const ANTECEDENCIAS = [1, 2, 4, 12, 24, 48];
 
 type Estado = {
   slug: string; agenda_ativa: boolean; valor: string; duracao: number; antecedencia: number;
-  agenda: Intervalo[]; excecoes: Excecao[]; apresentacao: string; mp_conectado: boolean; mp_modo: string | null; pg_provedor: string | null;
+  agenda: Intervalo[]; excecoes: Excecao[]; apresentacao: string; mp_conectado: boolean; mp_modo: string | null; pg_provedor: string | null; cancelamento_horas: number; cancelamento_obs: string;
 };
 
 const dataBR = (iso: string) => new Date(`${iso}T12:00:00-03:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
@@ -49,7 +50,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       if (!user) return;
       setId(user.id);
       const { data: d } = await sb.from("profissionais")
-        .select("slug, agenda_ativa, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, apresentacao, mp_conectado, mp_modo, pg_provedor, nome")
+        .select("slug, agenda_ativa, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, apresentacao, mp_conectado, mp_modo, pg_provedor, nome, cancelamento_horas, cancelamento_obs")
         .eq("id", user.id).maybeSingle();
       setSlugSalvo(d?.slug || null);
       setE({
@@ -64,6 +65,8 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         mp_conectado: !!d?.mp_conectado,
         mp_modo: d?.mp_modo || null,
         pg_provedor: d?.pg_provedor || null,
+        cancelamento_horas: d?.cancelamento_horas ?? 24,
+        cancelamento_obs: d?.cancelamento_obs || "",
       });
     })();
   }, [nome]);
@@ -108,6 +111,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
     const { error } = await supabaseBrowser().from("profissionais").update({
       slug, agenda_ativa: e!.agenda_ativa, valor_consulta: valor, duracao_consulta: e!.duracao, antecedencia_horas: e!.antecedencia,
       agenda: e!.agenda, agenda_excecoes: e!.excecoes.filter((x) => x.data >= new Date().toISOString().slice(0, 10)), apresentacao: e!.apresentacao.trim() || null,
+      cancelamento_horas: e!.cancelamento_horas, cancelamento_obs: e!.cancelamento_obs.trim().slice(0, 500) || null,
     }).eq("id", id);
     setSalvando(false);
     if (error) return setMsg({ tipo: "erro", texto: error.code === "23505" ? "Esse link já está em uso por outro profissional. Escolha outro." : "Não foi possível salvar: " + error.message });
@@ -140,7 +144,8 @@ export default function AgendaOnline({ nome }: { nome: string }) {
           <p className="muted">Escolha onde você quer receber. O dinheiro cai direto na sua conta; o Auris não recebe nem guarda valores. O paciente paga por Pix, cartão de crédito ou cartão de débito.</p>
           <div className="opcoes" role="group" aria-label="Instituição de pagamento" style={{ marginBottom: 12 }}>
             <button type="button" aria-pressed={inst === "mercadopago"} className={inst === "mercadopago" ? "opcao ativa" : "opcao"} onClick={() => { setInst("mercadopago"); setMsgMp(null); }}>Mercado Pago</button>
-            <button type="button" aria-pressed={inst === "pagbank"} className={inst === "pagbank" ? "opcao ativa" : "opcao"} onClick={() => { setInst("pagbank"); setMsgMp(null); }}>PagBank</button>
+            {/* PagBank fica oculto até passar no teste de ponta a ponta. Para mostrar: NEXT_PUBLIC_PAGBANK=1 */}
+            {process.env.NEXT_PUBLIC_PAGBANK === "1" && <button type="button" aria-pressed={inst === "pagbank"} className={inst === "pagbank" ? "opcao ativa" : "opcao"} onClick={() => { setInst("pagbank"); setMsgMp(null); }}>PagBank</button>}
           </div>
           {inst === "mercadopago" ? (
             <>
@@ -275,7 +280,23 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         </ul>
       )}
 
-      <h3 className="sub">5. Abrir a agenda</h3>
+      <h3 className="sub">5. Cancelamento e devolução</h3>
+      <label htmlFor="ag-cancel">O paciente pode cancelar e receber o valor de volta até</label>
+      <select id="ag-cancel" value={e.cancelamento_horas} onChange={(x) => set({ cancelamento_horas: Number(x.target.value) })}>
+        <option value={2}>2 horas antes</option>
+        <option value={12}>12 horas antes</option>
+        <option value={24}>24 horas antes</option>
+        <option value={48}>48 horas antes</option>
+        <option value={72}>72 horas antes</option>
+      </select>
+      <label htmlFor="ag-cancel-obs" style={{ marginTop: 10 }}>Observação para o paciente (opcional)</label>
+      <textarea id="ag-cancel-obs" rows={2} maxLength={500} placeholder="Ex.: para remarcar, fale com a recepção pelo WhatsApp (91) 99999-9999." value={e.cancelamento_obs} onChange={(x) => set({ cancelamento_obs: x.target.value })} />
+      <details className="politica">
+        <summary>Como o paciente vê a política</summary>
+        <ul>{politicaCancelamento(e.cancelamento_horas, e.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
+      </details>
+
+      <h3 className="sub">6. Abrir a agenda</h3>
       <label className="aceite">
         <input type="checkbox" checked={e.agenda_ativa} onChange={(x) => set({ agenda_ativa: x.target.checked })} />
         <span>Aceitar agendamentos online pela minha página</span>

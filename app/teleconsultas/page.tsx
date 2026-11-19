@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import CancelarDevolver from "@/components/CancelarDevolver";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { linkPagamentoValido, reais } from "@/lib/pix";
 import {
@@ -42,6 +43,11 @@ export default function Teleconsultas() {
     setLista((data as Teleconsulta[]) ?? []);
     setCarregando(false);
   }, []);
+
+  // Ao abrir a agenda, confere de novo no Mercado Pago os pagamentos ainda não confirmados (e duplicidades).
+  useEffect(() => {
+    fetch("/api/pagamento/conferir", { method: "POST" }).then((r) => r.json()).then((d) => { if (d?.conferidas) carregar(); }).catch(() => {});
+  }, [carregar]);
 
   useEffect(() => {
     setOrigem(window.location.origin);
@@ -99,10 +105,6 @@ export default function Teleconsultas() {
   }
   async function confirmarPagamento(t: Teleconsulta) {
     await supabaseBrowser().from("teleconsultas").update({ pagamento_status: "confirmado", pagamento_confirmado_em: new Date().toISOString() }).eq("id", t.id);
-    carregar();
-  }
-  async function cancelar(t: Teleconsulta) {
-    await supabaseBrowser().from("teleconsultas").update({ status: "cancelada" }).eq("id", t.id);
     carregar();
   }
 
@@ -194,7 +196,7 @@ export default function Teleconsultas() {
           <div className="selos">
             {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
             {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
-            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : "Pago, mas a consulta foi cancelada"} />}
+            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Paciente cancelou: devolução pendente" : "Pago, mas a consulta foi cancelada"} />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}
@@ -219,7 +221,7 @@ export default function Teleconsultas() {
               <a className="btn btn-sec" href={linkWhatsApp(t.paciente_telefone, mensagemLembrete(t, nomeProf, link(t)))} target="_blank" rel="noreferrer">Enviar lembrete pelo meu WhatsApp</a>
             )}
             <button type="button" className="btn-sec" onClick={() => copiar(t)}>{copiado === t.id ? "Link copiado" : "Copiar link"}</button>
-            <button type="button" className="link" onClick={() => cancelar(t)}>Cancelar</button>
+            <CancelarDevolver t={t} onFeito={carregar} />
           </div>
         </div>
       ))}

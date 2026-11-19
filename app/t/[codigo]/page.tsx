@@ -2,6 +2,7 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import CartaoMP from "@/components/CartaoMP";
+import { podeCancelarComDevolucao, politicaCancelamento, prazoTexto } from "@/lib/cancelamento";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -16,6 +17,7 @@ type Info = {
   cartao_link: string | null;
   pagamento_online?: boolean; reserva_expira_em?: string | null; profissao?: string | null;
   pagamento_metodo?: string | null; pagamento_confirmado_em?: string | null; transacao?: string | null;
+  devolvido_em?: string | null; devolucao_valor?: number | null; cancelamento_horas?: number; cancelamento_obs?: string | null; cancelado_por?: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -44,6 +46,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [cartaoOnline, setCartaoOnline] = useState<{ metodo: "credito" | "debito"; publicKey: string } | null>(null);
   const [recusa, setRecusa] = useState<{ titulo: string; texto: string } | null>(null);
   const [recemPago, setRecemPago] = useState(false);
+  const [cancelando, setCancelando] = useState<"" | "perguntar" | "enviando">("");
+  const [aviso, setAviso] = useState("");
   const statusAnterior = useRef<string | null>(null);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
@@ -75,7 +79,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     if (new URLSearchParams(window.location.search).get("pg")) { setVoltouPg(true); verificarPagamento(); }
   }, [verificarPagamento]);
   useEffect(() => {
-    if (!voltouPg || !info || !info.pagamento_online || info.pagamento_status === "confirmado") return;
+    if ((!voltouPg && info?.pagamento_status !== "informado") || !info || !info.pagamento_online || info.pagamento_status === "confirmado") return;
     let n = 0;
     const t = setInterval(() => { if (++n > 40) clearInterval(t); else verificarPagamento(); }, 6000);
     return () => clearInterval(t);
@@ -88,6 +92,29 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     if (st) statusAnterior.current = st;
   }, [info?.pagamento_status]);
   useEffect(() => { if (new URLSearchParams(window.location.search).get("pg")) statusAnterior.current = "pendente"; }, []);
+
+  // "Já paguei e não liberou": confere de novo; se ainda não achou, avisa o consultório (que também confere sozinho).
+  async function jaPaguei() {
+    setAviso(""); setEnviando(true);
+    await verificarPagamento();
+    const { data } = await supabaseBrowser().rpc("tele_paciente", { p_codigo: codigo });
+    const st = (data as Info | null)?.pagamento_status;
+    if (st !== "confirmado") {
+      await supabaseBrowser().rpc("tele_acao", { p_codigo: codigo, p_acao: "pagamento_informado", p_dados: { metodo: pixOnline ? "pix" : (cartaoOnline?.metodo ?? "pix") } });
+      setAviso("Ainda não recebemos a confirmação do banco. Avisamos o consultório e continuamos conferindo sozinhos: assim que o pagamento for localizado, sua consulta é liberada aqui. Guarde o comprovante do seu banco. Não pague de novo.");
+      await carregar();
+    }
+    setEnviando(false);
+  }
+
+  async function cancelarConsulta() {
+    setCancelando("enviando"); setErro("");
+    const r = await fetch("/api/pagamento/cancelar-paciente", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo }) });
+    const d = await r.json().catch(() => ({}));
+    setCancelando("");
+    if (!r.ok) { setErro(d.erro || "Não foi possível cancelar agora."); return; }
+    await carregar();
+  }
 
   async function pagarOnline(m: "pix" | "credito" | "debito") {
     setErro(""); setRecusa(null); setAbrindoPg(true);
@@ -170,7 +197,18 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     </div>
   );
 
-  if (info.status === "cancelada") return <div className="paciente">{cabecalho}<h1>Consulta cancelada</h1><p className="muted">Esta teleconsulta foi cancelada pelo consultório. Entre em contato para remarcar.</p></div>;
+  if (info.status === "cancelada") return (
+    <div className="paciente">{cabecalho}
+      <h1>Consulta cancelada</h1>
+      <p className="muted">{info.cancelado_por === "paciente" ? "Você cancelou esta teleconsulta." : "Esta teleconsulta foi cancelada pelo consultório. Entre em contato para remarcar."}</p>
+      {info.pagamento_status === "devolvido" && (
+        <div className="card">
+          <div className="ok" role="status"><b>Valor devolvido</b><div style={{ marginTop: 4 }}>Devolvemos {reais(Number(info.devolucao_valor ?? info.valor ?? 0))}{info.devolvido_em ? ` em ${new Date(info.devolvido_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}` : ""}.</div></div>
+          <p className="muted" style={{ marginBottom: 0 }}>No Pix, o valor volta para a conta que pagou, em geral em poucos minutos. No cartão, o estorno aparece na fatura em até duas faturas, conforme o banco.{info.transacao ? ` Número da transação: ${info.transacao}.` : ""}</p>
+        </div>
+      )}
+    </div>
+  );
   if (info.status === "encerrada" || estado === "encerrada") return (
     <div className="paciente">{cabecalho}
       <h1>Consulta encerrada</h1>
@@ -262,7 +300,9 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <Passos atual={2} total={total} />
           <h2 style={{ marginTop: 12 }}>Pagamento da consulta</h2>
           {info.pagamento_online ? (
-            reservaVencida ? (
+            info.pagamento_status === "informado" ? (
+              <div className="aviso" role="status" style={{ marginBottom: 0 }}><b>Conferindo o seu pagamento.</b> Você avisou que pagou e o consultório foi avisado. Continuamos conferindo com o banco: assim que o pagamento for localizado, esta página libera a consulta sozinha. Guarde o comprovante do seu banco e não pague de novo.</div>
+            ) : reservaVencida ? (
               <p style={{ marginBottom: 0 }}>O prazo de 30 minutos para pagar este horário terminou e ele foi liberado. Volte à página do profissional e escolha um novo horário.</p>
             ) : cartaoOnline && info.pagamento_status !== "confirmado" ? (
               <>
@@ -285,11 +325,13 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                 <button type="button" style={{ width: "100%", marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pixOnline.codigo).then(() => setCopiadoOnline(true)).catch(() => {}); }}>{copiadoOnline ? "Código copiado" : "Copiar código Pix"}</button>
                 <p className="muted">No app do banco, escolha Pix, depois Pix Copia e Cola (ou ler QR Code).</p>
                 <div className="aviso" role="status"><b>Aguardando o pagamento.</b> Deixe esta página aberta: assim que o Pix for aprovado, aparece aqui a confirmação, em poucos segundos.</div>
+                {aviso ? <div className="aviso" role="status">{aviso}</div> : <button type="button" className="btn-sec" disabled={enviando} style={{ width: "100%", marginBottom: 8 }} onClick={jaPaguei}>{enviando ? "Conferindo com o banco" : "Já paguei e não liberou"}</button>}
                 <button type="button" className="link" onClick={() => setPixOnline(null)}>Escolher outra forma de pagamento</button>
               </>
             ) : voltouPg && info.pagamento_status !== "confirmado" ? (
               <>
                 <p>Estamos aguardando a confirmação do pagamento. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>
+                {aviso ? <div className="aviso" role="status">{aviso}</div> : <button type="button" className="btn-sec" disabled={enviando} style={{ width: "100%", marginBottom: 8 }} onClick={jaPaguei}>{enviando ? "Conferindo com o banco" : "Já paguei e não liberou"}</button>}
                 <p className="muted">Se você fechou o pagamento sem concluir, escolha a forma de pagamento de novo:</p>
                 <div className="opcoes" role="group" aria-label="Forma de pagamento">
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
@@ -392,6 +434,34 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
             <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 12 }} onClick={entrarNaEspera}>Entrar na sala de espera</button>
           )}
           <p className="muted" style={{ marginBottom: 0 }}>Use um lugar reservado e com boa internet. No horário marcado, o profissional entra na chamada.</p>
+        </div>
+      )}
+
+      {info.consentimento_em && (
+        <div className="card">
+          <details className="politica" style={{ marginTop: 0 }}>
+            <summary>Política de cancelamento e devolução</summary>
+            <ul>{politicaCancelamento(info.cancelamento_horas ?? 24, info.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
+          </details>
+          {(() => {
+            const horas = info.cancelamento_horas ?? 24;
+            const pagoOnline = info.pagamento_status === "confirmado" && info.pagamento_online;
+            const dentro = podeCancelarComDevolucao(info.inicio, horas);
+            if ((info.pagamento_status === "confirmado" && !pagoOnline) || info.pagamento_status === "informado") return <p className="muted" style={{ marginBottom: 0 }}>Para cancelar, fale com o consultório.</p>;
+            if (pagoOnline && !dentro) return <p className="muted" style={{ marginBottom: 0 }}>O cancelamento com devolução era possível {prazoTexto(horas)}. Para remarcar, fale com o consultório.</p>;
+            return cancelando === "" ? (
+              <button type="button" className="link" style={{ marginTop: 8 }} onClick={() => setCancelando("perguntar")}>Cancelar minha consulta</button>
+            ) : (
+              <div className="aviso" style={{ marginTop: 10, marginBottom: 0 }}>
+                <b>Cancelar a consulta?</b>
+                <div style={{ marginTop: 4 }}>{pagoOnline ? `Você recebe ${reais(Number(info.valor))} de volta, automaticamente, na mesma forma de pagamento.` : "O horário fica livre para outra pessoa."}</div>
+                <div className="acoes-ficha" style={{ marginTop: 10 }}>
+                  <button type="button" disabled={cancelando === "enviando"} onClick={cancelarConsulta}>{cancelando === "enviando" ? "Cancelando" : pagoOnline ? "Cancelar e receber o valor de volta" : "Cancelar consulta"}</button>
+                  <button type="button" className="link" disabled={cancelando === "enviando"} onClick={() => setCancelando("")}>Voltar</button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

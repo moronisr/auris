@@ -10,7 +10,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   const { slug } = await ctx.params;
   const sb = supabaseAdmin();
   const { data: p } = await sb.from("profissionais")
-    .select("id, nome, especialidade, conselho, apresentacao, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, agenda_ativa, mp_conectado")
+    .select("id, nome, especialidade, conselho, apresentacao, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, agenda_ativa, mp_conectado, cancelamento_horas, cancelamento_obs")
     .ilike("slug", slug).maybeSingle();
   if (!p) return NextResponse.json({ erro: "Página não encontrada." }, { status: 404 });
   const aceitando = p.agenda_ativa && p.mp_conectado && Number(p.valor_consulta) > 0;
@@ -30,6 +30,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   return NextResponse.json({
     nome: p.nome, especialidade: p.especialidade, conselho: p.conselho, apresentacao: p.apresentacao,
     valor: Number(p.valor_consulta) || null, duracao: p.duracao_consulta, aceitando, horarios, previa,
+    cancelamento_horas: p.cancelamento_horas ?? 24, cancelamento_obs: p.cancelamento_obs,
     falta: aceitando ? [] : [!p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
   }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -214,3 +214,8 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 .comprovante dt { color: var(--suave); }
 .comprovante dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .pago-linha { margin-top: 6px; font-size: 13px; color: var(--ok-tinta); font-weight: 600; }
+
+.politica { margin-top: 10px; font-size: 13.5px; }
+.politica summary { cursor: pointer; color: var(--tinta); font-weight: 600; }
+.politica ul { margin: 8px 0 0; padding-left: 18px; color: var(--suave); }
+.politica li { margin-bottom: 4px; }

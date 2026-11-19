@@ -49,8 +49,10 @@ export async function confirmarPagamento(teleId: string, dica?: string): Promise
   const sb = supabaseAdmin();
   const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, valor, pagamento_status, status, pg_provedor, mp_preferencia_id").eq("id", teleId).maybeSingle();
   if (!t) return "nao_encontrada";
-  if (t.pagamento_status === "confirmado" || t.pagamento_status === "isento") return t.pagamento_status;
+  if (t.pagamento_status === "isento") return t.pagamento_status;
+  // Mercado Pago: sempre consulta, inclusive depois de confirmado, para achar pagamento em duplicidade.
   if (t.pg_provedor !== "pagbank") return confirmarPeloMercadoPago(teleId, dica);
+  if (t.pagamento_status === "confirmado" || t.pagamento_status === "devolvido") return t.pagamento_status;
   if (!t.mp_preferencia_id) return t.pagamento_status;
   const { data: s } = await sb.from("profissionais_segredos").select("pagbank_token, pagbank_sandbox").eq("profissional_id", t.profissional_id).maybeSingle();
   if (!s?.pagbank_token) return t.pagamento_status;

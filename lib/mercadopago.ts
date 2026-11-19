@@ -89,6 +89,38 @@ export async function cancelarPixPendente(token: string, pagamentoId: string): P
   }
 }
 
+/** Mensagem clara quando o Mercado Pago não consegue devolver. */
+function motivoDevolucao(e: unknown): string {
+  const t = String(e);
+  if (/insufficient|saldo|balance/i.test(t)) return "O Mercado Pago não tem saldo suficiente na conta para devolver agora. Deixe saldo na conta do Mercado Pago e tente de novo.";
+  if (/already|refunded|devolvid/i.test(t)) return "Este pagamento já foi devolvido.";
+  if (/expired|days|prazo|180/i.test(t)) return "O prazo do Mercado Pago para devolver este pagamento terminou. Devolva por Pix direto ao paciente.";
+  return "O Mercado Pago não conseguiu devolver agora. Tente de novo em alguns minutos ou devolva pelo app do Mercado Pago (Atividade, abrir a venda, Devolver dinheiro).";
+}
+
+/** Devolve um pagamento inteiro ao paciente (Pix volta para a conta de origem; cartão é estornado). */
+export async function devolverMercadoPago(token: string, pagamentoId: string): Promise<{ ok: true; id: string; valor: number } | { ok: false; erro: string }> {
+  if (!/^\d+$/.test(pagamentoId)) return { ok: false, erro: "Pagamento não encontrado." };
+  try {
+    const pg = await mp<{ status: string; transaction_amount: number; transaction_amount_refunded?: number }>(token, `/v1/payments/${pagamentoId}`);
+    if (pg.status === "refunded") return { ok: true, id: "ja-devolvido", valor: Number(pg.transaction_amount_refunded || pg.transaction_amount) };
+    if (pg.status !== "approved") return { ok: false, erro: "Este pagamento não está aprovado, então não há valor para devolver." };
+    const r = await mp<{ id: number; amount: number; status: string }>(token, `/v1/payments/${pagamentoId}/refunds`, {
+      method: "POST", headers: { "X-Idempotency-Key": `devolucao-${pagamentoId}` }, body: JSON.stringify({}),
+    });
+    return { ok: true, id: String(r.id), valor: Number(r.amount ?? pg.transaction_amount) };
+  } catch (e) {
+    console.error("devolver", String(e).slice(0, 300));
+    return { ok: false, erro: motivoDevolucao(e) };
+  }
+}
+
+/** Pagamentos aprovados de uma consulta, do mais antigo ao mais novo. */
+export async function pagamentosAprovados(token: string, teleId: string): Promise<{ id: string; valor: number }[]> {
+  const r = await mp<{ results: Pagamento[] }>(token, `/v1/payments/search?external_reference=${encodeURIComponent(teleId)}&sort=date_created&criteria=asc`);
+  return (r.results || []).filter((p) => p.status === "approved" && p.external_reference === teleId).map((p) => ({ id: String(p.id), valor: Number(p.transaction_amount) }));
+}
+
 export type ResultadoCartao = { status: string; detalhe: string; pagamentoId: string };
 
 /** Cobra o cartão (crédito ou débito) com o token gerado pelo formulário seguro do Mercado Pago. Valor sempre do servidor. */
@@ -203,6 +235,11 @@ export async function confirmarPeloMercadoPago(teleId: string, pagamentoId?: str
   if (!aprovados.length) return t.pagamento_status;
 
   const alerta = aprovados.length > 1 ? "duplicado" : t.status === "cancelada" ? "pago_cancelada" : null;
+  if (t.pagamento_status === "devolvido") {
+    // Consulta já devolvida: um pagamento aprovado novo é dinheiro a devolver, nunca reabre a consulta.
+    if (t.pagamento_alerta !== "pago_cancelada") await sb.from("teleconsultas").update({ pagamento_alerta: "pago_cancelada" }).eq("id", teleId);
+    return "devolvido";
+  }
   if (t.pagamento_status === "confirmado") {
     if (alerta && t.pagamento_alerta !== alerta) await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
     return "confirmado";

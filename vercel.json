@@ -1,0 +1,3 @@
+{
+  "crons": [{ "path": "/api/pagamento/conferir", "schedule": "0 12 * * *" }]
+}

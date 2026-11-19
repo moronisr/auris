@@ -1,4 +1,6 @@
 "use client";
+
+import CancelarDevolver from "@/components/CancelarDevolver";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -256,9 +258,12 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       {t.pagamento_alerta && (
         <div className="erro" role="alert" style={{ marginBottom: 12 }}>
           {t.pagamento_alerta === "duplicado"
-            ? "O paciente pagou esta consulta mais de uma vez. Devolva o valor extra pelo Mercado Pago (Atividade, abrir a venda, Devolver dinheiro)."
-            : "O paciente pagou esta consulta, mas ela está cancelada. Remarque com o paciente ou devolva o valor pelo Mercado Pago (Atividade, abrir a venda, Devolver dinheiro)."}
+            ? "O paciente pagou esta consulta mais de uma vez. Devolva o valor extra com o botão abaixo."
+            : t.pagamento_alerta === "devolucao_pendente"
+              ? "O paciente pediu o cancelamento dentro do prazo, mas a devolução automática não foi concluída. Devolva com o botão abaixo."
+              : "O paciente pagou esta consulta, mas ela está cancelada. Remarque com o paciente ou devolva o valor com o botão abaixo."}
           {t.mp_pagamento_id ? ` Transação ${t.mp_pagamento_id}.` : ""}
+          <CancelarDevolver t={t} onFeito={() => location.reload()} />
         </div>
       )}
       {Number(t.valor) > 0 && pagamentoPendente && (
@@ -316,7 +321,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
                 {t.consentimento_em && <li className={t.ia_autorizada === false ? "" : "feito"}>{t.ia_autorizada === false ? "Paciente não autorizou o uso de IA no registro" : "Paciente autorizou o uso de IA no registro"}</li>}
                 {t.pagamento_status !== "isento" && (
                   <li className={t.pagamento_status === "confirmado" ? "feito" : ""}>
-                    {t.pagamento_status === "confirmado" ? `Pagamento confirmado${t.valor ? `, ${reais(Number(t.valor))}` : ""}` : t.pagamento_status === "informado" ? "Paciente informou o pagamento; confira no banco" : "Pagamento pendente"}
+                    {t.pagamento_status === "devolvido" ? `Valor devolvido ao paciente${t.devolucao_valor ? `, ${reais(Number(t.devolucao_valor))}` : ""}` : t.pagamento_status === "confirmado" ? `Pagamento confirmado${t.valor ? `, ${reais(Number(t.valor))}` : ""}` : t.pagamento_status === "informado" ? "Paciente informou o pagamento; confira no banco" : "Pagamento pendente"}
                   </li>
                 )}
                 <li className={t.preconsulta ? "feito" : ""}>{t.preconsulta ? "Pré-consulta respondida" : "Pré-consulta não respondida"}</li>

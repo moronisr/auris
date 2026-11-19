@@ -3,10 +3,12 @@ import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { reais } from "@/lib/pix";
 import { mascaraTelefone } from "@/lib/telefone";
+import { politicaCancelamento } from "@/lib/cancelamento";
 
 type Pagina = {
   nome: string; especialidade: string | null; conselho: string | null; apresentacao: string | null;
   valor: number | null; duracao: number; aceitando: boolean; horarios: string[]; previa?: boolean; falta?: string[];
+  cancelamento_horas?: number; cancelamento_obs?: string | null;
 };
 
 const TZ = "America/Sao_Paulo";
@@ -110,7 +112,11 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
           {escolhido && <p className="ok" style={{ marginTop: 14 }}>Horário escolhido: <b>{diaDe(escolhido)}, às {horaDe(escolhido)}</b>.</p>}
           {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
           <button type="submit" disabled={enviando || !escolhido || !p.aceitando} style={{ width: "100%", marginTop: 14 }}>{enviando ? "Reservando o horário" : "Continuar para o pagamento"}</button>
-          <p className="muted" style={{ marginBottom: 0 }}>O horário fica reservado por 30 minutos para você concluir o pagamento.</p>
+          <p className="muted">O horário fica reservado por 30 minutos para você concluir o pagamento.</p>
+          <details className="politica">
+            <summary>Política de cancelamento e devolução</summary>
+            <ul>{politicaCancelamento(p.cancelamento_horas ?? 24, p.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
+          </details>
         </form>
       )}
     </div>
