@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Navegacao from "@/components/Navegacao";
+import RodapeLegal from "@/components/RodapeLegal";
 
 export const metadata: Metadata = {
   title: "Auris, registro clínico",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Navegacao />
         <main className="container">{children}</main>
+        <RodapeLegal />
       </body>
     </html>
   );

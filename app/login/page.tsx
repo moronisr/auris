@@ -160,6 +160,7 @@ export default function Login() {
       <button className="link" style={{ display: "block", margin: "14px auto 0" }} onClick={() => { setModo(modo === "entrar" ? "cadastrar" : "entrar"); setMsg(null); }}>
         {modo === "entrar" ? "Primeira vez aqui? Criar conta" : "Já tenho conta. Entrar"}
       </button>
+      {modo === "cadastrar" && <p className="muted" style={{ textAlign: "center", fontSize: 13 }}>Ao criar a conta, você concorda com os <a href="/termos" target="_blank" rel="noreferrer">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noreferrer">Política de privacidade</a>.</p>}
     </>
   );
 }

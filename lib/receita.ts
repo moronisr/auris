@@ -32,9 +32,9 @@ export function restricoes(itens: ItemReceita[]): string[] {
   return [...new Set(achados)];
 }
 
-const limpar = (s: string) => s.replace(/[^\x09\x0A\x20-\x7E -ÿ]/g, (c) => ({ "–": "-", "—": "-", "“": '"', "”": '"', "’": "'", "•": "-" }[c] ?? "?"));
+export const limpar = (s: string) => s.replace(/[^\x09\x0A\x20-\x7E -ÿ]/g, (c) => ({ "–": "-", "—": "-", "“": '"', "”": '"', "’": "'", "•": "-" }[c] ?? "?"));
 
-function quebrar(texto: string, fonte: PDFFont, tam: number, largura: number): string[] {
+export function quebrar(texto: string, fonte: PDFFont, tam: number, largura: number): string[] {
   const linhas: string[] = [];
   for (const par of limpar(texto).split("\n")) {
     let atual = "";

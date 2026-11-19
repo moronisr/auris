@@ -23,9 +23,8 @@ const BASE: Record<Grupo, string> = {
 
 /** Termo de consentimento da teleconsulta, com o texto certo para o conselho do profissional. */
 export function termoTeleconsulta(grupo: Grupo): string {
-  const ia = grupo === "medicina"
-    ? "3. Uso de inteligência artificial (Resolução CFM nº 2.454/2026): se você autorizar, o áudio da conversa é transcrito por IA apenas para montar o registro clínico, que o médico revisa antes de salvar. A IA não faz diagnóstico nem decide o tratamento. A chamada de vídeo não é gravada, e o áudio é apagado depois da transcrição. Você pode recusar o uso de IA sem nenhum prejuízo ao atendimento."
-    : `3. Uso de inteligência artificial: se você autorizar, o áudio da conversa é transcrito por IA apenas para montar o registro do atendimento, que o profissional revisa antes de salvar. A IA não avalia nem decide nada sobre o seu ${grupo === "psicologia" ? "acompanhamento" : "tratamento"}. A chamada de vídeo não é gravada, e o áudio é apagado depois da transcrição. Você pode recusar o uso de IA sem nenhum prejuízo ao atendimento.`;
+  const quem = grupo === "medicina" ? "o médico" : "o profissional";
+  const ia = `3. Registro da consulta: para ${quem} dar toda a atenção a você, sem precisar digitar durante a conversa, um assistente de inteligência artificial pode ajudar a escrever o registro a partir do áudio. ${quem === "o médico" ? "O médico" : "O profissional"} confere e corrige tudo antes de salvar, e as decisões são sempre ${grupo === "medicina" ? "dele" : "dele ou dela"}. O vídeo não é gravado e o áudio é apagado logo depois. Se preferir que não seja usado, é só escolher abaixo, sem nenhuma diferença no atendimento${grupo === "medicina" ? " (Resolução CFM nº 2.454/2026)" : ""}.`;
   const sigilo = grupo === "psicologia"
     ? "4. Tudo o que for dito é protegido pelo sigilo profissional. O registro fica no prontuário psicológico, com proteção de dados conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), e você tem direito de acesso a ele."
     : "4. O registro do atendimento fica no prontuário eletrônico, com sigilo profissional e proteção de dados conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).";

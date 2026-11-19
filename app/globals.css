@@ -202,3 +202,10 @@ h3.sub { font-size: 15px; margin: 22px 0 8px; color: var(--tinta); }
 details.avancado { margin-top: 10px; }
 details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaque); margin-bottom: 8px; }
 .ficha-ia { font-size: 11.5px; color: var(--suave); margin: 14px 0 0; }
+.rodape-legal { text-align: center; font-size: 12.5px; color: var(--suave); padding: 24px 16px 96px; }
+.rodape-legal a { color: var(--suave); }
+.pagina-info { max-width: 720px; margin: 0 auto; line-height: 1.65; }
+.pagina-info h2 { font-size: 18px; margin-top: 28px; }
+.pagina-info h3 { font-size: 15px; margin: 18px 0 6px; }
+.pagina-info ul, .pagina-info ol { padding-left: 20px; }
+.pagina-info li { margin-bottom: 6px; }

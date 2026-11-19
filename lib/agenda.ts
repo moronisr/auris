@@ -9,7 +9,7 @@ const OFFSET = "-03:00";
 const MS_MIN = 60_000;
 
 /** Palavras que não podem ser link de profissional, porque são páginas do próprio Auris. */
-export const RESERVADOS = new Set(["api", "auth", "login", "sair", "novo", "dia", "p", "t", "perfil", "registro", "teleconsultas", "nova-senha", "agendar", "admin", "planos", "precos", "ajuda", "termos", "privacidade", "_next", "favicon.ico", "manifest.webmanifest", "robots.txt", "sitemap.xml"]);
+export const RESERVADOS = new Set(["api", "auth", "login", "sair", "novo", "dia", "p", "t", "perfil", "registro", "teleconsultas", "nova-senha", "agendar", "admin", "planos", "precos", "ajuda", "termos", "privacidade", "ia", "assinar", "_next", "favicon.ico", "manifest.webmanifest", "robots.txt", "sitemap.xml"]);
 
 export function criarSlug(nome: string): string {
   return nome.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()

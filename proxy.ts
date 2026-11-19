@@ -22,7 +22,8 @@ export async function proxy(req: NextRequest) {
   const segmentos = req.nextUrl.pathname.split("/").filter(Boolean);
   // Página pública do profissional: aurisclinica.vercel.app/<link-do-profissional>
   const paginaProfissional = segmentos.length === 1 && !RESERVADOS.has(segmentos[0].toLowerCase());
-  const publica = paginaProfissional || req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/auth") || req.nextUrl.pathname.startsWith("/nova-senha") || req.nextUrl.pathname.startsWith("/t/") || req.nextUrl.pathname.startsWith("/p/");
+  const informativa = ["/privacidade", "/termos", "/ia"].includes(req.nextUrl.pathname);
+  const publica = paginaProfissional || informativa || req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/auth") || req.nextUrl.pathname.startsWith("/nova-senha") || req.nextUrl.pathname.startsWith("/t/") || req.nextUrl.pathname.startsWith("/p/");
   if (!user && !publica && !req.nextUrl.pathname.startsWith("/api")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }

@@ -86,7 +86,7 @@ export default function Novo() {
   async function iniciar() {
     setErro(null);
     if (modo === "consulta" && !consentimento)
-      return setErro("Antes de iniciar, marque que você avisou o paciente sobre o registro com IA.");
+      return setErro("Antes de iniciar, marque que combinou com o paciente o uso do Auris no registro.");
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
       return setErro("Este navegador não permite gravar áudio. No iPhone use o Safari atualizado; no Android, o Chrome.");
     try {
@@ -223,7 +223,8 @@ export default function Novo() {
     const s = (k: string) => (ficha[k] == null ? null : String(ficha[k]));
     const { data, error } = await supabaseBrowser().from("registros").insert({
       modelo: res.modelo,
-      dados: ficha,
+      // O uso de IA fica registrado no prontuário (presencial: o profissional confirmou que avisou o paciente).
+      dados: { ...ficha, ...(tele ? {} : { _atendimento: modo === "consulta" ? "presencial_conversa" : "ditado", ...(modo === "consulta" && consentimento ? { _ia_paciente_informado_em: new Date().toISOString() } : {}) }) },
       paciente_nome: s("paciente_nome"),
       paciente_idade: typeof ficha.paciente_idade === "number" ? ficha.paciente_idade : null,
       paciente_cpf: s("paciente_cpf")?.replace(/\D/g, "") || null,
@@ -306,7 +307,9 @@ export default function Novo() {
           {modo === "consulta" && (
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, color: "#0f172a", marginBottom: 12 }}>
               <input type="checkbox" style={{ width: 20, height: 20, flex: "none" }} checked={consentimento} onChange={(e) => setConsentimento(e.target.checked)} />
-              Avisei o paciente, no início da consulta, que uso um sistema com IA para registrar o atendimento. O áudio é apagado após a transcrição.
+              <span>Combinei com o paciente que uso o Auris para escrever o registro desta consulta.
+                <span className="muted" style={{ display: "block", marginTop: 4 }}>Sugestão de frase: &quot;Eu uso um assistente que me ajuda a escrever o prontuário, assim consigo prestar mais atenção em você. Tudo bem?&quot; Se o paciente preferir que não, é só não gravar.</span>
+              </span>
             </label>
           )}
           <label>Especialidade / área do atendimento</label>

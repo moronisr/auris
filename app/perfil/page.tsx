@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 import { TIPOS_CHAVE, linkPagamentoValido, normalizarChave, type TipoChave } from "@/lib/pix";
 import AgendaOnline from "@/components/AgendaOnline";
+import ExportarProntuario from "@/components/ExportarProntuario";
 import { SIGLA_CONSELHO, grupoProfissao } from "@/lib/conselhos";
 
 export default function Perfil() {
@@ -137,6 +138,7 @@ export default function Perfil() {
         <button type="submit" style={{ width: "100%" }}>Salvar perfil</button>
       </form>
       <AgendaOnline nome={nome} />
+      <ExportarProntuario />
     </>
   );
 }

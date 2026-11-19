@@ -200,12 +200,12 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <Passos atual={1} total={total} />
           <h2 style={{ marginTop: 12 }}>Termo de consentimento</h2>
           <div className="termo">{termo}</div>
-          <p style={{ marginBottom: 6 }}><b>Uso de inteligência artificial no registro</b></p>
-          <div className="opcoes" role="radiogroup" aria-label="Uso de inteligência artificial no registro">
-            <button type="button" role="radio" aria-checked={usoIA === "sim"} className={usoIA === "sim" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("sim")}>Autorizo</button>
-            <button type="button" role="radio" aria-checked={usoIA === "nao"} className={usoIA === "nao" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("nao")}>Não autorizo</button>
+          <p style={{ marginBottom: 6 }}><b>Ajuda para escrever o registro</b></p>
+          <div className="opcoes" role="radiogroup" aria-label="Ajuda para escrever o registro">
+            <button type="button" role="radio" aria-checked={usoIA === "sim"} className={usoIA === "sim" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("sim")}>Pode usar</button>
+            <button type="button" role="radio" aria-checked={usoIA === "nao"} className={usoIA === "nao" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("nao")}>Prefiro sem</button>
           </div>
-          <p className="muted" style={{ marginTop: 6 }}>{usoIA === "nao" ? "Tudo bem. O atendimento acontece normalmente, e o profissional faz o registro sem IA." : "A IA só ajuda a escrever o registro. Quem avalia e decide é sempre o profissional."}</p>
+          <p className="muted" style={{ marginTop: 6 }}>{usoIA === "nao" ? "Tudo bem. O atendimento é o mesmo; o registro é escrito sem o assistente." : <>O assistente só ajuda a escrever. <a href="/ia" target="_blank" rel="noreferrer">Saiba como funciona</a></>}</p>
           <label className="aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
             <span>Li e concordo em ser atendido(a) online.</span>

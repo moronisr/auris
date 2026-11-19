@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import FichaConteudo, { valorCampo, type Registro } from "@/components/FichaConteudo";
 import { MODELOS, camposDoModelo, type Ficha } from "@/lib/modelos";
 import { textoProntuario } from "@/lib/documentos";
+import { modalidadeDaFicha } from "@/lib/fichaDados";
 import BotaoPdf from "./pdf";
 import BotaoCopiar from "./copiar";
 
@@ -22,11 +23,8 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
   if (!r) notFound();
   const { data: prof } = await sb.from("profissionais").select("nome, profissao, especialidade, conselho").eq("id", user!.id).maybeSingle();
   const podeReceitar = /Médic|Dentista/.test(prof?.profissao ?? "");
-  const { data: tele } = await sb.from("teleconsultas").select("iniciada_em, encerrada_em, consentimento_em").eq("registro_id", id).maybeSingle();
-  const hm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) : "");
-  const modalidade = tele
-    ? `Teleconsulta por vídeo${tele.iniciada_em ? `, das ${hm(tele.iniciada_em)}` : ""}${tele.encerrada_em ? ` às ${hm(tele.encerrada_em)}` : ""}. Termo de consentimento aceito pelo paciente${tele.consentimento_em ? ` em ${new Date(tele.consentimento_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}` : ""}.`
-    : undefined;
+  const { data: tele } = await sb.from("teleconsultas").select("iniciada_em, encerrada_em, consentimento_em, ia_autorizada").eq("registro_id", id).maybeSingle();
+  const modalidade = modalidadeDaFicha(r as Registro, tele);
 
   // Texto da ficha para colar em outro prontuário (mesmos campos e ordem da ficha).
   const reg = r as Registro;
@@ -58,6 +56,13 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
           <Seta />
         </a>
       )}
+      <a className="card atalho-receita nao-imprimir" href={`/registro/${id}/assinar`}>
+        <span>
+          <b>{r.assinada_em ? "Ficha assinada digitalmente" : "Assinar a ficha digitalmente"}</b>
+          <span className="muted" style={{ display: "block" }}>{r.assinada_em ? `Assinada em ${new Date(r.assinada_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}. Toque para abrir ou enviar outra versão.` : "Com certificado ICP-Brasil ou conta gov.br, para a ficha valer sem papel."}</span>
+        </span>
+        <Seta />
+      </a>
       <a className="card atalho-receita atalho-doc nao-imprimir" href={`/registro/${id}/documentos`}>
         <span>
           <b>Documentos da consulta</b>
