@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/admin";
+import { renovar } from "@/lib/mpOauth";
 
 /**
  * Mercado Pago do profissional: o dinheiro do paciente cai direto na conta dele.
@@ -32,9 +33,25 @@ export async function validarChave(token: string): Promise<{ id: number; email?:
   return mp(token, "/users/me");
 }
 
+/** Chave do Mercado Pago do profissional. Conexões pelo botão vencem em 6 meses: renova sozinho antes de vencer. */
 export async function chaveDoProfissional(profissionalId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin().from("profissionais_segredos").select("mp_access_token").eq("profissional_id", profissionalId).maybeSingle();
-  return data?.mp_access_token || null;
+  const admin = supabaseAdmin();
+  const { data } = await admin.from("profissionais_segredos").select("mp_access_token, mp_refresh_token, mp_expira_em").eq("profissional_id", profissionalId).maybeSingle();
+  if (!data?.mp_access_token) return null;
+  const venceEm = data.mp_expira_em ? new Date(data.mp_expira_em).getTime() - Date.now() : Infinity;
+  if (data.mp_refresh_token && venceEm < 20 * 864e5) {
+    try {
+      const t = await renovar(data.mp_refresh_token);
+      await admin.from("profissionais_segredos").update({
+        mp_access_token: t.access_token, mp_refresh_token: t.refresh_token,
+        mp_expira_em: new Date(Date.now() + (t.expires_in || 15552000) * 1000).toISOString(), atualizado_em: new Date().toISOString(),
+      }).eq("profissional_id", profissionalId);
+      return t.access_token;
+    } catch (e) {
+      console.error("mp renovar", e);
+    }
+  }
+  return data.mp_access_token;
 }
 
 const EXCLUIR: Record<Metodo, string[]> = {

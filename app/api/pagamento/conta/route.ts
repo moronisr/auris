@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/admin";
 import { modoDaChave, validarChave } from "@/lib/mercadopago";
+import { oauthDisponivel } from "@/lib/mpOauth";
+
+/** Diz à tela se o botão "Conectar com Mercado Pago" já está configurado. */
+export async function GET() {
+  return NextResponse.json({ botao: oauthDisponivel() });
+}
 
 export const runtime = "nodejs";
 
@@ -13,7 +19,7 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { token?: string; desconectar?: boolean } | null;
   const admin = supabaseAdmin();
   if (b?.desconectar) {
-    await admin.from("profissionais_segredos").upsert({ profissional_id: user.id, mp_access_token: null, atualizado_em: new Date().toISOString() });
+    await admin.from("profissionais_segredos").upsert({ profissional_id: user.id, mp_access_token: null, mp_refresh_token: null, mp_expira_em: null, mp_user_id: null, atualizado_em: new Date().toISOString() });
     await admin.from("profissionais").update({ mp_conectado: false, mp_modo: null }).eq("id", user.id);
     return NextResponse.json({ conectado: false });
   }
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ erro: "O Mercado Pago não aceitou essa chave. Confira se copiou o Access Token completo." }, { status: 400 });
   }
-  await admin.from("profissionais_segredos").upsert({ profissional_id: user.id, mp_access_token: token, atualizado_em: new Date().toISOString() });
+  await admin.from("profissionais_segredos").upsert({ profissional_id: user.id, mp_access_token: token, mp_refresh_token: null, mp_expira_em: null, atualizado_em: new Date().toISOString() });
   await admin.from("profissionais").update({ mp_conectado: true, mp_modo: modo }).eq("id", user.id);
   return NextResponse.json({ conectado: true, modo });
 }

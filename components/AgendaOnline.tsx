@@ -26,9 +26,20 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const [origem, setOrigem] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [slugSalvo, setSlugSalvo] = useState<string | null>(null);
+  const [botaoMp, setBotaoMp] = useState(false);
 
   useEffect(() => {
     setOrigem(window.location.origin);
+    fetch("/api/pagamento/conta").then((r) => r.json()).then((d) => setBotaoMp(!!d.botao)).catch(() => {});
+    const retornoMp = new URLSearchParams(window.location.search).get("mp");
+    if (retornoMp) {
+      setMsgMp(retornoMp === "ok" ? { tipo: "ok", texto: "Mercado Pago conectado. Os pagamentos caem direto na sua conta e são confirmados automaticamente." }
+        : retornoMp === "cancelado" ? { tipo: "erro", texto: "A conexão foi cancelada no Mercado Pago. Toque no botão de novo quando quiser conectar." }
+        : retornoMp === "indisponivel" ? { tipo: "erro", texto: "A conexão pelo botão ainda está sendo configurada. Use a opção com Access Token abaixo." }
+        : { tipo: "erro", texto: "Não foi possível concluir a conexão com o Mercado Pago. Tente de novo." });
+      window.history.replaceState(null, "", "/perfil#agenda-online");
+      setTimeout(() => document.getElementById("agenda-online")?.scrollIntoView(), 300);
+    }
     (async () => {
       const sb = supabaseBrowser();
       const { data: { user } } = await sb.auth.getUser();
@@ -119,15 +130,24 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         </div>
       ) : (
         <>
-          <p className="muted">Conecte a sua conta do Mercado Pago. O dinheiro cai direto nela; o Auris não recebe nem guarda valores.</p>
-          <ol className="muted passos-lista">
-            <li>Entre em <b>mercadopago.com.br/developers/panel/app</b> com a sua conta e toque em <b>Criar aplicação</b> (qualquer nome, por exemplo &quot;Auris&quot;; tipo de pagamento: Checkout Pro).</li>
-            <li>Abra a aplicação e vá em <b>Credenciais de produção</b> (ou <b>Credenciais de teste</b>, para testar sem dinheiro real).</li>
-            <li>Copie o <b>Access Token</b> e cole abaixo.</li>
-          </ol>
-          <label htmlFor="mp-token">Access Token do Mercado Pago</label>
-          <input id="mp-token" type="password" autoComplete="off" placeholder="APP_USR-... ou TEST-..." value={token} onChange={(x) => setToken(x.target.value)} />
-          <button type="button" disabled={!token.trim() || conectando} style={{ width: "100%", marginTop: 8 }} onClick={conectar}>{conectando ? "Conferindo com o Mercado Pago" : "Conectar Mercado Pago"}</button>
+          <p className="muted">Conecte a sua conta do Mercado Pago. O dinheiro cai direto nela; o Auris não recebe nem guarda valores. Depois, você transfere para o seu banco quando quiser.</p>
+          {botaoMp && (
+            <>
+              <a className="btn" href="/api/pagamento/mp/conectar" style={{ display: "block", textAlign: "center" }}>Conectar com Mercado Pago</a>
+              <p className="muted">Abre o site do Mercado Pago: entre na sua conta e toque em Autorizar. Você volta para cá já conectado.</p>
+            </>
+          )}
+          <details className="avancado" open={!botaoMp}>
+            <summary>{botaoMp ? "Outra forma: colar o Access Token" : "Conectar com o Access Token"}</summary>
+            <ol className="muted passos-lista">
+              <li>Entre em <b>mercadopago.com.br/developers</b> com a sua conta e abra <b>Suas integrações</b>.</li>
+              <li>Toque em <b>Criar aplicação</b> (nome: Auris; pagamentos online; Checkout Pro).</li>
+              <li>Na aplicação, abra <b>Credenciais de produção</b> (ou <b>Credenciais de teste</b>, para testar sem dinheiro real) e copie o <b>Access Token</b>.</li>
+            </ol>
+            <label htmlFor="mp-token">Access Token do Mercado Pago</label>
+            <input id="mp-token" type="password" autoComplete="off" placeholder="APP_USR-... ou TEST-..." value={token} onChange={(x) => setToken(x.target.value)} />
+            <button type="button" className={botaoMp ? "btn-sec" : ""} disabled={!token.trim() || conectando} style={{ width: "100%", marginTop: 8 }} onClick={conectar}>{conectando ? "Conferindo com o Mercado Pago" : "Conectar com o Access Token"}</button>
+          </details>
         </>
       )}
       {msgMp && <div className={msgMp.tipo} style={{ marginTop: 8 }}>{msgMp.texto}</div>}

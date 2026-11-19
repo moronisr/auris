@@ -199,3 +199,5 @@ h3.sub { font-size: 15px; margin: 22px 0 8px; color: var(--tinta); }
 .grade-horarios .opcao:hover { background: #F1F3EF; color: var(--tinta); }
 .grade-horarios .opcao.ativa { background: var(--destaque); color: #fff; border-color: var(--destaque); }
 @media (max-width: 560px) { .dia-agenda { flex-direction: column; gap: 6px; } }
+details.avancado { margin-top: 10px; }
+details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaque); margin-bottom: 8px; }
