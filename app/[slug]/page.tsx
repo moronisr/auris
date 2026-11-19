@@ -6,7 +6,7 @@ import { mascaraTelefone } from "@/lib/telefone";
 
 type Pagina = {
   nome: string; especialidade: string | null; conselho: string | null; apresentacao: string | null;
-  valor: number | null; duracao: number; aceitando: boolean; horarios: string[];
+  valor: number | null; duracao: number; aceitando: boolean; horarios: string[]; previa?: boolean; falta?: string[];
 };
 
 const TZ = "America/Sao_Paulo";
@@ -25,7 +25,8 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
   const [enviando, setEnviando] = useState(false);
 
   async function carregar() {
-    const r = await fetch(`/api/pagina/${encodeURIComponent(slug)}`, { cache: "no-store" });
+    const previa = new URLSearchParams(window.location.search).get("previa") === "1";
+    const r = await fetch(`/api/pagina/${encodeURIComponent(slug)}${previa ? "?previa=1" : ""}`, { cache: "no-store" });
     setP(r.ok ? await r.json() : null);
   }
   useEffect(() => { carregar(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,8 +76,13 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
         <p className="muted" style={{ marginBottom: 0 }}>O pagamento é feito na hora do agendamento, por Pix, cartão de crédito ou cartão de débito, e confirma a sua consulta.</p>
       </div>
 
-      {!p.aceitando ? (
-        <div className="card"><p style={{ margin: 0 }}>No momento, {p.nome.split(" ")[0] === "Dra." || p.nome.split(" ")[0] === "Dr." ? p.nome : "este profissional"} não está com agenda online aberta. Entre em contato com o consultório.</p></div>
+      {p.previa && !p.aceitando && (
+        <div className="aviso" style={{ marginBottom: 14 }}>
+          Pré-visualização: é assim que o paciente vai ver a sua página. Os agendamentos ainda estão fechados. Para abrir, no Perfil falta {p.falta?.join(", ")}.
+        </div>
+      )}
+      {!p.aceitando && !p.previa ? (
+        <div className="card"><p style={{ margin: 0 }}>No momento, a agenda online deste profissional não está aberta. Entre em contato com o consultório.</p></div>
       ) : p.horarios.length === 0 ? (
         <div className="card"><p style={{ margin: 0 }}>Todos os horários dos próximos 14 dias estão ocupados. Volte em breve: novos horários são abertos toda semana.</p></div>
       ) : (
@@ -103,7 +109,7 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
           <input id="pg-email" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           {escolhido && <p className="ok" style={{ marginTop: 14 }}>Horário escolhido: <b>{diaDe(escolhido)}, às {horaDe(escolhido)}</b>.</p>}
           {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
-          <button type="submit" disabled={enviando || !escolhido} style={{ width: "100%", marginTop: 14 }}>{enviando ? "Reservando o horário" : "Continuar para o pagamento"}</button>
+          <button type="submit" disabled={enviando || !escolhido || !p.aceitando} style={{ width: "100%", marginTop: 14 }}>{enviando ? "Reservando o horário" : "Continuar para o pagamento"}</button>
           <p className="muted" style={{ marginBottom: 0 }}>O horário fica reservado por 30 minutos para você concluir o pagamento.</p>
         </form>
       )}

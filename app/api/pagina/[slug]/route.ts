@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Dados públicos da página do profissional e os horários livres dos próximos 14 dias. */
-export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
   const sb = supabaseAdmin();
   const { data: p } = await sb.from("profissionais")
@@ -15,7 +15,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   if (!p) return NextResponse.json({ erro: "Página não encontrada." }, { status: 404 });
   const aceitando = p.agenda_ativa && p.mp_conectado && Number(p.valor_consulta) > 0;
   let horarios: string[] = [];
-  if (aceitando) {
+  // Pré-visualização do próprio médico: mostra os horários mesmo com a agenda fechada (sem permitir agendar).
+  const previa = new URL(req.url).searchParams.get("previa") === "1";
+  if (aceitando || previa) {
     const agora = new Date();
     const ate = new Date(agora.getTime() + 16 * 864e5).toISOString();
     const { data: tele } = await sb.from("teleconsultas").select("inicio, duracao_min, status, pagamento_status, reserva_expira_em")
@@ -27,6 +29,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   }
   return NextResponse.json({
     nome: p.nome, especialidade: p.especialidade, conselho: p.conselho, apresentacao: p.apresentacao,
-    valor: Number(p.valor_consulta) || null, duracao: p.duracao_consulta, aceitando, horarios,
+    valor: Number(p.valor_consulta) || null, duracao: p.duracao_consulta, aceitando, horarios, previa,
+    falta: aceitando ? [] : [!p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
   }, { headers: { "Cache-Control": "no-store" } });
 }

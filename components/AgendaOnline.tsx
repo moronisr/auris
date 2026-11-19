@@ -25,6 +25,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const [nova, setNova] = useState<Excecao>({ data: "", tipo: "bloqueio", inicio: "08:00", fim: "12:00" });
   const [origem, setOrigem] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [slugSalvo, setSlugSalvo] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigem(window.location.origin);
@@ -36,6 +37,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       const { data: d } = await sb.from("profissionais")
         .select("slug, agenda_ativa, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, apresentacao, mp_conectado, mp_modo, nome")
         .eq("id", user.id).maybeSingle();
+      setSlugSalvo(d?.slug || null);
       setE({
         slug: d?.slug || criarSlug(d?.nome || nome || ""),
         agenda_ativa: !!d?.agenda_ativa,
@@ -57,7 +59,6 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const set = (p: Partial<Estado>) => { setE({ ...e, ...p }); setMsg(null); };
   const doDia = (d: number) => e.agenda.filter((i) => i.dia === d);
   const mudarDia = (d: number, lista: Intervalo[]) => set({ agenda: [...e.agenda.filter((i) => i.dia !== d), ...lista].sort((a, b) => a.dia - b.dia || a.inicio.localeCompare(b.inicio)) });
-  const link = `${origem}/${e.slug}`;
 
   async function conectar() {
     setConectando(true); setMsgMp(null);
@@ -94,6 +95,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
     setSalvando(false);
     if (error) return setMsg({ tipo: "erro", texto: error.code === "23505" ? "Esse link já está em uso por outro profissional. Escolha outro." : "Não foi possível salvar: " + error.message });
     setE({ ...e!, slug });
+    setSlugSalvo(slug);
     setMsg({ tipo: "ok", texto: e!.agenda_ativa ? "Agenda salva. Sua página já está recebendo agendamentos." : "Agenda salva. Ative \"Aceitar agendamentos online\" quando quiser abrir a página." });
   }
 
@@ -230,11 +232,13 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       <p className="muted">{livres7 > 0 ? `Com esses horários, a sua página mostra ${livres7} horários nos próximos 7 dias.` : "Com os horários de agora, a sua página não mostra nenhum horário nos próximos 7 dias."}</p>
       {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
       <button type="button" disabled={salvando} style={{ width: "100%" }} onClick={salvar}>{salvando ? "Salvando" : "Salvar agenda"}</button>
-      {e.slug && slugValido(e.slug) && (
+      {slugSalvo && slugSalvo === e.slug ? (
         <div className="acoes-ficha" style={{ marginTop: 10 }}>
-          <a className="btn btn-sec" href={`/${e.slug}`} target="_blank" rel="noreferrer">Ver minha página</a>
-          <button type="button" className="btn-sec" onClick={() => { navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}>{copiado ? "Link copiado" : "Copiar meu link"}</button>
+          <a className="btn btn-sec" href={`/${slugSalvo}?previa=1`} target="_blank" rel="noreferrer">Ver minha página</a>
+          <button type="button" className="btn-sec" onClick={() => { navigator.clipboard.writeText(`${origem}/${slugSalvo}`); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}>{copiado ? "Link copiado" : "Copiar meu link"}</button>
         </div>
+      ) : (
+        <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>Depois de salvar, aparecem aqui os botões para ver a sua página e copiar o seu link.</p>
       )}
     </div>
   );
