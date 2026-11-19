@@ -209,3 +209,8 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 .pagina-info h3 { font-size: 15px; margin: 18px 0 6px; }
 .pagina-info ul, .pagina-info ol { padding-left: 20px; }
 .pagina-info li { margin-bottom: 6px; }
+
+.comprovante { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0; font-size: 14px; }
+.comprovante dt { color: var(--suave); }
+.comprovante dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.pago-linha { margin-top: 6px; font-size: 13px; color: var(--ok-tinta); font-weight: 600; }

@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
  */
 type Props = {
   codigo: string; publicKey: string; valor: number; metodo: "credito" | "debito";
-  onAprovado: () => void; onErro: (msg: string) => void;
+  onAprovado: () => void; onErro: (msg: string, recusado: boolean) => void;
 };
 
 type Brick = { unmount: () => void };
@@ -52,7 +52,7 @@ export default function CartaoMP({ codigo, publicKey, valor, metodo, onAprovado,
         },
         callbacks: {
           onReady: () => vivo && setPronto(true),
-          onError: () => cb.current.onErro("Não foi possível carregar o formulário do cartão. Recarregue a página ou pague com Pix."),
+          onError: () => cb.current.onErro("Não foi possível carregar o formulário do cartão. Recarregue a página ou pague com Pix.", false),
           onSubmit: async (dados: { token: string; payment_method_id: string; issuer_id?: string; payer: { email: string; identification?: { type: string; number: string } } }) => {
             const r = await fetch("/api/pagamento/cartao", {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -62,12 +62,12 @@ export default function CartaoMP({ codigo, publicKey, valor, metodo, onAprovado,
             if (r.ok && d.status === "approved") { cb.current.onAprovado(); return; }
             // Nova tentativa usa outra chave: o cartão recusado não é cobrado, e uma nova tentativa é um novo pedido.
             chave.current = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-            cb.current.onErro(d.erro || "O pagamento não foi aprovado. Confira os dados ou pague com Pix.");
+            cb.current.onErro(d.erro || "O pagamento não foi aprovado.", d.status === "rejected");
             throw new Error("recusado");
           },
         },
       });
-    }).catch(() => cb.current.onErro("Não foi possível carregar o formulário do cartão. Verifique a internet ou pague com Pix."));
+    }).catch(() => cb.current.onErro("Não foi possível carregar o formulário do cartão. Verifique a internet ou pague com Pix.", false));
     return () => { vivo = false; brick?.unmount(); };
   }, [codigo, publicKey, valor, metodo, id]);
 

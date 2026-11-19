@@ -15,6 +15,7 @@ type Info = {
   pix: { chave: string; nome: string | null; cidade: string | null } | null;
   cartao_link: string | null;
   pagamento_online?: boolean; reserva_expira_em?: string | null; profissao?: string | null;
+  pagamento_metodo?: string | null; pagamento_confirmado_em?: string | null; transacao?: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -41,6 +42,9 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const [pixOnline, setPixOnline] = useState<{ codigo: string; imagem: string } | null>(null);
   const [copiadoOnline, setCopiadoOnline] = useState(false);
   const [cartaoOnline, setCartaoOnline] = useState<{ metodo: "credito" | "debito"; publicKey: string } | null>(null);
+  const [recusa, setRecusa] = useState<{ titulo: string; texto: string } | null>(null);
+  const [recemPago, setRecemPago] = useState(false);
+  const statusAnterior = useRef<string | null>(null);
   const [pre, setPre] = useState({ motivo: "", medicamentos: "", alergia: "", quais: "" });
   const [pulouPre, setPulouPre] = useState(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
@@ -77,8 +81,16 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
     return () => clearInterval(t);
   }, [voltouPg, info?.pagamento_online, info?.pagamento_status, verificarPagamento]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Quando o pagamento é aprovado com o paciente na página, mostra o comprovante antes de seguir.
+  useEffect(() => {
+    const st = info?.pagamento_status ?? null;
+    if (statusAnterior.current && statusAnterior.current !== "confirmado" && st === "confirmado") setRecemPago(true);
+    if (st) statusAnterior.current = st;
+  }, [info?.pagamento_status]);
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("pg")) statusAnterior.current = "pendente"; }, []);
+
   async function pagarOnline(m: "pix" | "credito" | "debito") {
-    setErro(""); setAbrindoPg(true);
+    setErro(""); setRecusa(null); setAbrindoPg(true);
     if (m !== "pix") {
       // Cartão: formulário seguro do Mercado Pago na própria página, sem conta. Se não houver, usa a página da instituição.
       const k = await fetch(`/api/pagamento/chave-publica?codigo=${encodeURIComponent(codigo)}`).then((x) => x.json()).catch(() => ({}));
@@ -205,6 +217,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
       <div className="card">
         <b>{(() => { const d = dataHora(info.inicio); return d.charAt(0).toUpperCase() + d.slice(1); })()}</b>
         <div className="muted">{[info.especialidade, info.conselho].filter(Boolean).join(", ")}{temValor ? `. Valor: ${reais(Number(info.valor))}` : ""}</div>
+        {temValor && info.pagamento_status === "confirmado" && <div className="pago-linha">Pagamento aprovado{info.pagamento_confirmado_em ? ` em ${new Date(info.pagamento_confirmado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}` : ""}</div>}
       </div>
 
       {erro && <div className="erro" style={{ marginBottom: 12 }} role="alert">{erro}</div>}
@@ -227,6 +240,23 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <button type="button" disabled={!aceito || !usoIA || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
           <p className="muted" style={{ marginBottom: 0 }}>Seu aceite fica guardado no prontuário, com data e hora.</p>
         </div>
+      ) : temValor && recemPago && info.pagamento_status === "confirmado" ? (
+        <div className="card">
+          <Passos atual={2} total={total} />
+          <div className="ok" role="status" style={{ marginTop: 12 }}>
+            <b style={{ fontSize: 17 }}>Pagamento aprovado</b>
+            <div style={{ marginTop: 4 }}>Sua consulta com {info.profissional} está confirmada.</div>
+          </div>
+          <dl className="comprovante">
+            <dt>Valor</dt><dd>{reais(Number(info.valor))}</dd>
+            <dt>Forma de pagamento</dt><dd>{info.pagamento_metodo === "credito" ? "Cartão de crédito" : info.pagamento_metodo === "debito" ? "Cartão de débito" : "Pix"}</dd>
+            {info.pagamento_confirmado_em && <><dt>Aprovado em</dt><dd>{new Date(info.pagamento_confirmado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}</dd></>}
+            {info.transacao && <><dt>Número da transação</dt><dd>{info.transacao}</dd></>}
+            <dt>Consulta</dt><dd>{(() => { const d = dataHora(info.inicio); return d.charAt(0).toUpperCase() + d.slice(1); })()}</dd>
+          </dl>
+          <p className="muted">Guarde este número da transação, se precisar falar com o consultório. Boa consulta!</p>
+          <button type="button" style={{ width: "100%" }} onClick={() => setRecemPago(false)}>Continuar</button>
+        </div>
       ) : precisaPagar ? (
         <div className="card">
           <Passos atual={2} total={total} />
@@ -238,7 +268,11 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
               <>
                 <p className="muted">Pague <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b> no cartão de {cartaoOnline.metodo === "credito" ? "crédito, à vista" : "débito"}. Os dados do cartão ficam só no Mercado Pago; o Auris não vê nem guarda. Não precisa de conta no Mercado Pago.</p>
                 <CartaoMP key={cartaoOnline.metodo} codigo={codigo} publicKey={cartaoOnline.publicKey} valor={Number(info.valor)} metodo={cartaoOnline.metodo}
-                  onAprovado={() => { setErro(""); verificarPagamento(); }} onErro={setErro} />
+                  onAprovado={() => { setErro(""); setRecusa(null); setRecemPago(true); verificarPagamento(); }}
+                  onErro={(msg, recusado) => setRecusa(recusado
+                    ? { titulo: "Pagamento recusado", texto: `${msg} Nenhum valor foi cobrado. Você pode tentar de novo, usar outro cartão ou pagar com Pix.` }
+                    : { titulo: "Pagamento não concluído", texto: msg })} />
+                {recusa && <div className="erro" role="alert" style={{ marginTop: 12 }}><b>{recusa.titulo}</b><div style={{ marginTop: 4 }}>{recusa.texto}</div></div>}
                 {cartaoOnline.metodo === "debito" && <p className="muted">No débito online, nem todos os bancos aceitam. Se o seu não aceitar, use o crédito ou o Pix.</p>}
                 <button type="button" className="link" onClick={() => { setCartaoOnline(null); setErro(""); }}>Escolher outra forma de pagamento</button>
               </>
@@ -249,7 +283,8 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                 <label htmlFor="pix-online">Pix copia e cola</label>
                 <textarea id="pix-online" readOnly rows={3} value={pixOnline.codigo} onFocus={(e) => e.currentTarget.select()} />
                 <button type="button" style={{ width: "100%", marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pixOnline.codigo).then(() => setCopiadoOnline(true)).catch(() => {}); }}>{copiadoOnline ? "Código copiado" : "Copiar código Pix"}</button>
-                <p className="muted">No app do banco, escolha Pix, depois Pix Copia e Cola (ou ler QR Code). Assim que o pagamento cair, esta página libera a consulta sozinha, em poucos segundos.</p>
+                <p className="muted">No app do banco, escolha Pix, depois Pix Copia e Cola (ou ler QR Code).</p>
+                <div className="aviso" role="status"><b>Aguardando o pagamento.</b> Deixe esta página aberta: assim que o Pix for aprovado, aparece aqui a confirmação, em poucos segundos.</div>
                 <button type="button" className="link" onClick={() => setPixOnline(null)}>Escolher outra forma de pagamento</button>
               </>
             ) : voltouPg && info.pagamento_status !== "confirmado" ? (
