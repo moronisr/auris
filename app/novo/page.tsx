@@ -1,4 +1,5 @@
 "use client";
+import { useAcesso } from "@/lib/useAcesso";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -25,6 +26,7 @@ const EXEMPLOS: Record<string, string> = {
 };
 
 export default function Novo() {
+  const acessoAss = useAcesso();
   const router = useRouter();
   const [modelo, setModelo] = useState("geral");
   const [area, setArea] = useState("Clínica médica");
@@ -266,6 +268,22 @@ export default function Novo() {
       </div>
     );
   };
+
+  if (acessoAss?.acesso === "bloqueado") return (
+    <>
+      <div className="row">
+        <h1>{tele ? "Ficha da teleconsulta" : "Novo registro"}</h1>
+        <a className="btn btn-sec" href="/">Voltar</a>
+      </div>
+      {acessoAss?.acesso === "bloqueado" && (
+        <div className="card bloqueio">
+          <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
+          <p className="muted">Você continua podendo consultar e exportar suas fichas e consultas. Para registrar novas fichas, ative um plano.</p>
+          <a className="btn" href="/assinatura">Ativar plano</a>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <>

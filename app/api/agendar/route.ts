@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { acessoDe } from "@/lib/assinatura";
 import { supabaseAdmin } from "@/lib/admin";
 import { horariosLivres, limparAgenda, limparExcecoes, ocupaHorario } from "@/lib/agenda";
 import { novoCodigo } from "@/lib/teleconsulta";
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
   if (!p || !p.agenda_ativa || !p.mp_conectado || !(Number(p.valor_consulta) > 0))
     return NextResponse.json({ erro: "Este profissional não está aceitando agendamentos online no momento." }, { status: 409 });
 
+  if ((await acessoDe(p.id)) === "bloqueado") return NextResponse.json({ erro: "A agenda online deste profissional está indisponível no momento." }, { status: 409 });
   const agora = new Date();
   const inicio = new Date(b.inicio);
   if (isNaN(inicio.getTime())) return NextResponse.json({ erro: "Horário inválido." }, { status: 400 });

@@ -2,6 +2,7 @@
 import { RESERVADOS } from "@/lib/agenda";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AvisoAssinatura from "@/components/AvisoAssinatura";
 
 const ITENS = [
   { href: "/", rotulo: "Início", icone: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
@@ -38,6 +39,7 @@ export default function Navegacao() {
           </nav>
         </div>
       </header>
+      <AvisoAssinatura />
       <nav className="barra-inferior nao-imprimir" aria-label="Navegação">
         {ITENS.map((i) => (
           <Link key={i.href} href={i.href} className={ativo(i.href) ? "ativo" : ""}>

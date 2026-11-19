@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { acessoDe } from "@/lib/assinatura";
 import { supabaseServer } from "@/lib/supabase/server";
 import { transcrever } from "@/lib/transcricao";
 import { extrairFicha } from "@/lib/extracao";
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ erro: "Faça login novamente." }, { status: 401 });
+  if ((await acessoDe(user.id)) === "bloqueado") return NextResponse.json({ erro: "Sua assinatura do Auris está inativa. Você pode consultar e exportar suas fichas; para registrar novas, ative um plano em Perfil, Plano e pagamento." }, { status: 402 });
 
   const inicio = Date.now();
   try {

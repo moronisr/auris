@@ -224,3 +224,19 @@ details.avancado summary { cursor: pointer; font-size: 14px; color: var(--destaq
 .ajuda-link a { color: var(--suave); }
 .politica-lista { margin: 0; padding-left: 18px; color: var(--suave); font-size: 14px; }
 .politica-lista li { margin-bottom: 6px; }
+
+.faixa-assinatura { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 10px 16px; font-size: 13.5px; text-align: center; border-radius: 0; border-left: 0; border-right: 0; }
+.faixa-assinatura a { font-weight: 600; color: inherit; text-decoration: underline; }
+.planos { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin: 12px 0; }
+.plano { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 6px; text-align: left; padding: 16px; min-height: 0; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); color: var(--tinta); cursor: pointer; font-weight: 400; position: relative; }
+.plano:hover { background: var(--superficie); color: var(--tinta); border-color: var(--destaque); }
+.plano.ativo { border-color: var(--destaque); box-shadow: 0 0 0 2px var(--destaque-claro); }
+.plano b { font-size: 16px; }
+.plano-valor { font-size: 22px; font-weight: 600; }
+.plano-valor small { font-size: 13px; font-weight: 400; color: var(--suave); }
+.plano ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: var(--suave); }
+.plano-tag { position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 600; color: var(--destaque); background: var(--destaque-claro); padding: 3px 8px; border-radius: 99px; }
+.bloqueio { text-align: center; }
+
+.card-link { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--tinta); }
+.card-link:hover { border-color: var(--destaque); }

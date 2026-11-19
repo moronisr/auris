@@ -1,4 +1,5 @@
 "use client";
+import { useAcesso } from "@/lib/useAcesso";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import CancelarDevolver from "@/components/CancelarDevolver";
@@ -15,6 +16,7 @@ function Selo({ ok, texto, alerta }: { ok: boolean; texto: string; alerta?: bool
 }
 
 export default function Teleconsultas() {
+  const acessoAss = useAcesso();
   const [lista, setLista] = useState<Teleconsulta[]>([]);
   const [prof, setProf] = useState<Prof | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -119,6 +121,14 @@ export default function Teleconsultas() {
         <h1>Teleconsultas</h1>
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
+      {acessoAss?.acesso === "bloqueado" && (
+        <div className="card bloqueio">
+          <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
+          <p className="muted">Você continua podendo consultar e exportar suas fichas e consultas. Para marcar novas teleconsultas, ative um plano.</p>
+          <a className="btn" href="/assinatura">Ativar plano</a>
+        </div>
+      )}
+
 
       {prof && (!prof.pix_chave || !prof.cartao_link) && (
         <div className="aviso">Para o paciente pagar antes da consulta por Pix, cartão de crédito ou cartão de débito, cadastre {!prof.pix_chave && !prof.cartao_link ? "a sua chave Pix e o seu link de pagamento por cartão" : !prof.pix_chave ? "a sua chave Pix" : "o seu link de pagamento por cartão"} em <Link href="/perfil">Perfil</Link>. O pagamento vai direto para a sua conta.</div>
@@ -126,6 +136,7 @@ export default function Teleconsultas() {
 
       {whats && <p className="muted" style={{ marginTop: -6 }}>WhatsApp automático ligado: convite ao agendar e lembretes um dia antes e uma hora antes.</p>}
 
+      {acessoAss?.acesso !== "bloqueado" && (
       <form className="card" onSubmit={criar}>
         <h2 style={{ marginTop: 0 }}>Agendar teleconsulta</h2>
         <div className="grid">
@@ -165,6 +176,7 @@ export default function Teleconsultas() {
         {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
         <button type="submit" disabled={salvando} style={{ width: "100%", marginTop: 14 }}>{salvando ? "Agendando" : "Agendar e gerar o link do paciente"}</button>
       </form>
+      )}
 
       {criada && (
         <div className="card ok-card">

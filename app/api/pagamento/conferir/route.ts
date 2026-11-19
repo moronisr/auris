@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { confirmarPagamento } from "@/lib/pagamentos";
+import { sincronizarTodas } from "@/lib/assinatura";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -35,5 +36,7 @@ export async function POST() {
 }
 
 export async function GET() {
-  return NextResponse.json(await conferir());
+  const pagamentos = await conferir();
+  const assinaturas = await sincronizarTodas().catch(() => 0);
+  return NextResponse.json({ ...pagamentos, assinaturas });
 }

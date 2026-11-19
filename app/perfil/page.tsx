@@ -71,6 +71,7 @@ export default function Perfil() {
         <h1>Meu perfil</h1>
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
+      <a className="card card-link" href="/assinatura"><b>Plano e pagamento</b><span className="muted">Seu plano, cartão, cobranças e cancelamento</span></a>
       <form className="card" onSubmit={salvar}>
         <label>Nome completo</label>
         <input value={nome} onChange={(e) => setNome(e.target.value)} required />

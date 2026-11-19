@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { acessoDe } from "@/lib/assinatura";
 import { supabaseAdmin } from "@/lib/admin";
 import { horariosLivres, limparAgenda, limparExcecoes, ocupaHorario } from "@/lib/agenda";
 
@@ -13,7 +14,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     .select("id, nome, especialidade, conselho, apresentacao, valor_consulta, duracao_consulta, antecedencia_horas, agenda, agenda_excecoes, agenda_ativa, mp_conectado, cancelamento_horas, cancelamento_obs")
     .ilike("slug", slug).maybeSingle();
   if (!p) return NextResponse.json({ erro: "Página não encontrada." }, { status: 404 });
-  const aceitando = p.agenda_ativa && p.mp_conectado && Number(p.valor_consulta) > 0;
+  const bloqueado = (await acessoDe(p.id)) === "bloqueado";
+  const aceitando = !bloqueado && p.agenda_ativa && p.mp_conectado && Number(p.valor_consulta) > 0;
   let horarios: string[] = [];
   // Pré-visualização do próprio médico: mostra os horários mesmo com a agenda fechada (sem permitir agendar).
   const previa = new URL(req.url).searchParams.get("previa") === "1";
@@ -31,6 +33,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     nome: p.nome, especialidade: p.especialidade, conselho: p.conselho, apresentacao: p.apresentacao,
     valor: Number(p.valor_consulta) || null, duracao: p.duracao_consulta, aceitando, horarios, previa,
     cancelamento_horas: p.cancelamento_horas ?? 24, cancelamento_obs: p.cancelamento_obs,
-    falta: aceitando ? [] : [!p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
+    falta: aceitando ? [] : [bloqueado && "ativar um plano do Auris (Perfil, Plano e pagamento)", !p.mp_conectado && "conectar o Mercado Pago", !(Number(p.valor_consulta) > 0) && "informar o valor da consulta", !p.agenda_ativa && "marcar \"Aceitar agendamentos online\""].filter(Boolean),
   }, { headers: { "Cache-Control": "no-store" } });
 }
