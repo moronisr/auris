@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   const user = await usuario();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
   if (!cobrancaConfigurada()) return NextResponse.json({ erro: "A assinatura ainda não está disponível. Tente mais tarde." }, { status: 503 });
-  const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; cartao?: { token?: string; payment_method_id?: string; issuer_id?: string; payer?: { email?: string; identification?: { type: string; number: string } } } } | null;
+  const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; cartao?: { token?: string; payment_method_id?: string; issuer_id?: string; payer?: { email?: string; identification?: { type: string; number: string } }; aparelho?: string } } | null;
   const plano = PLANOS.find((p) => p.id === b?.plano);
   if (plano?.oculto && !admins().includes(user.id)) return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
   let r: { ok: boolean; erro?: string };
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     const { data: fim } = await supabaseAdmin().rpc("auris_fim_teste", { uid: user.id });
     const { data: cfg } = await supabaseAdmin().from("auris_config").select("cobranca_ativa").eq("id", 1).maybeSingle();
     r = await pagarAvulso({ uid: user.id, email: user.email || "", planoId: plano.id, fimTeste: cfg?.cobranca_ativa && fim ? new Date(fim as string) : null,
-      cartao: { token: b.cartao.token, payment_method_id: b.cartao.payment_method_id, issuer_id: b.cartao.issuer_id, payer: b.cartao.payer } });
+      cartao: { token: b.cartao.token, payment_method_id: b.cartao.payment_method_id, issuer_id: b.cartao.issuer_id, payer: b.cartao.payer, aparelho: /^[\w-]{8,100}$/.test(b.cartao.aparelho || "") ? b.cartao.aparelho : undefined } });
   } else if (b?.acao === "remover_cartao") {
     r = await removerCartao(user.id);
   } else if (b?.acao === "trocar_cartao") {

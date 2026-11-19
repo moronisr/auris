@@ -20,7 +20,7 @@ const RECUSA: Record<string, string> = {
 
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as {
-    codigo?: string; metodo?: string; chave?: string;
+    codigo?: string; metodo?: string; chave?: string; aparelho?: string;
     cartao?: { token?: string; payment_method_id?: string; issuer_id?: string | number; payer?: { email?: string; identification?: { type: string; number: string } } };
   } | null;
   const c = b?.cartao;
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const { data: p } = await sb.from("profissionais").select("nome").eq("id", t.profissional_id).maybeSingle();
   try {
     const r = await cobrarCartaoMercadoPago({
-      token, teleId: t.id, valor: Number(t.valor), titulo: `Teleconsulta com ${p?.nome || "profissional"}`, base: new URL(req.url).origin, chave: b.chave!,
+      token, teleId: t.id, valor: Number(t.valor), titulo: `Teleconsulta com ${p?.nome || "profissional"}`, base: new URL(req.url).origin, chave: b.chave!, aparelho: /^[\w-]{8,100}$/.test(b.aparelho || "") ? b.aparelho : undefined,
       cartao: { token: c.token, payment_method_id: c.payment_method_id, issuer_id: c.issuer_id, payer: { email: c.payer.email, identification: c.payer.identification } },
     });
     await sb.from("teleconsultas").update({ pg_provedor: "mercadopago", pagamento_metodo: b.metodo }).eq("id", t.id).neq("pagamento_status", "confirmado");

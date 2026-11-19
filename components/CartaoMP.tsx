@@ -16,7 +16,18 @@ type Brick = { unmount: () => void };
 type MPGlobal = new (key: string, opts: { locale: string }) => { bricks: () => { create: (tipo: string, id: string, cfg: unknown) => Promise<Brick> } };
 declare global { interface Window { MercadoPago?: MPGlobal } }
 
+/** Script antifraude do Mercado Pago: identifica o aparelho (MP_DEVICE_SESSION_ID) e aumenta a aprovação. */
+function carregarSeguranca() {
+  if (document.querySelector("script[data-mp-security]")) return;
+  const s = Object.assign(document.createElement("script"), { src: "https://www.mercadopago.com/v2/security.js", async: true });
+  s.setAttribute("view", "checkout");
+  s.dataset.mpSecurity = "1";
+  document.head.appendChild(s);
+}
+export const idDoAparelho = () => (window as unknown as { MP_DEVICE_SESSION_ID?: string }).MP_DEVICE_SESSION_ID || "";
+
 function carregarSdk(): Promise<void> {
+  carregarSeguranca();
   if (window.MercadoPago) return Promise.resolve();
   return new Promise((ok, falha) => {
     const ja = document.querySelector<HTMLScriptElement>('script[data-mp-sdk]');
@@ -56,7 +67,7 @@ export default function CartaoMP({ codigo, publicKey, valor, metodo, onAprovado,
           onSubmit: async (dados: { token: string; payment_method_id: string; issuer_id?: string; payer: { email: string; identification?: { type: string; number: string } } }) => {
             const r = await fetch("/api/pagamento/cartao", {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ codigo, metodo, chave: chave.current, cartao: { token: dados.token, payment_method_id: dados.payment_method_id, issuer_id: dados.issuer_id, payer: dados.payer } }),
+              body: JSON.stringify({ codigo, metodo, chave: chave.current, aparelho: idDoAparelho(), cartao: { token: dados.token, payment_method_id: dados.payment_method_id, issuer_id: dados.issuer_id, payer: dados.payer } }),
             });
             const d = await r.json().catch(() => ({}));
             if (r.ok && d.status === "approved") { cb.current.onAprovado(); return; }

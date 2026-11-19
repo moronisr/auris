@@ -6,11 +6,22 @@ import { useEffect, useRef, useState } from "react";
  * Formulário seguro de cartão do Mercado Pago (Card Payment Brick), só para gerar o token do cartão.
  * O número do cartão nunca passa pelo Auris.
  */
-export type DadosCartao = { token: string; payment_method_id: string; issuer_id?: string; payer: { email: string; identification?: { type: string; number: string } } };
+export type DadosCartao = { token: string; payment_method_id: string; issuer_id?: string; payer: { email: string; identification?: { type: string; number: string } }; aparelho?: string };
 type Brick = { unmount: () => void };
 type MPGlobal = new (key: string, opts: { locale: string }) => { bricks: () => { create: (tipo: string, id: string, cfg: unknown) => Promise<Brick> } };
 
+/** Script antifraude do Mercado Pago: identifica o aparelho (MP_DEVICE_SESSION_ID) e aumenta a aprovação. */
+function carregarSeguranca() {
+  if (document.querySelector("script[data-mp-security]")) return;
+  const s = Object.assign(document.createElement("script"), { src: "https://www.mercadopago.com/v2/security.js", async: true });
+  s.setAttribute("view", "checkout");
+  s.dataset.mpSecurity = "1";
+  document.head.appendChild(s);
+}
+export const idDoAparelho = () => (window as unknown as { MP_DEVICE_SESSION_ID?: string }).MP_DEVICE_SESSION_ID || "";
+
 function carregarSdk(): Promise<void> {
+  carregarSeguranca();
   const w = window as unknown as { MercadoPago?: MPGlobal };
   if (w.MercadoPago) return Promise.resolve();
   return new Promise((ok, falha) => {
@@ -49,7 +60,7 @@ export default function CartaoBrick({ id, publicKey, valor, email, rotulo, onCar
           onError: () => setErro("Não foi possível carregar o formulário do cartão. Recarregue a página."),
           onSubmit: async (d: DadosCartao) => {
             setErro("");
-            const msg = await cb.current(d);
+            const msg = await cb.current({ ...d, aparelho: idDoAparelho() });
             if (msg) { setErro(msg); throw new Error("recusado"); }
           },
         },

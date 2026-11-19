@@ -37,6 +37,7 @@ async function dadosDoCartao(cardToken: string): Promise<{ final: string | null;
 const motivoMp = (e: unknown): string => {
   const t = String(e);
   if (/card_token|invalid.*token/i.test(t)) return "Os dados do cartão expiraram. Digite o cartão de novo.";
+  if (/high_risk|security|fraud/i.test(t)) return "O pagamento foi recusado pelos controles de segurança do Mercado Pago. Use outro cartão de crédito.";
   if (/rejected|insufficient|cc_rejected/i.test(t)) return "O cartão foi recusado pelo banco. Use outro cartão ou fale com o seu banco.";
   if (/payer_email|email/i.test(t)) return "Confira o e-mail informado no formulário do cartão.";
   return "Não foi possível concluir com o Mercado Pago agora. Tente de novo em alguns minutos.";
@@ -91,7 +92,7 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
 /** Paga só um mês, sem guardar o cartão para as próximas cobranças. */
 export async function pagarAvulso(o: {
   uid: string; email: string; planoId: string; fimTeste: Date | null;
-  cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer?: { email?: string; identification?: { type: string; number: string } } };
+  cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer?: { email?: string; identification?: { type: string; number: string } }; aparelho?: string };
 }) {
   const plano = planoPorId(o.planoId);
   if (!plano) return { ok: false as const, erro: "Plano inválido." };
@@ -99,12 +100,13 @@ export async function pagarAvulso(o: {
     const cartao = await dadosDoCartao(o.cartao.token);
     const pg = await mp<{ id: number; status: string; status_detail: string; date_approved?: string }>("/v1/payments", {
       method: "POST",
-      headers: { "X-Idempotency-Key": `avulso-${o.uid}-${o.cartao.token.slice(0, 16)}` },
+      headers: { "X-Idempotency-Key": `avulso-${o.uid}-${o.cartao.token.slice(0, 16)}`, ...(o.cartao.aparelho ? { "X-meli-session-id": o.cartao.aparelho } : {}) },
       body: JSON.stringify({
         transaction_amount: plano.valor, token: o.cartao.token, installments: 1, description: `Auris - plano ${plano.nome} (1 mês)`,
         payment_method_id: o.cartao.payment_method_id, ...(o.cartao.issuer_id ? { issuer_id: Number(o.cartao.issuer_id) } : {}),
         payer: { email: o.cartao.payer?.email || o.email, ...(o.cartao.payer?.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
         external_reference: `auris-${o.uid}`, statement_descriptor: "AURIS", binary_mode: true,
+        additional_info: { items: [{ id: `plano-${plano.id}`, title: `Auris - plano ${plano.nome}`, description: "Assinatura mensal de software", category_id: "services", quantity: 1, unit_price: plano.valor }] },
       }),
     });
     const sb = supabaseAdmin();

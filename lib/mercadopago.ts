@@ -125,12 +125,12 @@ export type ResultadoCartao = { status: string; detalhe: string; pagamentoId: st
 
 /** Cobra o cartão (crédito ou débito) com o token gerado pelo formulário seguro do Mercado Pago. Valor sempre do servidor. */
 export async function cobrarCartaoMercadoPago(o: {
-  token: string; teleId: string; valor: number; titulo: string; base: string; chave: string;
+  token: string; teleId: string; valor: number; titulo: string; base: string; chave: string; aparelho?: string;
   cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer: { email: string; identification?: { type: string; number: string } } };
 }): Promise<ResultadoCartao> {
   const pg = await mp<{ id: number; status: string; status_detail: string }>(o.token, "/v1/payments", {
     method: "POST",
-    headers: { "X-Idempotency-Key": `${o.teleId}-cartao-${o.chave}` },
+    headers: { "X-Idempotency-Key": `${o.teleId}-cartao-${o.chave}`, ...(o.aparelho ? { "X-meli-session-id": o.aparelho } : {}) },
     body: JSON.stringify({
       transaction_amount: Number(o.valor.toFixed(2)),
       token: o.cartao.token,
@@ -142,6 +142,7 @@ export async function cobrarCartaoMercadoPago(o: {
       external_reference: o.teleId,
       notification_url: `${o.base}/api/pagamento/webhook?t=${o.teleId}`,
       statement_descriptor: "AURIS CONSULTA",
+      additional_info: { items: [{ id: o.teleId, title: o.titulo.slice(0, 120), description: "Teleconsulta", category_id: "services", quantity: 1, unit_price: Number(o.valor.toFixed(2)) }] },
       binary_mode: true,
       capture: true,
     }),
