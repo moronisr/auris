@@ -8,14 +8,14 @@ export const PLANOS: Plano[] = [
     recursos: ["Consultas ilimitadas", "Ficha preenchida por voz, com revisão", "Prontuário, PDF do dia e exportação", "Receita com assinatura gov.br"],
   },
   {
-    id: "profissional", nome: "Profissional", valor: 249, destaque: true,
+    id: "profissional", nome: "Pro", valor: 249, destaque: true,
     resumo: "Tudo do Essencial, mais teleconsulta e agenda online.",
     recursos: ["Tudo do Essencial", "Teleconsulta com sala própria", "Agenda online com página de agendamento", "Pagamento do paciente com confirmação automática"],
   },
   {
-    id: "completo", nome: "Completo", valor: 329,
+    id: "completo", nome: "Max", valor: 329,
     resumo: "Todos os recursos do Auris.",
-    recursos: ["Tudo do Profissional", "Assinatura digital da ficha (ICP-Brasil)", "Lembretes automáticos por WhatsApp", "Atendimento prioritário"],
+    recursos: ["Tudo do Pro", "Assinatura digital da ficha (ICP-Brasil)", "Lembretes automáticos por WhatsApp", "Atendimento prioritário"],
   },
   // Plano de teste (R$ 5), visível só para administradores do Auris, para testar a cobrança real.
   // R$ 5 em vez de R$ 1: cobranças de R$ 1 repetidas no mesmo cartão costumam ser barradas pelo antifraude.
