@@ -6,7 +6,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 type Prof = {
   id: string; nome: string; email: string; profissao: string; especialidade: string; cadastro: string; ultimoAcesso: string | null;
   emailConfirmado: boolean; plano: string | null; valor: number | null; status: string | null; recorrente: boolean; pagoAte: string | null;
-  cortesiaAte: string | null; cortesiaMotivo: string | null; acesso: string; fichas30: number; teleconsultas30: number; alertasPagamento: number; admin: boolean;
+  planoTeste?: boolean; cortesiaAte: string | null; cortesiaMotivo: string | null; acesso: string; fichas30: number; teleconsultas30: number; alertasPagamento: number; admin: boolean;
 };
 type Dados = {
   cobrancaAtiva: boolean; cobrancaDesde: string | null;
@@ -151,6 +151,7 @@ export default function PainelAuris() {
                   <span>Último acesso: {dia(p.ultimoAcesso)}</span>
                   <span>Uso em 30 dias: {p.fichas30} ficha(s), {p.teleconsultas30} teleconsulta(s)</span>
                   {p.pagoAte && <span>Pago até: {dia(p.pagoAte)}</span>}
+                  {p.planoTeste && <span>Plano de teste de R$ 5: <b>liberado</b></span>}
                   {p.cortesiaAte && <span>Cortesia até: <b>{dia(p.cortesiaAte)}</b>{p.cortesiaMotivo ? ` (${p.cortesiaMotivo})` : ""}</span>}
                   {p.alertasPagamento > 0 && <span className="erro-texto">{p.alertasPagamento} pagamento(s) de paciente a resolver</span>}
                 </div>
@@ -158,6 +159,7 @@ export default function PainelAuris() {
                   <div className="acoes-pequenas">
                     {aberto !== p.id && <button type="button" className="link" onClick={() => { setAberto(p.id); setMsg(null); }}>{p.cortesiaAte ? "Estender cortesia" : "Liberar acesso de cortesia"}</button>}
                     {p.cortesiaAte && aberto !== p.id && <button type="button" className="link link-discreto" disabled={enviando} onClick={() => agir({ acao: "remover_cortesia", uid: p.id })}>Encerrar cortesia</button>}
+                    {aberto !== p.id && <button type="button" className="link link-discreto" disabled={enviando} onClick={() => agir({ acao: "plano_teste", uid: p.id, ativa: !p.planoTeste })}>{p.planoTeste ? "Retirar plano de teste (R$ 5)" : "Liberar plano de teste (R$ 5)"}</button>}
                   </div>
                 )}
                 {aberto === p.id && (

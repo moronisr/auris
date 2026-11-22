@@ -27,7 +27,7 @@ export async function GET() {
 
   const [usuarios, { data: profs }, { data: assin }, { data: cfg }, { data: cobr }, { data: regs }, { data: teles }, { data: alertas }] = await Promise.all([
     sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    sb.from("profissionais").select("id, nome, profissao, especialidade, created_at"),
+    sb.from("profissionais").select("id, nome, profissao, especialidade, created_at, plano_teste"),
     sb.from("assinaturas").select("profissional_id, plano, status, valor, pago_ate, falha_desde, falha_motivo, cancelada_em, cancelamento_motivo, cortesia_ate, cortesia_motivo, mp_assinatura_id"),
     sb.from("auris_config").select("cobranca_ativa, cobranca_desde").eq("id", 1).maybeSingle(),
     sb.from("auris_cobrancas").select("profissional_id, valor, status, data, origem").gte("data", new Date(agora.getFullYear(), agora.getMonth() - 5, 1).toISOString()).order("data", { ascending: false }).limit(1000),
@@ -55,7 +55,7 @@ export async function GET() {
       id: p.id, nome: p.nome, email: u?.email || "", profissao: p.profissao, especialidade: p.especialidade,
       cadastro: p.created_at, ultimoAcesso: u?.last_sign_in_at || null, emailConfirmado: !!u?.email_confirmed_at,
       plano: a?.plano || null, valor: a?.valor ? Number(a.valor) : null, status: a?.status || null, recorrente: !!a?.mp_assinatura_id,
-      pagoAte: a?.pago_ate || null, cortesiaAte: cortesia, cortesiaMotivo: cortesia ? a?.cortesia_motivo || null : null,
+      pagoAte: a?.pago_ate || null, planoTeste: !!(p as { plano_teste?: boolean }).plano_teste, cortesiaAte: cortesia, cortesiaMotivo: cortesia ? a?.cortesia_motivo || null : null,
       acesso: acessoDe.get(p.id) || "liberado", fichas30: fichas30.get(p.id) || 0, teleconsultas30: teles30.get(p.id) || 0,
       alertasPagamento: (alertas || []).filter((x) => x.profissional_id === p.id).length,
       admin: ehAdmin(p.id),
@@ -126,6 +126,13 @@ export async function POST(req: Request) {
     const r = existe ? await sb.from("assinaturas").update(dados).eq("profissional_id", b.uid) : await sb.from("assinaturas").insert({ profissional_id: b.uid, status: "teste", ...dados });
     if (r.error) return NextResponse.json({ erro: "Não foi possível liberar agora. Tente de novo." }, { status: 500 });
     return NextResponse.json({ ok: true, mensagem: `Cortesia liberada para ${prof.nome} até ${new Date(ate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.` });
+  }
+
+  if (b.acao === "plano_teste") {
+    const liberar = !!b.ativa;
+    const r = await sb.from("profissionais").update({ plano_teste: liberar }).eq("id", b.uid);
+    if (r.error) return NextResponse.json({ erro: "Não foi possível salvar agora. Tente de novo." }, { status: 500 });
+    return NextResponse.json({ ok: true, mensagem: liberar ? `Plano de teste de R$ 5 liberado para ${prof.nome}. Ele aparece em Finanças, Plano do Auris.` : `Plano de teste retirado de ${prof.nome}.` });
   }
 
   if (b.acao === "remover_cortesia") {

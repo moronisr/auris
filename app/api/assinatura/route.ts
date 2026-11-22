@@ -8,6 +8,12 @@ export const runtime = "nodejs";
 
 const admins = idsAdmin;
 
+/** Plano interno de R$ 5: só o dono e as contas que ele liberar no Painel (teste de cobrança). */
+async function podeVerTeste(uid: string) {
+  const { data } = await supabaseAdmin().from("profissionais").select("plano_teste").eq("id", uid).maybeSingle();
+  return !!data?.plano_teste;
+}
+
 async function usuario() {
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
@@ -31,12 +37,13 @@ export async function GET() {
     acessoDe(user.id),
   ]);
   const admin = admins().includes(user.id);
+  const testeLiberado = admin || (await podeVerTeste(user.id));
   const { data: cobrancas } = await sb.from("auris_cobrancas").select("data, valor, status, origem, plano").eq("profissional_id", user.id).order("data", { ascending: false }).limit(24);
   return NextResponse.json({
     acesso, cobrancaAtiva: !!cfg?.cobranca_ativa, configurada: cobrancaConfigurada(), fimTeste,
     assinatura: a ? { ...a, mp_assinatura_id: undefined, atualizado_em: undefined, recorrente: !!a.mp_assinatura_id } : null,
     cobrancas: cobrancas || [],
-    planos: PLANOS.filter((p) => !p.oculto || admin), admin, publicKey: process.env.MP_AURIS_PUBLIC_KEY || null, email: user.email,
+    planos: PLANOS.filter((p) => !p.oculto || testeLiberado), admin, publicKey: process.env.MP_AURIS_PUBLIC_KEY || null, email: user.email,
   });
 }
 
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
   if (!cobrancaConfigurada()) return NextResponse.json({ erro: "A assinatura ainda não está disponível. Tente mais tarde." }, { status: 503 });
   const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; cartao?: { token?: string; payment_method_id?: string; issuer_id?: string; payer?: { email?: string; identification?: { type: string; number: string } }; aparelho?: string } } | null;
   const plano = PLANOS.find((p) => p.id === b?.plano);
-  if (plano?.oculto && !admins().includes(user.id)) return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
+  if (plano?.oculto && !admins().includes(user.id) && !(await podeVerTeste(user.id))) return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
   let r: { ok: boolean; erro?: string };
   if (b?.acao === "assinar") {
     if (!plano || !b.cartao?.token) return NextResponse.json({ erro: "Escolha o plano e informe o cartão." }, { status: 400 });
