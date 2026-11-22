@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
+import ConfirmarEmail, { linkConfirmacao } from "@/components/ConfirmarEmail";
 
 function traduzir(msg: string): string {
   const m = msg.toLowerCase();
-  if (m.includes("email not confirmed")) return "Seu e-mail ainda não foi confirmado. Abra o e-mail de confirmação (veja também o spam) e clique no link. Se não chegou, use “Reenviar e-mail de confirmação”.";
+  if (m.includes("email not confirmed")) return "Seu e-mail ainda não foi confirmado. Use “Confirmar meu e-mail”, abaixo.";
   if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos. Se é sua primeira vez no Auris, crie sua conta na aba “Criar conta”, acima.";
   if (m.includes("already registered")) return "Este e-mail já tem conta. Clique em “Já tenho conta” e entre.";
   if (m.includes("rate limit")) return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.";
@@ -25,6 +26,9 @@ export default function Login() {
   const [conselho, setConselho] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [carregando, setCarregando] = useState(false);
+  // Confirmação do e-mail: depois do cadastro, ou ao tentar entrar sem ter confirmado.
+  const [confirmar, setConfirmar] = useState<null | { email: string; senha?: string; recemEnviado: boolean }>(null);
+  const entrarNoSistema = () => { router.push("/"); router.refresh(); };
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -33,7 +37,7 @@ export default function Login() {
     if (q.get("link") === "outro-aparelho-senha")
       setMsg({ tipo: "erro", texto: "Abra o link de nova senha no mesmo aparelho em que você o pediu, ou peça um novo link aqui." });
     if (q.get("link") === "expirado")
-      setMsg({ tipo: "erro", texto: "Este link expirou ou já foi usado. Digite seu e-mail abaixo e clique em “Reenviar e-mail de confirmação” ou “Esqueci minha senha”." });
+      setMsg({ tipo: "erro", texto: "Este link expirou ou já foi usado. Se você já confirmou o e-mail, é só entrar. Senão, digite o e-mail e use “Confirmar meu e-mail” para receber um novo código." });
   }, []);
 
   async function enviar(e: React.FormEvent) {
@@ -43,28 +47,30 @@ export default function Login() {
     const sb = supabaseBrowser();
     try {
       if (modo === "entrar") {
-        const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: senha });
+        if (error && /not confirmed/i.test(error.message)) { setConfirmar({ email: email.trim(), senha, recemEnviado: false }); return; }
         if (error) throw error;
-        router.push("/");
-        router.refresh();
+        entrarNoSistema();
       } else {
         const esp = profissao === "Médico(a)" ? especialidade : especialidade || profissao;
+        const emailLimpo = email.trim().toLowerCase();
         const { data, error } = await sb.auth.signUp({
-          email,
+          email: emailLimpo,
           password: senha,
           options: {
             data: { nome, profissao, especialidade: esp, conselho },
-            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+            emailRedirectTo: linkConfirmacao(),
           },
         });
         if (error) throw error;
-        if (data.session) {
-          router.push("/");
-          router.refresh();
-        } else {
-          setMsg({ tipo: "ok", texto: "Conta criada. Confirme o e-mail que enviamos e depois entre." });
+        // E-mail que já tem conta confirmada: o Supabase não avisa com erro, devolve o usuário sem identidades.
+        if (data.user && (data.user.identities?.length ?? 0) === 0) {
+          setMsg({ tipo: "erro", texto: "Este e-mail já tem conta no Auris. Entre com a sua senha ou use “Esqueci minha senha”." });
           setModo("entrar");
+          return;
         }
+        if (data.session) entrarNoSistema();
+        else setConfirmar({ email: emailLimpo, senha, recemEnviado: true });
       }
     } catch (err) {
       setMsg({ tipo: "erro", texto: traduzir(err instanceof Error ? err.message : "Erro ao entrar.") });
@@ -83,6 +89,11 @@ export default function Login() {
       <h1>Auris</h1>
       <p className="login-desc">Registro clínico por voz</p>
       <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>Registre o atendimento falando. A IA organiza, você revisa, aprova e gera o PDF.</p>
+      {confirmar ? (
+        <ConfirmarEmail email={confirmar.email} senha={confirmar.senha} recemEnviado={confirmar.recemEnviado}
+          onConfirmado={entrarNoSistema}
+          onTrocarEmail={() => { setConfirmar(null); setModo("cadastrar"); setMsg({ tipo: "ok", texto: "Corrija o e-mail e crie a conta de novo." }); }} />
+      ) : <>
       <div className="abas-login" role="tablist">
         <button type="button" role="tab" aria-selected={modo === "entrar"} className={modo === "entrar" ? "ativa" : ""} onClick={() => { setModo("entrar"); setMsg(null); }}>Entrar</button>
         <button type="button" role="tab" aria-selected={modo === "cadastrar"} className={modo === "cadastrar" ? "ativa" : ""} onClick={() => { setModo("cadastrar"); setMsg(null); }}>Criar conta</button>
@@ -136,12 +147,13 @@ export default function Login() {
         <button
           className="link"
           onClick={async () => {
-            if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em reenviar." });
-            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/confirm` } });
-            setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "E-mail de confirmação reenviado. Veja sua caixa de entrada e o spam." });
+            if (!email.trim()) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em “Confirmar meu e-mail”." });
+            const { error } = await supabaseBrowser().auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: linkConfirmacao() } });
+            if (error && !/rate|seconds|security/i.test(error.message)) return setMsg({ tipo: "erro", texto: /already|confirmed/i.test(error.message) ? "Este e-mail já está confirmado. É só entrar com a sua senha." : traduzir(error.message) });
+            setConfirmar({ email: email.trim(), senha: senha || undefined, recemEnviado: !error });
           }}
         >
-          Reenviar e-mail de confirmação
+          Confirmar meu e-mail
         </button>
       )}
       {modo === "entrar" && (
@@ -149,7 +161,7 @@ export default function Login() {
           className="link"
           onClick={async () => {
             if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em “Esqueci minha senha”." });
-            const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/confirm` });
+            const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/confirm` });
             setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "Enviamos um link para criar uma nova senha. Veja sua caixa de entrada e o spam." });
           }}
         >
@@ -161,6 +173,7 @@ export default function Login() {
         {modo === "entrar" ? "Primeira vez aqui? Criar conta" : "Já tenho conta. Entrar"}
       </button>
       {modo === "cadastrar" && <p className="muted" style={{ textAlign: "center", fontSize: 13 }}>Ao criar a conta, você concorda com os <a href="/termos" target="_blank" rel="noreferrer">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noreferrer">Política de privacidade</a>.</p>}
+      </>}
     </>
   );
 }

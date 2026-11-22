@@ -17,6 +17,12 @@ export async function GET(req: Request) {
   const vaiPara = (p: string) => NextResponse.redirect(new URL(p, url.origin));
   const supabase = await supabaseServer();
 
+  // Confirmação de cadastro: quem confirma é a página /auth/confirmar, no navegador. Assim, os robôs de segurança
+  // de e-mail (que abrem os links antes da pessoa) não gastam o link, porque não executam a página.
+  if (token_hash && type !== "recovery" && type !== "email_change") {
+    return vaiPara(`/auth/confirmar?token_hash=${encodeURIComponent(token_hash)}&type=${encodeURIComponent(type)}`);
+  }
+
   if (token_hash) {
     const { error } = await supabase.auth.verifyOtp({ token_hash, type });
     if (!error) return vaiPara(type === "recovery" ? "/nova-senha" : "/");
