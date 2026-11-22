@@ -21,6 +21,8 @@ export default function Financas() {
   const [escolhido, setEscolhido] = useState("");
   const [modo, setModo] = useState<"" | "assinar" | "cartao" | "plano" | "remover" | "cancelar">("");
   const [salvarCartao, setSalvarCartao] = useState(true);
+  const [outroTitular, setOutroTitular] = useState(false);
+  const [emailTitular, setEmailTitular] = useState("");
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -64,6 +66,21 @@ export default function Financas() {
           <span><b>Salvar este cartão para renovar automaticamente todo mês</b> (recomendado). Você não precisa lembrar de pagar e não corre o risco de ter o acesso interrompido.</span>
         </label>
       )}
+      {modoForm === "assinar" && (
+        <>
+          <label className="aceite">
+            <input type="checkbox" checked={outroTitular} onChange={(e) => setOutroTitular(e.target.checked)} />
+            <span><b>O cartão está no nome de outra pessoa</b> (cônjuge, familiar ou sócio)</span>
+          </label>
+          {outroTitular && (
+            <div style={{ marginBottom: 10 }}>
+              <label htmlFor="email-titular">E-mail do titular do cartão</label>
+              <input id="email-titular" type="email" inputMode="email" autoComplete="off" placeholder="email.do.titular@exemplo.com" value={emailTitular} onChange={(e) => setEmailTitular(e.target.value)} />
+              <p className="muted" style={{ marginTop: 6 }}>No formulário abaixo, use o nome e o CPF do titular, como estão no cartão. Dados que batem com o cartão aumentam a aprovação do pagamento.</p>
+            </div>
+          )}
+        </>
+      )}
       <p className="muted">
         {modoForm === "cartao" ? "O novo cartão passa a ser usado nas próximas cobranças."
           : salvarCartao ? (testeAte ? `Nada é cobrado agora. A primeira cobrança de ${reais(p.valor)} é em ${dataCurtaBR(testeAte)}, e depois todo mês.` : `A cobrança de ${reais(p.valor)} é feita agora e depois todo mês, na mesma data.`)
@@ -74,7 +91,13 @@ export default function Financas() {
         rotulo={modoForm === "cartao" ? "Salvar novo cartão" : salvarCartao ? (testeAte ? "Cadastrar cartão" : `Assinar por ${reais(p.valor)} por mês`) : `Pagar ${reais(p.valor)} por 1 mês`}
         onCartao={async (d: DadosCartao) => {
           if (modoForm === "cartao") { const e = await enviar({ acao: "trocar_cartao", cartao: d }); if (!e) pronto("Cartão atualizado."); return e; }
-          const e = await enviar({ acao: salvarCartao ? "assinar" : "pagar_avulso", plano: p.id, cartao: d });
+          let cartao = d;
+          if (outroTitular) {
+            const em = emailTitular.trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return "Informe o e-mail do titular do cartão, acima do formulário.";
+            cartao = { ...d, payer: { ...d.payer, email: em } };
+          }
+          const e = await enviar({ acao: salvarCartao ? "assinar" : "pagar_avulso", plano: p.id, cartao });
           if (!e) pronto(salvarCartao ? `Plano ${p.nome} ativado com renovação automática.` : `Pagamento aprovado. Plano ${p.nome} ativo por 1 mês.`);
           return e;
         }} />

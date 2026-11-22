@@ -27,19 +27,45 @@ export async function acessoDe(uid: string): Promise<Acesso> {
   return (data as Acesso) || "liberado";
 }
 
-async function dadosDoCartao(cardToken: string): Promise<{ final: string | null; bandeira: string | null }> {
+async function dadosDoCartao(cardToken: string): Promise<{ final: string | null; bandeira: string | null; titular: string | null }> {
   try {
-    const c = await mp<{ last_four_digits?: string; payment_method?: { id?: string } }>(`/v1/card_tokens/${encodeURIComponent(cardToken)}`);
-    return { final: c.last_four_digits || null, bandeira: c.payment_method?.id || null };
-  } catch { return { final: null, bandeira: null }; }
+    const c = await mp<{ last_four_digits?: string; payment_method?: { id?: string }; cardholder?: { name?: string } }>(`/v1/card_tokens/${encodeURIComponent(cardToken)}`);
+    return { final: c.last_four_digits || null, bandeira: c.payment_method?.id || null, titular: c.cardholder?.name?.trim() || null };
+  } catch { return { final: null, bandeira: null, titular: null }; }
+}
+
+/** Nome do titular do cartão separado em nome e sobrenome, como o Mercado Pago pede no pagador. */
+function nomeDoTitular(nome: string | null) {
+  const partes = (nome || "").split(/\s+/).filter(Boolean);
+  if (!partes.length) return {};
+  return { first_name: partes[0], ...(partes.length > 1 ? { last_name: partes.slice(1).join(" ") } : {}) };
+}
+
+const NADA_COBRADO = " Nenhum valor foi cobrado.";
+const MSG_SEGURANCA = "O Mercado Pago recusou o pagamento pelos controles de segurança dele. Isso costuma acontecer quando o cartão está no nome de outra pessoa ou quando os dados não batem. Use um cartão no seu nome ou, se o cartão for de outra pessoa, marque \"O cartão está no nome de outra pessoa\" e informe o e-mail do titular." + NADA_COBRADO;
+
+/** Mensagem clara para cada motivo de recusa do Mercado Pago, dizendo o que fazer. */
+export function motivoRecusa(detalhe: string | undefined | null): string {
+  const d = String(detalhe || "");
+  if (/high_risk|CC_VAL_433|blacklist|fraud/i.test(d)) return MSG_SEGURANCA;
+  if (/insufficient_amount/i.test(d)) return "O cartão não tem limite disponível para este valor. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
+  if (/bad_filled_security_code/i.test(d)) return "O código de segurança (CVV) não confere. Confira os 3 ou 4 números no verso do cartão e tente de novo." + NADA_COBRADO;
+  if (/bad_filled_date/i.test(d)) return "A validade do cartão não confere. Confira o mês e o ano e tente de novo." + NADA_COBRADO;
+  if (/bad_filled/i.test(d)) return "Algum dado do cartão não confere. Confira o número, a validade, o código de segurança, o nome e o CPF do titular." + NADA_COBRADO;
+  if (/call_for_authorize/i.test(d)) return "O banco pediu para você autorizar este pagamento. Ligue para o banco ou abra o app dele, autorize o pagamento ao Mercado Pago e tente de novo." + NADA_COBRADO;
+  if (/card_disabled/i.test(d)) return "O cartão não está ativo para compras online. Ative no app do banco ou use outro cartão." + NADA_COBRADO;
+  if (/duplicated_payment/i.test(d)) return "Já houve um pagamento igual há poucos minutos. Confira o histórico de cobranças antes de tentar de novo." + NADA_COBRADO;
+  if (/max_attempts/i.test(d)) return "Foram muitas tentativas com este cartão. Espere algumas horas ou use outro cartão." + NADA_COBRADO;
+  return "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
 }
 
 const motivoMp = (e: unknown): string => {
   const t = String(e);
   if (/card_token|invalid.*token/i.test(t)) return "Os dados do cartão expiraram. Digite o cartão de novo.";
-  if (/high_risk|security|fraud/i.test(t)) return "O pagamento foi recusado pelos controles de segurança do Mercado Pago. Use outro cartão de crédito.";
-  if (/rejected|insufficient|cc_rejected/i.test(t)) return "O cartão foi recusado pelo banco. Use outro cartão ou fale com o seu banco.";
-  if (/payer_email|email/i.test(t)) return "Confira o e-mail informado no formulário do cartão.";
+  if (/high_risk|security|fraud|CC_VAL_433/i.test(t)) return MSG_SEGURANCA;
+  if (/cc_rejected_\w+/i.test(t)) return motivoRecusa(t.match(/cc_rejected_\w+/i)![0]);
+  if (/rejected|insufficient/i.test(t)) return "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
+  if (/payer_email|email/i.test(t)) return "Confira o e-mail do titular do cartão informado no formulário.";
   return "Não foi possível concluir com o Mercado Pago agora. Tente de novo em alguns minutos.";
 };
 
@@ -104,15 +130,15 @@ export async function pagarAvulso(o: {
       body: JSON.stringify({
         transaction_amount: plano.valor, token: o.cartao.token, installments: 1, description: `Auris - plano ${plano.nome} (1 mês)`,
         payment_method_id: o.cartao.payment_method_id, ...(o.cartao.issuer_id ? { issuer_id: Number(o.cartao.issuer_id) } : {}),
-        payer: { email: o.cartao.payer?.email || o.email, ...(o.cartao.payer?.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
+        payer: { email: o.cartao.payer?.email || o.email, ...nomeDoTitular(cartao.titular), ...(o.cartao.payer?.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
         external_reference: `auris-${o.uid}`, statement_descriptor: "AURIS", binary_mode: true,
-        additional_info: { items: [{ id: `plano-${plano.id}`, title: `Auris - plano ${plano.nome}`, description: "Assinatura mensal de software", category_id: "services", quantity: 1, unit_price: plano.valor }] },
+        additional_info: { payer: nomeDoTitular(cartao.titular), items: [{ id: `plano-${plano.id}`, title: `Auris - plano ${plano.nome}`, description: "Assinatura mensal de software", category_id: "services", quantity: 1, unit_price: plano.valor }] },
       }),
     });
     const sb = supabaseAdmin();
     await sb.from("auris_cobrancas").upsert({ profissional_id: o.uid, mp_pagamento_id: String(pg.id), origem: "avulso", plano: plano.id, valor: plano.valor, status: pg.status, data: new Date().toISOString() }, { onConflict: "mp_pagamento_id" });
     if (pg.status !== "approved") console.error("avulso recusado", pg.id, pg.status, pg.status_detail);
-    if (pg.status !== "approved") return { ok: false as const, erro: "O cartão foi recusado pelo banco. Nenhum valor foi cobrado. Use outro cartão ou fale com o seu banco." };
+    if (pg.status !== "approved") return { ok: false as const, erro: motivoRecusa(pg.status_detail) };
     const { data: atual } = await sb.from("assinaturas").select("pago_ate, mp_assinatura_id").eq("profissional_id", o.uid).maybeSingle();
     const base = Math.max(Date.now(), o.fimTeste?.getTime() || 0, atual?.pago_ate ? new Date(atual.pago_ate).getTime() : 0);
     const ate = new Date(base); ate.setMonth(ate.getMonth() + 1);
