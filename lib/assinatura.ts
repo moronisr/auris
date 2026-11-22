@@ -111,6 +111,7 @@ export async function pagarAvulso(o: {
     });
     const sb = supabaseAdmin();
     await sb.from("auris_cobrancas").upsert({ profissional_id: o.uid, mp_pagamento_id: String(pg.id), origem: "avulso", plano: plano.id, valor: plano.valor, status: pg.status, data: new Date().toISOString() }, { onConflict: "mp_pagamento_id" });
+    if (pg.status !== "approved") console.error("avulso recusado", pg.id, pg.status, pg.status_detail);
     if (pg.status !== "approved") return { ok: false as const, erro: "O cartão foi recusado pelo banco. Nenhum valor foi cobrado. Use outro cartão ou fale com o seu banco." };
     const { data: atual } = await sb.from("assinaturas").select("pago_ate, mp_assinatura_id").eq("profissional_id", o.uid).maybeSingle();
     const base = Math.max(Date.now(), o.fimTeste?.getTime() || 0, atual?.pago_ate ? new Date(atual.pago_ate).getTime() : 0);
