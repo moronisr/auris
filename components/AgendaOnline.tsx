@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { politicaCancelamento } from "@/lib/cancelamento";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { buscarSituacao } from "@/lib/useAcesso";
 import { DIAS, criarSlug, horariosLivres, limparAgenda, limparExcecoes, slugValido, type Excecao, type Intervalo } from "@/lib/agenda";
 
 const DURACOES = [20, 30, 40, 45, 50, 60, 90];
@@ -29,6 +30,9 @@ export default function AgendaOnline({ nome }: { nome: string }) {
   const [slugSalvo, setSlugSalvo] = useState<string | null>(null);
   const [botaoMp, setBotaoMp] = useState(false);
   const [inst, setInst] = useState<"mercadopago" | "pagbank">("mercadopago");
+  // PagBank: em teste. Aparece para os administradores do Auris (ou para todos com NEXT_PUBLIC_PAGBANK=1).
+  const [verPagBank, setVerPagBank] = useState(process.env.NEXT_PUBLIC_PAGBANK === "1");
+  useEffect(() => { buscarSituacao().then((x) => { if (x?.admin) setVerPagBank(true); }).catch(() => {}); }, []);
   const [pbToken, setPbToken] = useState("");
   const [pbTeste, setPbTeste] = useState(false);
 
@@ -144,8 +148,8 @@ export default function AgendaOnline({ nome }: { nome: string }) {
           <p className="muted">Escolha onde você quer receber. O dinheiro cai direto na sua conta; o Auris não recebe nem guarda valores. O paciente paga por Pix, cartão de crédito ou cartão de débito.</p>
           <div className="opcoes" role="group" aria-label="Instituição de pagamento" style={{ marginBottom: 12 }}>
             <button type="button" aria-pressed={inst === "mercadopago"} className={inst === "mercadopago" ? "opcao ativa" : "opcao"} onClick={() => { setInst("mercadopago"); setMsgMp(null); }}>Mercado Pago</button>
-            {/* PagBank fica oculto até passar no teste de ponta a ponta. Para mostrar: NEXT_PUBLIC_PAGBANK=1 */}
-            {process.env.NEXT_PUBLIC_PAGBANK === "1" && <button type="button" aria-pressed={inst === "pagbank"} className={inst === "pagbank" ? "opcao ativa" : "opcao"} onClick={() => { setInst("pagbank"); setMsgMp(null); }}>PagBank</button>}
+            {/* PagBank fica oculto para os profissionais até passar no teste de ponta a ponta. */}
+            {verPagBank && <button type="button" aria-pressed={inst === "pagbank"} className={inst === "pagbank" ? "opcao ativa" : "opcao"} onClick={() => { setInst("pagbank"); setMsgMp(null); }}>PagBank</button>}
           </div>
           {inst === "mercadopago" ? (
             <>

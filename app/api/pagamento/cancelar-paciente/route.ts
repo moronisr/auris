@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import { chaveDoProfissional, devolverMercadoPago, pagamentosAprovados } from "@/lib/mercadopago";
 import { podeCancelarComDevolucao, prazoTexto } from "@/lib/cancelamento";
+import { devolverPeloPagBank } from "@/lib/pagamentos";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
   if (!b?.codigo || !b.motivo?.trim()) return NextResponse.json({ erro: "Escolha o motivo do cancelamento." }, { status: 400 });
   const motivo = b.motivo.trim().slice(0, 120);
   const sb = supabaseAdmin();
-  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, inicio, status, pagamento_status, pg_provedor").eq("codigo", b.codigo).maybeSingle();
+  const { data: t } = await sb.from("teleconsultas").select("id, profissional_id, inicio, status, pagamento_status, pg_provedor, mp_pagamento_id, valor").eq("codigo", b.codigo).maybeSingle();
   if (!t) return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
   if (t.status === "cancelada") return NextResponse.json({ ok: true });
   if (t.status === "encerrada" || t.status === "em_andamento") return NextResponse.json({ erro: "Esta consulta já começou e não pode mais ser cancelada pelo link." }, { status: 409 });
@@ -27,7 +28,18 @@ export async function POST(req: Request) {
   if (!podeCancelarComDevolucao(t.inicio, horas)) {
     return NextResponse.json({ erro: `O cancelamento com devolução era possível ${prazoTexto(horas)}. Para remarcar ou combinar outra solução, fale com o consultório.` }, { status: 409 });
   }
-  if (t.pg_provedor === "pagbank") return NextResponse.json({ erro: "Para cancelar esta consulta, fale com o consultório." }, { status: 409 });
+  if (t.pg_provedor === "pagbank") {
+    const r = await devolverPeloPagBank(t.profissional_id, t.mp_pagamento_id, Number(t.valor || 0));
+    if (!r.ok) {
+      await sb.from("teleconsultas").update({ pagamento_alerta: "devolucao_pendente" }).eq("id", t.id);
+      return NextResponse.json({ erro: "Não foi possível devolver automaticamente agora. O consultório foi avisado e vai resolver. Sua consulta continua marcada." }, { status: 502 });
+    }
+    await sb.from("teleconsultas").update({
+      status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo, pagamento_status: "devolvido",
+      devolvido_em: new Date().toISOString(), devolucao_valor: r.valor, devolucao_id: r.id, pagamento_alerta: null,
+    }).eq("id", t.id);
+    return NextResponse.json({ ok: true, devolvido: true, valor: r.valor });
+  }
   const token = await chaveDoProfissional(t.profissional_id);
   if (!token) return NextResponse.json({ erro: "Não foi possível devolver automaticamente agora. Fale com o consultório." }, { status: 409 });
   const aprovados = await pagamentosAprovados(token, t.id);

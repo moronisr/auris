@@ -223,6 +223,18 @@ export async function sincronizar(uid: string): Promise<void> {
   } else if (pa.status === "authorized") {
     upd.status = "ativa"; upd.falha_desde = null; upd.falha_motivo = null;
   }
+  // Contestação no cartão (chargeback): o mês daquela cobrança deixa de contar como pago.
+  // Entra na tolerância de 7 dias, como uma cobrança recusada; os prontuários continuam acessíveis.
+  const estornada = lista.find((f) => f.payment?.status === "charged_back" && f.payment.status_detail !== "reimbursed");
+  const posterior = estornada && aprovada && new Date(aprovada.debit_date || aprovada.date_created || 0) > new Date(estornada.debit_date || estornada.date_created || 0);
+  if (estornada && !posterior) {
+    const desde = new Date(estornada.debit_date || estornada.date_created || Date.now());
+    if (!a.pago_ate || new Date(a.pago_ate) > desde) upd.pago_ate = desde.toISOString();
+    if (pa.status !== "cancelled") upd.status = "falha";
+    upd.falha_desde = a.falha_desde || new Date().toISOString();
+    upd.falha_motivo = "chargeback";
+    if (a.falha_motivo !== "chargeback") console.error("CHARGEBACK assinatura", uid, estornada.payment?.id);
+  }
   await sb.from("assinaturas").update(upd).eq("profissional_id", uid);
 }
 

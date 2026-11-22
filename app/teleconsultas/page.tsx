@@ -41,8 +41,12 @@ export default function Teleconsultas() {
   const carregar = useCallback(async () => {
     const sb = supabaseBrowser();
     const desde = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-    const { data } = await sb.from("teleconsultas").select("*").gte("inicio", desde).or("status.neq.cancelada,pagamento_alerta.not.is.null").order("inicio");
-    setLista((data as Teleconsulta[]) ?? []);
+    // Próximas consultas, mais as antigas que ainda pedem ação sobre o pagamento (devolver, contestação).
+    const [{ data }, { data: pendencias }] = await Promise.all([
+      sb.from("teleconsultas").select("*").gte("inicio", desde).or("status.neq.cancelada,pagamento_alerta.not.is.null").order("inicio"),
+      sb.from("teleconsultas").select("*").lt("inicio", desde).not("pagamento_alerta", "is", null).order("inicio").limit(30),
+    ]);
+    setLista([...((pendencias as Teleconsulta[]) ?? []), ...((data as Teleconsulta[]) ?? [])]);
     setCarregando(false);
   }, []);
 
@@ -208,7 +212,7 @@ export default function Teleconsultas() {
           <div className="selos">
             {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
             {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
-            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Paciente cancelou: devolução pendente" : "Pago, mas a consulta foi cancelada"} />}
+            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Paciente cancelou: devolução pendente" : t.pagamento_alerta === "contestacao" ? "Pagamento contestado: responder" : t.pagamento_alerta === "chargeback" ? "Valor estornado pelo cartão" : "Pago, mas a consulta foi cancelada"} />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}

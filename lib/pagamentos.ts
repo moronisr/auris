@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/admin";
 import { cancelarPixPendente, chaveDoProfissional, confirmarPeloMercadoPago, criarCobranca, criarPixMercadoPago, type Metodo } from "@/lib/mercadopago";
-import { criarCobrancaPagBank, pagamentoPagBank } from "@/lib/pagbank";
+import { criarCobrancaPagBank, devolverPagBank, pagamentoPagBank } from "@/lib/pagbank";
 
 /** Pagamento online do profissional, pela instituição que ele conectou (Mercado Pago ou PagBank). */
 export type Provedor = "mercadopago" | "pagbank";
@@ -63,4 +63,17 @@ export async function confirmarPagamento(teleId: string, dica?: string): Promise
     reserva_expira_em: null, status: t.status === "agendada" ? "confirmada" : t.status,
   }).eq("id", teleId).neq("pagamento_status", "confirmado");
   return "confirmado";
+}
+
+/** Devolve um pagamento confirmado pelo PagBank (cobrança guardada em mp_pagamento_id). */
+export async function devolverPeloPagBank(profissionalId: string, cobrancaId: string | null, valor: number) {
+  if (!cobrancaId) return { ok: false as const, erro: "Pagamento não encontrado no PagBank." };
+  const { data: s } = await supabaseAdmin().from("profissionais_segredos").select("pagbank_token, pagbank_sandbox").eq("profissional_id", profissionalId).maybeSingle();
+  if (!s?.pagbank_token) return { ok: false as const, erro: "A conta do PagBank não está conectada. Conecte de novo no Perfil para devolver pelo Auris." };
+  try {
+    return await devolverPagBank(s.pagbank_token, !!s.pagbank_sandbox, cobrancaId, valor);
+  } catch (e) {
+    console.error("pagbank devolver", String(e).slice(0, 200));
+    return { ok: false as const, erro: "O PagBank não respondeu. Tente de novo em alguns minutos." };
+  }
 }

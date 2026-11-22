@@ -13,7 +13,7 @@ export default function CancelarDevolver({ t, onFeito }: { t: Teleconsulta; onFe
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
-  const online = t.pg_provedor === "mercadopago" && !!t.mp_pagamento_id;
+  const online = (t.pg_provedor === "mercadopago" || t.pg_provedor === "pagbank") && !!t.mp_pagamento_id;
   const pago = t.pagamento_status === "confirmado";
   const valor = Number(t.valor || 0);
 
@@ -28,6 +28,8 @@ export default function CancelarDevolver({ t, onFeito }: { t: Teleconsulta; onFe
     setTimeout(onFeito, 1800);
   }
 
+  // Contestação: não há o que devolver pelo Auris; a resposta é pelo Mercado Pago (texto na própria consulta).
+  if (t.pagamento_alerta === "contestacao" || t.pagamento_alerta === "chargeback") return null;
   // Alertas de dinheiro a devolver
   if (t.pagamento_alerta === "duplicado" && online) return (
     <div style={{ marginTop: 10 }}>

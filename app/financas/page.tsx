@@ -3,14 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import CartaoBrick, { type DadosCartao } from "@/components/CartaoBrick";
+import Recebimentos from "@/components/Recebimentos";
 import { buscarSituacao, dataCurtaBR, type SituacaoAssinatura } from "@/lib/useAcesso";
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const BANDEIRA: Record<string, string> = { visa: "Visa", master: "Mastercard", amex: "American Express", elo: "Elo", hipercard: "Hipercard", debvisa: "Visa", debmaster: "Mastercard" };
-const STATUS_COBRANCA: Record<string, string> = { approved: "Paga", rejected: "Recusada", cancelled: "Cancelada", refunded: "Devolvida", in_process: "Em análise", pending: "Pendente" };
+const STATUS_COBRANCA: Record<string, string> = { approved: "Paga", rejected: "Recusada", cancelled: "Cancelada", refunded: "Devolvida", in_process: "Em análise", pending: "Pendente", charged_back: "Contestada no cartão", in_mediation: "Em contestação" };
 const MOTIVOS = ["O preço não cabe no meu orçamento agora", "Não estou usando o suficiente", "Faltou algum recurso", "Vou usar outro sistema", "Outro motivo"];
 
-/** Finanças do profissional no Auris: plano, pagamento, cobranças, upgrade e, no fim, cancelamento. */
+/**
+ * Finanças do profissional: duas abas.
+ * Recebimentos: o que os pacientes pagaram, devolvido, contestado e a receber.
+ * Plano do Auris: plano, pagamento, cobranças, upgrade e, no fim, cancelamento.
+ */
 export default function Financas() {
   const [s, setS] = useState<SituacaoAssinatura | null | undefined>(undefined);
   const [escolhido, setEscolhido] = useState("");
@@ -19,9 +24,16 @@ export default function Financas() {
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [aba, setAba] = useState<"" | "recebimentos" | "plano">("");
 
   const recarregar = async () => setS(await buscarSituacao(true));
   useEffect(() => { recarregar(); }, []);
+  useEffect(() => {
+    if (!s || aba) return;
+    const pedida = new URLSearchParams(location.search).get("aba");
+    // Com pagamento do plano pendente ou bloqueado, abre direto no plano para resolver.
+    setAba(pedida === "plano" || pedida === "recebimentos" ? pedida : s.acesso === "aviso" || s.acesso === "bloqueado" ? "plano" : "recebimentos");
+  }, [s, aba]);
 
   async function enviar(corpo: Record<string, unknown>): Promise<string | null> {
     const r = await fetch("/api/assinatura", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
@@ -75,6 +87,12 @@ export default function Financas() {
         <h1>Finanças</h1>
         <a className="btn btn-sec" href="/perfil">Voltar</a>
       </div>
+      <div className="abas-login" role="tablist" aria-label="Finanças">
+        <button type="button" role="tab" aria-selected={aba === "recebimentos"} className={aba === "recebimentos" ? "ativa" : ""} onClick={() => { setAba("recebimentos"); setMsg(null); }}>Recebimentos</button>
+        <button type="button" role="tab" aria-selected={aba === "plano"} className={aba === "plano" ? "ativa" : ""} onClick={() => { setAba("plano"); setMsg(null); }}>Plano do Auris{s.acesso === "aviso" || s.acesso === "bloqueado" ? " (pendente)" : ""}</button>
+      </div>
+      {aba === "recebimentos" && <Recebimentos />}
+      {aba === "plano" && <>
       {msg && <div className={msg.tipo} role="status" style={{ marginBottom: 12 }}>{msg.texto}</div>}
 
       {/* 1. Situação */}
@@ -91,7 +109,9 @@ export default function Financas() {
         ) : (
           <p className="muted" style={{ marginBottom: 0 }}>{s.acesso === "teste" ? `Você está no teste grátis até ${dataCurtaBR(s.fimTeste)}. Escolha um plano para continuar sem interrupção.` : s.acesso === "liberado" ? "Fase de testes do Auris: uso liberado, sem cobrança." : "Escolha um plano para usar o Auris."}</p>
         )}
-        {s.acesso === "aviso" && <div className="erro" style={{ marginTop: 10 }}>O último pagamento não foi aprovado. Atualize o cartão abaixo para não interromper o uso.</div>}
+        {s.acesso === "aviso" && <div className="erro" style={{ marginTop: 10 }}>{a?.falha_motivo === "chargeback"
+          ? "Uma cobrança do seu plano foi contestada no cartão e o valor voltou para você. Pague de novo ou atualize o cartão abaixo para não interromper o uso. Se não reconhece a contestação, fale com o seu banco."
+          : "O último pagamento não foi aprovado. Atualize o cartão abaixo para não interromper o uso."}</div>}
         {s.acesso === "bloqueado" && <div className="erro" style={{ marginTop: 10 }}>Assinatura inativa. Suas fichas e consultas continuam disponíveis para consulta e exportação. Ative um plano para voltar a registrar e atender.</div>}
         {a?.plano && !recorrente && a.pago_ate && <div className="aviso" style={{ marginTop: 10, marginBottom: 0 }}>Seu plano vence em {dataCurtaBR(a.pago_ate)}. Salve um cartão para renovar automaticamente e não ter o acesso interrompido.
           <div style={{ marginTop: 8 }}><button type="button" onClick={() => { setEscolhido(a.plano!); setSalvarCartao(true); setModo("assinar"); }}>Ativar renovação automática</button></div></div>}
@@ -239,6 +259,7 @@ export default function Financas() {
           )}
         </div>
       )}
+      </>}
     </div>
   );
 }

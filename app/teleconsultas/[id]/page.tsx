@@ -255,7 +255,27 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
       </div>
 
       {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
-      {t.pagamento_alerta && (
+      {(t.pagamento_alerta === "contestacao" || t.pagamento_alerta === "chargeback") && (
+        <div className="erro" role="alert" style={{ marginBottom: 12 }}>
+          <b>{t.pagamento_alerta === "chargeback" ? "O valor desta consulta foi estornado pelo cartão do paciente." : "O paciente contestou o pagamento desta consulta."}</b>
+          <div style={{ marginTop: 4 }}>
+            {t.pagamento_alerta === "chargeback"
+              ? "O banco do paciente devolveu o dinheiro a ele. Se a consulta aconteceu, você ainda pode pedir a revisão pelo Mercado Pago com o comprovante abaixo."
+              : "Enquanto o Mercado Pago analisa, o valor fica retido. Responda o quanto antes, em geral em até 7 dias."}
+          </div>
+          <div style={{ marginTop: 8 }}><b>Como responder:</b> no app do Mercado Pago, abra Atividade, toque nesta venda{t.mp_pagamento_id ? ` (transação ${t.mp_pagamento_id})` : ""} e envie o comprovante do atendimento.</div>
+          <div style={{ marginTop: 8 }}><b>Comprovante do atendimento registrado pelo Auris:</b></div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            <li>Consulta marcada para {dataHora(t.inicio)}{t.valor ? `, valor ${Number(t.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}.</li>
+            {t.pagamento_confirmado_em && <li>Pagamento confirmado em {dataHora(t.pagamento_confirmado_em)}.</li>}
+            {t.consentimento_em && <li>Termo de teleconsulta aceito pelo paciente em {dataHora(t.consentimento_em)}.</li>}
+            {t.paciente_na_espera_em && <li>Paciente entrou na sala de espera em {dataHora(t.paciente_na_espera_em)}.</li>}
+            {t.iniciada_em && <li>Atendimento iniciado em {dataHora(t.iniciada_em)}{t.encerrada_em ? ` e encerrado em ${dataHora(t.encerrada_em)}` : ""}.</li>}
+            {!t.iniciada_em && <li>Não há registro de início do atendimento nesta consulta.</li>}
+          </ul>
+        </div>
+      )}
+      {t.pagamento_alerta && t.pagamento_alerta !== "contestacao" && t.pagamento_alerta !== "chargeback" && (
         <div className="erro" role="alert" style={{ marginBottom: 12 }}>
           {t.pagamento_alerta === "duplicado"
             ? "O paciente pagou esta consulta mais de uma vez. Devolva o valor extra com o botão abaixo."

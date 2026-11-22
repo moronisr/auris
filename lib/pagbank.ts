@@ -69,3 +69,24 @@ export async function pagamentoPagBank(token: string, sandbox: boolean, checkout
   }
   return null;
 }
+
+/**
+ * Devolve (estorna) uma cobrança paga no PagBank: Pix volta para a conta do pagador, cartão é estornado.
+ * Usa o valor guardado no Auris, nunca um valor vindo do navegador.
+ */
+export async function devolverPagBank(token: string, sandbox: boolean, cobrancaId: string, valor: number):
+  Promise<{ ok: true; id: string; valor: number } | { ok: false; erro: string }> {
+  if (!/^CHAR_[0-9A-Za-z-]+$/.test(cobrancaId)) return { ok: false, erro: "Pagamento não encontrado no PagBank." };
+  const atual = await pb<Cobranca>(token, sandbox, `/charges/${encodeURIComponent(cobrancaId)}`);
+  if (atual.corpo.status === "CANCELED") return { ok: true, id: cobrancaId, valor };
+  if (atual.corpo.status !== "PAID" && atual.corpo.status !== "AUTHORIZED") return { ok: false, erro: "Este pagamento não está pago no PagBank, então não há valor para devolver." };
+  const { status, corpo } = await pb<{ id?: string; status?: string; error_messages?: { description?: string }[] }>(token, sandbox, `/charges/${encodeURIComponent(cobrancaId)}/cancel`, {
+    method: "POST", headers: { "x-idempotency-key": `devolucao-${cobrancaId}` },
+    body: JSON.stringify({ amount: { value: Math.round(valor * 100) } }),
+  });
+  if (status < 300 && (corpo.status === "CANCELED" || corpo.status === "PAID")) return { ok: true, id: corpo.id || cobrancaId, valor };
+  console.error("pagbank devolver", status, JSON.stringify(corpo).slice(0, 300));
+  const texto = (corpo.error_messages || []).map((e) => e.description || "").join(" ");
+  if (/saldo|balance|insufficient/i.test(texto)) return { ok: false, erro: "O PagBank não tem saldo suficiente na conta para devolver agora. Deixe saldo no PagBank e tente de novo." };
+  return { ok: false, erro: "O PagBank não conseguiu devolver agora. Tente de novo em alguns minutos ou devolva pelo app do PagBank (Vendas, abrir a venda, Estornar)." };
+}

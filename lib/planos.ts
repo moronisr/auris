@@ -17,8 +17,9 @@ export const PLANOS: Plano[] = [
     resumo: "Todos os recursos do Auris.",
     recursos: ["Tudo do Profissional", "Assinatura digital da ficha (ICP-Brasil)", "Lembretes automáticos por WhatsApp", "Atendimento prioritário"],
   },
-  // Plano de teste (R$ 1), visível só para administradores do Auris, para testar a cobrança real.
-  { id: "teste", nome: "Teste interno", valor: 1, resumo: "Somente para teste da cobrança.", recursos: ["Cobrança real de R$ 1 por mês"], oculto: true },
+  // Plano de teste (R$ 5), visível só para administradores do Auris, para testar a cobrança real.
+  // R$ 5 em vez de R$ 1: cobranças de R$ 1 repetidas no mesmo cartão costumam ser barradas pelo antifraude.
+  { id: "teste", nome: "Teste interno", valor: 5, resumo: "Somente para teste da cobrança.", recursos: ["Cobrança real de R$ 5 por mês"], oculto: true },
 ];
 
 export const planoPorId = (id?: string | null) => PLANOS.find((p) => p.id === id) || null;

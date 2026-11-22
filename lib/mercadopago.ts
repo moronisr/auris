@@ -210,7 +210,10 @@ export async function criarPixMercadoPago(opts: {
   return { pagamentoId: String(pg.id), codigo: td.qr_code, imagem: td.qr_code_base64 ? `data:image/png;base64,${td.qr_code_base64}` : "", expira: expira.toISOString() };
 }
 
-type Pagamento = { id: number; status: string; transaction_amount: number; payment_type_id: string; external_reference: string | null; date_approved: string | null };
+type Pagamento = { id: number; status: string; status_detail?: string; transaction_amount: number; transaction_amount_refunded?: number; payment_type_id: string; external_reference: string | null; date_approved: string | null; date_last_updated?: string | null };
+
+/** Alertas de contestação: o paciente abriu disputa (in_mediation) ou o cartão estornou o valor (charged_back). */
+export const ALERTAS_CONTESTACAO = ["contestacao", "chargeback"] as const;
 
 const metodoDoTipo = (tipo: string): string => (tipo === "credit_card" ? "credito" : tipo === "debit_card" ? "debito" : "pix");
 
@@ -232,6 +235,28 @@ export async function confirmarPeloMercadoPago(teleId: string, pagamentoId?: str
   if (pagamentoId && /^\d+$/.test(pagamentoId) && !candidatos.some((p) => String(p.id) === pagamentoId)) {
     candidatos = [...candidatos, await mp<Pagamento>(token, `/v1/payments/${pagamentoId}`)];
   }
+  // Pagamento já confirmado: acompanha o que aconteceu com ele depois (contestação, estorno do cartão, devolução feita fora do Auris).
+  const principal = t.mp_pagamento_id ? candidatos.find((p) => String(p.id) === String(t.mp_pagamento_id)) : undefined;
+  if (principal && t.pagamento_status === "confirmado") {
+    if ((principal.status === "charged_back" && principal.status_detail !== "reimbursed") || principal.status === "in_mediation") {
+      const alerta = principal.status === "charged_back" ? "chargeback" : "contestacao";
+      if (t.pagamento_alerta !== alerta) await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
+      return "confirmado";
+    }
+    if (principal.status === "refunded") {
+      // Devolvido direto no app do Mercado Pago: registra para o financeiro ficar certo.
+      await sb.from("teleconsultas").update({
+        pagamento_status: "devolvido", devolvido_em: principal.date_last_updated || new Date().toISOString(),
+        devolucao_valor: Number(principal.transaction_amount_refunded || principal.transaction_amount), pagamento_alerta: null,
+      }).eq("id", teleId).eq("pagamento_status", "confirmado");
+      return "devolvido";
+    }
+    // Contestação resolvida a favor do profissional: o pagamento volta a "approved" e o alerta sai.
+    if ((principal.status === "approved" || principal.status_detail === "reimbursed") && (t.pagamento_alerta === "contestacao" || t.pagamento_alerta === "chargeback")) {
+      await sb.from("teleconsultas").update({ pagamento_alerta: null }).eq("id", teleId);
+      t.pagamento_alerta = null;
+    }
+  }
   const aprovados = candidatos.filter((p) => p.status === "approved" && p.external_reference === teleId && Number(p.transaction_amount) + 0.001 >= Number(t.valor || 0));
   if (!aprovados.length) return t.pagamento_status;
 
@@ -242,7 +267,7 @@ export async function confirmarPeloMercadoPago(teleId: string, pagamentoId?: str
     return "devolvido";
   }
   if (t.pagamento_status === "confirmado") {
-    if (alerta && t.pagamento_alerta !== alerta) await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
+    if (alerta && t.pagamento_alerta !== alerta && t.pagamento_alerta !== "contestacao" && t.pagamento_alerta !== "chargeback") await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
     return "confirmado";
   }
   const ok = aprovados[0];
