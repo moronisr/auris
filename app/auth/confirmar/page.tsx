@@ -11,6 +11,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
  */
 export default function ConfirmarLink() {
   const [estado, setEstado] = useState<"confirmando" | "ok" | "usado" | "erro">("confirmando");
+  const [senha, setSenha] = useState(false);
   const feito = useRef(false);
 
   useEffect(() => {
@@ -21,7 +22,14 @@ export default function ConfirmarLink() {
       const token_hash = q.get("token_hash");
       const type = (q.get("type") || "email") as EmailOtpType;
       const sb = supabaseBrowser();
+      const recuperacao = type === "recovery";
+      setSenha(recuperacao);
       if (!token_hash) return setEstado("erro");
+      if (recuperacao) {
+        const { error } = await sb.auth.verifyOtp({ token_hash, type: "recovery" });
+        if (!error) { window.location.href = "/nova-senha"; return; }
+        return setEstado("usado");
+      }
       let { error } = await sb.auth.verifyOtp({ token_hash, type });
       if (error && type !== "email") ({ error } = await sb.auth.verifyOtp({ token_hash, type: "email" }));
       if (!error) {
@@ -38,14 +46,21 @@ export default function ConfirmarLink() {
 
   return (
     <div className="card" style={{ marginTop: 40, textAlign: "center" }}>
-      {estado === "confirmando" && <p style={{ margin: 0 }}>Confirmando o seu e-mail.</p>}
+      {estado === "confirmando" && <p style={{ margin: 0 }}>{senha ? "Abrindo a troca de senha." : "Confirmando o seu e-mail."}</p>}
+      {senha && estado === "usado" && (
+        <>
+          <h1 style={{ marginTop: 0 }}>Este link de nova senha não vale mais</h1>
+          <p>Ele já foi usado ou passou do prazo. Peça um novo na tela de entrada, em "Esqueci minha senha", e use sempre o e-mail mais recente.</p>
+          <a className="btn" href="/login" style={{ display: "inline-block", marginTop: 6 }}>Pedir novo link</a>
+        </>
+      )}
       {estado === "ok" && (
         <>
           <h1 style={{ marginTop: 0 }}>E-mail confirmado</h1>
           <p className="muted">Entrando no Auris.</p>
         </>
       )}
-      {estado === "usado" && (
+      {!senha && estado === "usado" && (
         <>
           <h1 style={{ marginTop: 0 }}>Este link já foi usado</h1>
           <p>Se você já confirmou o e-mail (pelo código ou em outro aparelho), está tudo certo: é só entrar com o seu e-mail e senha.</p>

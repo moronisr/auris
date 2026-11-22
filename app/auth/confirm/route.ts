@@ -19,7 +19,8 @@ export async function GET(req: Request) {
 
   // Confirmação de cadastro: quem confirma é a página /auth/confirmar, no navegador. Assim, os robôs de segurança
   // de e-mail (que abrem os links antes da pessoa) não gastam o link, porque não executam a página.
-  if (token_hash && type !== "recovery" && type !== "email_change") {
+  // A redefinição de senha segue o mesmo caminho: o link só é usado quando a pessoa abre a página.
+  if (token_hash && type !== "email_change") {
     return vaiPara(`/auth/confirmar?token_hash=${encodeURIComponent(token_hash)}&type=${encodeURIComponent(type)}`);
   }
 

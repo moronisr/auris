@@ -161,7 +161,7 @@ export default function Login() {
           className="link"
           onClick={async () => {
             if (!email) return setMsg({ tipo: "erro", texto: "Digite seu e-mail acima e clique de novo em “Esqueci minha senha”." });
-            const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/confirm` });
+            const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/confirm?type=recovery` });
             setMsg(error ? { tipo: "erro", texto: traduzir(error.message) } : { tipo: "ok", texto: "Enviamos um link para criar uma nova senha. Veja sua caixa de entrada e o spam." });
           }}
         >
