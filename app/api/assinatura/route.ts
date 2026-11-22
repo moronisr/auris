@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/admin";
+import { idsAdmin, supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PLANOS } from "@/lib/planos";
 import { acessoDe, assinar, cancelarAssinatura, cobrancaConfigurada, pagarAvulso, removerCartao, sincronizar, trocarCartao, trocarPlano } from "@/lib/assinatura";
 
 export const runtime = "nodejs";
 
-const admins = () => (process.env.AURIS_ADMINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+const admins = idsAdmin;
 
 async function usuario() {
   const sb = await supabaseServer();
@@ -19,11 +19,11 @@ export async function GET() {
   const user = await usuario();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
   const sb = supabaseAdmin();
-  let { data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, mp_assinatura_id, renovacao_automatica").eq("profissional_id", user.id).maybeSingle();
+  let { data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, mp_assinatura_id, renovacao_automatica, cortesia_ate").eq("profissional_id", user.id).maybeSingle();
   // Confere no Mercado Pago se faz mais de 6 horas, ou se o período pago venceu.
   if (a?.mp_assinatura_id && (Date.now() - new Date(a.atualizado_em).getTime() > 6 * 3600e3 || (a.pago_ate && new Date(a.pago_ate) < new Date()))) {
     await sincronizar(user.id).catch(() => {});
-    ({ data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, mp_assinatura_id, renovacao_automatica").eq("profissional_id", user.id).maybeSingle());
+    ({ data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, mp_assinatura_id, renovacao_automatica, cortesia_ate").eq("profissional_id", user.id).maybeSingle());
   }
   const [{ data: cfg }, { data: fimTeste }, acesso] = await Promise.all([
     sb.from("auris_config").select("cobranca_ativa").eq("id", 1).maybeSingle(),

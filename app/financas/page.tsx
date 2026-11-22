@@ -109,6 +109,7 @@ export default function Financas() {
         ) : (
           <p className="muted" style={{ marginBottom: 0 }}>{s.acesso === "teste" ? `Você está no teste grátis até ${dataCurtaBR(s.fimTeste)}. Escolha um plano para continuar sem interrupção.` : s.acesso === "liberado" ? "Fase de testes do Auris: uso liberado, sem cobrança." : "Escolha um plano para usar o Auris."}</p>
         )}
+        {a?.cortesia_ate && new Date(a.cortesia_ate) > new Date() && <div className="ok" style={{ marginTop: 10 }}>Você tem acesso de cortesia ao Auris até {dataCurtaBR(a.cortesia_ate)}, sem cobrança.</div>}
         {s.acesso === "aviso" && <div className="erro" style={{ marginTop: 10 }}>{a?.falha_motivo === "chargeback"
           ? "Uma cobrança do seu plano foi contestada no cartão e o valor voltou para você. Pague de novo ou atualize o cartão abaixo para não interromper o uso. Se não reconhece a contestação, fale com o seu banco."
           : "O último pagamento não foi aprovado. Atualize o cartão abaixo para não interromper o uso."}</div>}

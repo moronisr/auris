@@ -3,6 +3,8 @@ import { RESERVADOS } from "@/lib/agenda";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AvisoAssinatura from "@/components/AvisoAssinatura";
+import { useEffect, useState } from "react";
+import { buscarSituacao } from "@/lib/useAcesso";
 
 const ITENS = [
   { href: "/", rotulo: "Início", icone: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /> },
@@ -16,6 +18,8 @@ const ITENS = [
 /** Topo fixo + barra inferior (celular). Some na tela de login e na impressão. */
 export default function Navegacao() {
   const rota = usePathname();
+  const [dono, setDono] = useState(false);
+  useEffect(() => { buscarSituacao().then((x) => setDono(!!x?.admin)).catch(() => {}); }, []);
   const unico = rota.split("/").filter(Boolean);
   if (rota.startsWith("/login") || rota.startsWith("/nova-senha") || rota.startsWith("/t/") || rota.startsWith("/p/") || ["/privacidade", "/termos", "/ia"].includes(rota) || (unico.length === 1 && !RESERVADOS.has(unico[0]))) return null;
   const ativo = (href: string) => (href === "/" ? rota === "/" : rota.startsWith(href));
@@ -37,6 +41,7 @@ export default function Navegacao() {
             {ITENS.map((i) => (
               <Link key={i.href} href={i.href} className={ativo(i.href) ? "ativo" : ""}>{i.rotulo}</Link>
             ))}
+            {dono && <Link href="/admin" className={ativo("/admin") ? "ativo" : ""}>Painel</Link>}
           </nav>
         </div>
       </header>

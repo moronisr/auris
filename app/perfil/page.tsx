@@ -1,4 +1,5 @@
 "use client";
+import LinkPainel from "@/components/LinkPainel";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -72,6 +73,7 @@ export default function Perfil() {
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
       <a className="card card-link" href="/financas"><b>Finanças</b><span className="muted">Seu plano, forma de pagamento, cobranças e upgrade</span></a>
+      <LinkPainel />
       <form className="card" onSubmit={salvar}>
         <label>Nome completo</label>
         <input value={nome} onChange={(e) => setNome(e.target.value)} required />
