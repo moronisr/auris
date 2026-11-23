@@ -4,7 +4,7 @@ export const metadata = { title: "Política de privacidade do Auris" };
 
 export default function Privacidade() {
   return (
-    <PaginaInfo titulo="Política de privacidade" atualizado="22 de novembro de 2026">
+    <PaginaInfo titulo="Política de privacidade" atualizado="23 de novembro de 2026">
       <p>Esta política explica como o Auris trata dados pessoais, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, LGPD).</p>
 
       <h2>1. Quem é quem</h2>
@@ -42,7 +42,8 @@ export default function Privacidade() {
         <li><b>Vercel:</b> hospedagem do site.</li>
         <li><b>ElevenLabs:</b> transcrição do áudio em texto.</li>
         <li><b>Anthropic:</b> organização do texto nos campos da ficha.</li>
-        <li><b>Mercado Pago (instituição de pagamento):</b> processa o pagamento e a devolução da teleconsulta, na conta do próprio profissional, e a cobrança do plano do Auris, na conta do Auris. Veja os detalhes no item 6 abaixo.</li>
+        <li><b>Mercado Pago (instituição de pagamento):</b> processa o pagamento e a devolução da teleconsulta, na conta do próprio profissional. Veja os detalhes no item 6 abaixo.</li>
+        <li><b>Asaas (instituição de pagamento autorizada pelo Banco Central):</b> processa a cobrança do plano do Auris, na conta do Auris. Veja os detalhes no item 6 abaixo.</li>
         <li><b>PagBank (instituição de pagamento):</b> alternativa ao Mercado Pago para o pagamento da teleconsulta, quando o profissional escolhe essa instituição.</li>
         <li><b>Resend:</b> envio dos e-mails do Auris, como o código de confirmação do cadastro e a troca de senha.</li>
         <li><b>Meta (WhatsApp):</b> envio de lembretes de consulta, quando ativado.</li>
@@ -51,12 +52,12 @@ export default function Privacidade() {
 
       <h2>6. Dados de pagamento</h2>
       <ul>
-        <li><b>Cartão:</b> o número, a validade, o código de segurança e o nome do titular são digitados em um formulário seguro do Mercado Pago, que funciona dentro da página do Auris. Esses dados vão direto para o Mercado Pago e <b>nunca passam pelo Auris nem ficam guardados nele</b>. O Auris recebe apenas um código de uso único (token) para concluir a cobrança.</li>
+        <li><b>Cartão da teleconsulta:</b> o número, a validade, o código de segurança e o nome do titular são digitados em um formulário seguro do Mercado Pago, que funciona dentro da página do Auris. Esses dados vão direto para o Mercado Pago e <b>nunca passam pelo Auris nem ficam guardados nele</b>. O Auris recebe apenas um código de uso único (token) para concluir a cobrança.</li>
         <li><b>E-mail e CPF do pagador</b> pedidos no pagamento com cartão passam pelo servidor do Auris apenas para serem enviados ao Mercado Pago junto com a cobrança. O Auris não os guarda.</li>
-        <li><b>Plano do Auris:</b> o cartão do profissional fica guardado no Mercado Pago para as cobranças mensais. O Auris guarda apenas a bandeira e os 4 últimos números, para mostrar em Finanças.</li>
-        <li><b>Cartão de outra pessoa:</b> quando o profissional paga o plano com cartão de outra pessoa (cônjuge, familiar ou sócio), o nome, o CPF e o e-mail do titular são enviados ao Mercado Pago junto com a cobrança, para aprovação e prevenção de fraudes. O Auris não guarda esses dados.</li>
+        <li><b>Cartão do plano do Auris:</b> o número, a validade, o código de segurança e o nome do titular do cartão, com o CPF, o CEP, o número do endereço e o celular do titular, são digitados no formulário do Auris. Esses dados passam pelo servidor do Auris, por conexão criptografada, <b>apenas para serem enviados ao Asaas</b>, e não são gravados nem registrados pelo Auris. O cartão fica guardado no Asaas para as cobranças mensais. O Auris guarda apenas a bandeira e os 4 últimos números, para mostrar em Finanças.</li>
+        <li><b>Cartão de outra pessoa:</b> quando o profissional paga o plano com cartão de outra pessoa (cônjuge, familiar ou sócio), o nome, o CPF, o e-mail, o CEP, o número do endereço e o celular do titular são enviados ao Asaas junto com a cobrança, para aprovação e prevenção de fraudes. O Auris não guarda esses dados.</li>
         <li><b>Pix:</b> o Auris não recebe dados da conta bancária de quem paga. O banco do paciente e o Mercado Pago tratam esses dados conforme as regras do Pix.</li>
-        <li>O Mercado Pago trata os dados de quem paga também como controlador, para processar o pagamento, prevenir fraudes e cumprir obrigações legais, conforme a política de privacidade dele.</li>
+        <li>O Mercado Pago e o Asaas tratam os dados de quem paga também como controladores, para processar o pagamento, prevenir fraudes e cumprir obrigações legais, conforme a política de privacidade de cada um.</li>
         <li><b>Bases legais:</b> execução do contrato de prestação do serviço (LGPD, art. 7º, V) e exercício regular de direitos, inclusive para comprovar pagamentos e devoluções em caso de reclamação (art. 7º, VI).</li>
       </ul>
 

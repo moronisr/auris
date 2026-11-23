@@ -4,7 +4,7 @@ export const metadata = { title: "Termos de uso do Auris" };
 
 export default function Termos() {
   return (
-    <PaginaInfo titulo="Termos de uso" atualizado="22 de novembro de 2026">
+    <PaginaInfo titulo="Termos de uso" atualizado="23 de novembro de 2026">
       <p>Ao criar uma conta no Auris, o profissional concorda com estes termos.</p>
 
       <h2>1. O que é o Auris</h2>
@@ -79,14 +79,14 @@ export default function Termos() {
 
       <h3>7.3 Forma de pagamento</h3>
       <ul>
-        <li>O plano é pago com cartão de crédito, pelo Mercado Pago, e recebido pelo Auris.</li>
+        <li>O plano é pago com cartão de crédito, pelo Asaas, instituição de pagamento autorizada pelo Banco Central, e recebido pelo Auris.</li>
         <li>Com o cartão salvo, a cobrança é feita todo mês, na mesma data, até o cancelamento. O profissional pode trocar ou remover o cartão a qualquer momento em Finanças.</li>
         <li>O profissional também pode pagar apenas um mês, sem salvar o cartão. Nesse caso, precisa pagar de novo antes do vencimento para continuar.</li>
-        <li>Na fatura, a cobrança aparece como &quot;Mercado Pago, Auris&quot;.</li>
+        <li>Na fatura do cartão, a cobrança aparece identificada pelo Asaas, que processa o pagamento do Auris.</li>
       </ul>
 
       <h3>7.4 Cartão de outra pessoa</h3>
-      <p>O profissional pode pagar o plano com cartão de outra pessoa, como cônjuge, familiar ou sócio, desde que tenha autorização do titular. Nesse caso, informa o nome, o CPF e o e-mail do titular no pagamento. O profissional responde pela autorização do titular e por eventuais contestações feitas por ele. Se a cobrança for contestada pelo titular, o plano volta para a situação de pagamento pendente.</p>
+      <p>O profissional pode pagar o plano com cartão de outra pessoa, como cônjuge, familiar ou sócio, desde que tenha autorização do titular. Nesse caso, informa o nome, o CPF, o e-mail, o CEP, o número do endereço e o celular do titular no pagamento. O profissional responde pela autorização do titular e por eventuais contestações feitas por ele. Se a cobrança for contestada pelo titular, o plano volta para a situação de pagamento pendente.</p>
 
       <h3>7.5 Pagamento recusado</h3>
       <p>Se uma cobrança for recusada, o profissional continua usando o Auris normalmente por 7 dias para resolver, trocando o cartão ou pagando de novo. Depois desse prazo, fica sem registrar e atender até regularizar, mas mantém acesso às fichas e consultas já feitas e à exportação do prontuário.</p>
