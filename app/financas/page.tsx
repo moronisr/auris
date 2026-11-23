@@ -36,6 +36,7 @@ export default function Financas() {
   }, [s, aba]);
 
   async function enviar(corpo: Record<string, unknown>): Promise<string | null> {
+    setMsg(null);
     const r = await fetch("/api/assinatura", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
     const d = await r.json().catch(() => ({}));
     return r.ok ? null : d.erro || "Não foi possível concluir. Tente de novo.";

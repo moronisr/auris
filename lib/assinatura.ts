@@ -108,11 +108,13 @@ async function clienteDoProfissional(uid: string, email: string, cpf: string): P
 
 const cpfDoCliente = (c: CartaoInformado) => soDigitos(c.cpfProfissional || c.titular.cpf);
 const pago = (s: string) => /^(CONFIRMED|RECEIVED|RECEIVED_IN_CASH)$/.test(s);
+/** Datas do Asaas vêm sem hora (AAAA-MM-DD): lidas ao meio-dia de Brasília, para não virar o dia anterior. */
+const dataBR = (d?: string | null) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00-03:00` : d) : new Date());
 
 async function registrarCobranca(uid: string, c: Cobranca, origem: "assinatura" | "avulso", plano: string | null) {
   await supabaseAdmin().from("auris_cobrancas").upsert({
     profissional_id: uid, gateway_pagamento_id: c.id, origem, plano, valor: c.value,
-    status: c.deleted ? "cancelled" : statusCobranca(c.status), data: new Date(c.confirmedDate || c.paymentDate || c.dueDate || Date.now()).toISOString(),
+    status: c.deleted ? "cancelled" : statusCobranca(c.status), data: dataBR(c.confirmedDate || c.paymentDate || c.dueDate).toISOString(),
   }, { onConflict: "gateway_pagamento_id" });
 }
 
@@ -293,7 +295,7 @@ export async function sincronizar(uid: string): Promise<void> {
   if (aprovada) {
     const ate = new Date(`${aprovada.dueDate}T12:00:00-03:00`); ate.setMonth(ate.getMonth() + 1);
     if (!a.pago_ate || new Date(a.pago_ate) < ate) upd.pago_ate = ate.toISOString();
-    upd.ultimo_pagamento_em = new Date(aprovada.confirmedDate || aprovada.paymentDate || aprovada.dueDate).toISOString();
+    upd.ultimo_pagamento_em = dataBR(aprovada.confirmedDate || aprovada.paymentDate || aprovada.dueDate).toISOString();
     upd.ultimo_pagamento_id = aprovada.id;
   }
   if (s.deleted || s.status === "INACTIVE" || s.status === "EXPIRED") {
