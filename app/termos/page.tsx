@@ -4,7 +4,7 @@ export const metadata = { title: "Termos de uso do Auris" };
 
 export default function Termos() {
   return (
-    <PaginaInfo titulo="Termos de uso" atualizado="19 de novembro de 2026">
+    <PaginaInfo titulo="Termos de uso" atualizado="22 de novembro de 2026">
       <p>Ao criar uma conta no Auris, o profissional concorda com estes termos.</p>
 
       <h2>1. O que é o Auris</h2>
@@ -69,8 +69,41 @@ export default function Termos() {
         <li>O comprovante mostrado ao paciente no Auris comprova o pagamento, mas não é nota fiscal nem recibo de serviço de saúde. A emissão de nota fiscal ou recibo é responsabilidade do profissional.</li>
       </ul>
 
-      <h2>7. Planos</h2>
-      <p>Durante o período de teste, o uso é gratuito. Os planos pagos, quando disponíveis, terão preço, recursos e condições informados antes da contratação.</p>
+      <h2>7. Planos e assinatura</h2>
+      <h3>7.1 Planos e preços</h3>
+      <p>Os planos, seus recursos e preços ficam em Finanças, na área &quot;Plano do Auris&quot;, e são mostrados antes da contratação. Os valores são cobrados por mês.</p>
+
+      <h3>7.2 Teste grátis</h3>
+      <p>Quem ainda não tem plano usa o Auris gratuitamente por 10 dias. Ao fim do teste, é preciso contratar um plano para continuar registrando e atendendo. Nada é cobrado durante o teste.</p>
+
+      <h3>7.3 Forma de pagamento</h3>
+      <ul>
+        <li>O plano é pago com cartão de crédito, pelo Mercado Pago, e recebido pelo Auris.</li>
+        <li>Com o cartão salvo, a cobrança é feita todo mês, na mesma data, até o cancelamento. O profissional pode trocar ou remover o cartão a qualquer momento em Finanças.</li>
+        <li>O profissional também pode pagar apenas um mês, sem salvar o cartão. Nesse caso, precisa pagar de novo antes do vencimento para continuar.</li>
+        <li>Na fatura, a cobrança aparece como &quot;Mercado Pago, Auris&quot;.</li>
+      </ul>
+
+      <h3>7.4 Cartão de outra pessoa</h3>
+      <p>O profissional pode pagar o plano com cartão de outra pessoa, como cônjuge, familiar ou sócio, desde que tenha autorização do titular. Nesse caso, informa o nome, o CPF e o e-mail do titular no pagamento. O profissional responde pela autorização do titular e por eventuais contestações feitas por ele. Se a cobrança for contestada pelo titular, o plano volta para a situação de pagamento pendente.</p>
+
+      <h3>7.5 Pagamento recusado</h3>
+      <p>Se uma cobrança for recusada, o profissional continua usando o Auris normalmente por 7 dias para resolver, trocando o cartão ou pagando de novo. Depois desse prazo, fica sem registrar e atender até regularizar, mas mantém acesso às fichas e consultas já feitas e à exportação do prontuário.</p>
+
+      <h3>7.6 Direito de arrependimento</h3>
+      <p>Na primeira contratação paga, o profissional pode desistir em até 7 dias corridos, contados da primeira cobrança, e recebe o valor integral de volta, no mesmo cartão. Para isso, basta cancelar em Finanças e escrever para <a href="mailto:contato@aurismed.com.br">contato@aurismed.com.br</a> pedindo a devolução. O teste grátis de 10 dias não substitui nem reduz esse direito.</p>
+
+      <h3>7.7 Cancelamento</h3>
+      <p>O profissional pode cancelar o plano quando quiser, em Finanças. As cobranças seguintes deixam de ser feitas, e o acesso continua até o fim do período já pago. Fora do prazo de arrependimento, não há devolução proporcional dos dias restantes do mês.</p>
+
+      <h3>7.8 Mudança de plano</h3>
+      <p>O profissional pode mudar de plano em Finanças. O novo valor passa a valer a partir da próxima cobrança.</p>
+
+      <h3>7.9 Contestação da mensalidade</h3>
+      <p>Se uma mensalidade for contestada no banco ou na operadora do cartão (chargeback), o plano volta para a situação de pagamento pendente, com as mesmas regras do item 7.5.</p>
+
+      <h3>7.10 Acesso de cortesia</h3>
+      <p>O Auris pode liberar o uso gratuito por um prazo definido, por exemplo, para profissionais de um programa piloto. Ao fim da cortesia, volta a valer a situação normal da conta: plano ativo, teste grátis ou necessidade de contratar.</p>
 
       <h2>8. Encerramento</h2>
       <p>O profissional pode encerrar a conta quando quiser, depois de exportar suas fichas. O Auris pode suspender contas em caso de uso indevido ou violação destes termos, com aviso prévio sempre que possível.</p>
@@ -80,6 +113,9 @@ export default function Termos() {
 
       <h2>10. Contato</h2>
       <p><a href="mailto:contato@aurismed.com.br">contato@aurismed.com.br</a></p>
+
+      <h2>11. Quem oferece o Auris</h2>
+      <p>O Auris é oferecido por 30.595.598 MORONI ELIAS SABAA DA SILVA SRUR, CNPJ 30.595.598/0001-70, com sede em Belém, PA. Site: www.aurismed.com.br. Contato: <a href="mailto:contato@aurismed.com.br">contato@aurismed.com.br</a>.</p>
     </PaginaInfo>
   );
 }

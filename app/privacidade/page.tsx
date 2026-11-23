@@ -4,19 +4,20 @@ export const metadata = { title: "Política de privacidade do Auris" };
 
 export default function Privacidade() {
   return (
-    <PaginaInfo titulo="Política de privacidade" atualizado="19 de novembro de 2026">
+    <PaginaInfo titulo="Política de privacidade" atualizado="22 de novembro de 2026">
       <p>Esta política explica como o Auris trata dados pessoais, conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, LGPD).</p>
 
       <h2>1. Quem é quem</h2>
       <ul>
         <li><b>Profissional de saúde (controlador):</b> quem usa o Auris para registrar seus atendimentos decide quais dados dos pacientes são registrados e para quê. Pedidos de pacientes sobre seus dados de saúde devem ser feitos diretamente ao profissional que os atendeu.</li>
         <li><b>Auris (operador):</b> trata os dados dos pacientes apenas para prestar o serviço ao profissional, conforme as instruções dele.</li>
-        <li><b>Auris (controlador dos dados de conta):</b> em relação aos dados de cadastro do próprio profissional (nome, e-mail, profissão, registro no conselho, dados de agenda e de pagamento).</li>
+        <li><b>Auris (controlador dos dados de conta):</b> em relação aos dados de cadastro do próprio profissional (nome, e-mail, profissão, registro no conselho, dados de agenda e de pagamento do plano). O Auris é oferecido por 30.595.598 MORONI ELIAS SABAA DA SILVA SRUR, CNPJ 30.595.598/0001-70, Belém, PA.</li>
       </ul>
 
       <h2>2. Quais dados</h2>
       <ul>
-        <li><b>Do profissional:</b> nome, e-mail, profissão, especialidade, registro no conselho, preferências, horários de agenda e a conexão com a instituição de pagamento que ele escolher.</li>
+        <li><b>Do profissional:</b> nome, e-mail, profissão, especialidade, registro no conselho, preferências, horários de agenda e a conexão com a instituição de pagamento que ele escolher. Para confirmar o cadastro, o Auris envia um código de 6 números ao e-mail informado.</li>
+        <li><b>Do plano do profissional:</b> plano contratado, bandeira e 4 últimos números do cartão, histórico de cobranças, situação da assinatura e, se informado, o motivo do cancelamento. O número completo do cartão nunca é guardado pelo Auris.</li>
         <li><b>Do paciente:</b> nome, contato, CPF e idade quando informados, e as informações de saúde ditas no atendimento e registradas na ficha. Na teleconsulta, também o aceite do termo, a escolha sobre o assistente de IA e os dados do pagamento descritos abaixo.</li>
         <li><b>Do pagamento da teleconsulta:</b> o Auris guarda o valor, a forma de pagamento (Pix, crédito ou débito), a data e a hora da aprovação, o número da transação na instituição de pagamento, o status e, quando houver, a devolução e o motivo do cancelamento informado pelo paciente.</li>
         <li><b>Áudio:</b> usado apenas para gerar o texto da ficha e apagado depois da transcrição. O vídeo da teleconsulta não é gravado.</li>
@@ -41,7 +42,9 @@ export default function Privacidade() {
         <li><b>Vercel:</b> hospedagem do site.</li>
         <li><b>ElevenLabs:</b> transcrição do áudio em texto.</li>
         <li><b>Anthropic:</b> organização do texto nos campos da ficha.</li>
-        <li><b>Mercado Pago (instituição de pagamento):</b> processa o pagamento e a devolução da teleconsulta, na conta do próprio profissional. Veja os detalhes no item 6 abaixo.</li>
+        <li><b>Mercado Pago (instituição de pagamento):</b> processa o pagamento e a devolução da teleconsulta, na conta do próprio profissional, e a cobrança do plano do Auris, na conta do Auris. Veja os detalhes no item 6 abaixo.</li>
+        <li><b>PagBank (instituição de pagamento):</b> alternativa ao Mercado Pago para o pagamento da teleconsulta, quando o profissional escolhe essa instituição.</li>
+        <li><b>Resend:</b> envio dos e-mails do Auris, como o código de confirmação do cadastro e a troca de senha.</li>
         <li><b>Meta (WhatsApp):</b> envio de lembretes de consulta, quando ativado.</li>
       </ul>
       <p>Alguns desses fornecedores processam dados fora do Brasil. Essa transferência ocorre para a execução do serviço contratado pelo profissional, com fornecedores que adotam padrões de segurança compatíveis com a LGPD (art. 33).</p>
@@ -50,6 +53,8 @@ export default function Privacidade() {
       <ul>
         <li><b>Cartão:</b> o número, a validade, o código de segurança e o nome do titular são digitados em um formulário seguro do Mercado Pago, que funciona dentro da página do Auris. Esses dados vão direto para o Mercado Pago e <b>nunca passam pelo Auris nem ficam guardados nele</b>. O Auris recebe apenas um código de uso único (token) para concluir a cobrança.</li>
         <li><b>E-mail e CPF do pagador</b> pedidos no pagamento com cartão passam pelo servidor do Auris apenas para serem enviados ao Mercado Pago junto com a cobrança. O Auris não os guarda.</li>
+        <li><b>Plano do Auris:</b> o cartão do profissional fica guardado no Mercado Pago para as cobranças mensais. O Auris guarda apenas a bandeira e os 4 últimos números, para mostrar em Finanças.</li>
+        <li><b>Cartão de outra pessoa:</b> quando o profissional paga o plano com cartão de outra pessoa (cônjuge, familiar ou sócio), o nome, o CPF e o e-mail do titular são enviados ao Mercado Pago junto com a cobrança, para aprovação e prevenção de fraudes. O Auris não guarda esses dados.</li>
         <li><b>Pix:</b> o Auris não recebe dados da conta bancária de quem paga. O banco do paciente e o Mercado Pago tratam esses dados conforme as regras do Pix.</li>
         <li>O Mercado Pago trata os dados de quem paga também como controlador, para processar o pagamento, prevenir fraudes e cumprir obrigações legais, conforme a política de privacidade dele.</li>
         <li><b>Bases legais:</b> execução do contrato de prestação do serviço (LGPD, art. 7º, V) e exercício regular de direitos, inclusive para comprovar pagamentos e devoluções em caso de reclamação (art. 7º, VI).</li>
@@ -60,7 +65,7 @@ export default function Privacidade() {
         <li><b>Áudio:</b> apagado depois da transcrição.</li>
         <li><b>Prontuário:</b> guardado enquanto o profissional mantiver a conta. A lei pede guarda mínima de 20 anos (Lei nº 13.787/2018); por isso o profissional pode exportar todas as suas fichas a qualquer momento, em Perfil.</li>
         <li><b>Registros de pagamento e devolução:</b> junto com o registro da consulta e, depois do encerramento da conta, pelo prazo necessário para comprovação fiscal e para defesa em eventual reclamação, em regra 5 anos.</li>
-        <li><b>Dados de conta:</b> enquanto a conta existir e pelo prazo exigido por lei depois do encerramento.</li>
+        <li><b>Dados de conta e do plano:</b> enquanto a conta existir e, depois do encerramento, pelo prazo exigido por lei e necessário para comprovação fiscal, em regra 5 anos.</li>
       </ul>
 
       <h2>8. Segurança</h2>
