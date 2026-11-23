@@ -257,7 +257,7 @@ export default function Financas() {
         <ul className="politica-lista">
           <li><b>Pagamento recusado:</b> confira o limite com o seu banco ou troque o cartão. Você tem 7 dias de uso normal para resolver.</li>
           <li><b>Cobrança na fatura:</b> aparece como Mercado Pago, Auris.</li>
-          <li><b>Nota fiscal e dúvidas:</b> escreva para <a href="mailto:aurismedical2@gmail.com">aurismedical2@gmail.com</a>.</li>
+          <li><b>Nota fiscal e dúvidas:</b> escreva para <a href="mailto:contato@aurismed.com.br">contato@aurismed.com.br</a>.</li>
         </ul>
       </div>
 
