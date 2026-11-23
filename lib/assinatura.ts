@@ -112,11 +112,8 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
     return { ok: true as const };
   } catch (e) {
     console.error("assinar", String(e).slice(0, 300));
-    // Validação do cartão recusada: oferece concluir na página do próprio Mercado Pago, que aprova mais.
-    if (/CC_VAL_433|high_risk|rejected|security|fraud/i.test(String(e))) {
-      const link = await linkCheckoutMp(o.planoId, o.base).catch((x) => { console.error("link assinatura", String(x).slice(0, 200)); return null; });
-      if (link) return { ok: false as const, erro: "O Mercado Pago não aprovou a validação do cartão por aqui. Nenhum valor foi cobrado. Conclua a assinatura na página segura do Mercado Pago: lá você pode usar o mesmo cartão.", link };
-    }
+    // Validação do cartão para renovação recusada: o pagamento de 1 mês segue outro caminho no Mercado Pago.
+    if (/CC_VAL_433|high_risk|security|fraud/i.test(String(e))) return { ok: false as const, erro: "O Mercado Pago não aprovou salvar este cartão para a renovação automática. Nenhum valor foi cobrado. Desmarque \"Salvar este cartão\" acima e pague 1 mês com o mesmo cartão." };
     return { ok: false as const, erro: motivoMp(e) };
   }
 }

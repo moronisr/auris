@@ -26,7 +26,6 @@ export default function Financas() {
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
-  const [linkMp, setLinkMp] = useState("");
   const [aba, setAba] = useState<"" | "recebimentos" | "plano">("");
 
   const recarregar = async () => setS(await buscarSituacao(true));
@@ -51,7 +50,6 @@ export default function Financas() {
   async function enviar(corpo: Record<string, unknown>): Promise<string | null> {
     const r = await fetch("/api/assinatura", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
     const d = await r.json().catch(() => ({}));
-    setLinkMp(!r.ok && typeof d.link === "string" && d.link.startsWith("https://") ? d.link : "");
     return r.ok ? null : d.erro || "Não foi possível concluir. Tente de novo.";
   }
   const pronto = (texto: string) => { setModo(""); setMsg({ tipo: "ok", texto }); window.scrollTo({ top: 0, behavior: "smooth" }); recarregar(); };
@@ -113,12 +111,6 @@ export default function Financas() {
           if (!e) pronto(salvarCartao ? `Plano ${p.nome} ativado com renovação automática.` : `Pagamento aprovado. Plano ${p.nome} ativo por 1 mês.`);
           return e;
         }} />
-      {linkMp && modoForm === "assinar" && (
-        <div style={{ marginTop: 10 }}>
-          <a className="btn" href={linkMp}>Concluir no Mercado Pago</a>
-          <p className="muted" style={{ marginTop: 6 }}>Abre a página segura do Mercado Pago. Entre com a sua conta do Mercado Pago (ou crie uma) e cadastre o cartão lá. Ao terminar, você volta para o Auris e o plano é ativado.</p>
-        </div>
-      )}
     </div>
   );
 
