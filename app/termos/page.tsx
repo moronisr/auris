@@ -79,10 +79,11 @@ export default function Termos() {
 
       <h3>7.3 Forma de pagamento</h3>
       <ul>
-        <li>O plano é pago com cartão de crédito, pelo Asaas, instituição de pagamento autorizada pelo Banco Central, e recebido pelo Auris.</li>
+        <li>O plano é pago com cartão de crédito ou Pix Automático, pelo Asaas, instituição de pagamento autorizada pelo Banco Central, e recebido pelo Auris.</li>
+        <li>No Pix Automático, o profissional paga o primeiro mês por Pix e autoriza, no app do próprio banco, o débito mensal do valor do plano. Ele pode cancelar essa autorização a qualquer momento, no Auris ou no app do banco; o acesso continua até o fim do período já pago. Para mudar de plano no Pix Automático, é preciso cancelar a autorização e autorizar de novo com o novo valor.</li>
         <li>Com o cartão salvo, a cobrança é feita todo mês, na mesma data, até o cancelamento. O profissional pode trocar ou remover o cartão a qualquer momento em Finanças.</li>
         <li>O profissional também pode pagar apenas um mês, sem salvar o cartão. Nesse caso, precisa pagar de novo antes do vencimento para continuar.</li>
-        <li>Na fatura do cartão, a cobrança aparece identificada pelo Asaas, que processa o pagamento do Auris.</li>
+        <li>Na fatura do cartão ou no extrato do banco, a cobrança aparece identificada pelo Asaas, que processa o pagamento do Auris.</li>
       </ul>
 
       <h3>7.4 Cartão de outra pessoa</h3>
