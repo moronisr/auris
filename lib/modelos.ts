@@ -29,6 +29,8 @@ export const CAMPOS_FINAIS: Campo[] = [
   { chave: "observacoes_gerais", rotulo: "Observações gerais do atendimento", tipo: "longo", grupo: "Observações" },
 ];
 
+/** CID-10 ao lado da impressão diagnóstica (códigos validados pela tabela oficial em lib/cid10.ts). */
+const cid = (grupo: string): Campo => ({ chave: "cid10", rotulo: "CID-10", tipo: "texto", grupo });
 const RETORNO: Campo = { chave: "retorno_meses", rotulo: "Retorno (meses)", tipo: "inteiro", grupo: "Retorno" };
 
 export const MODELOS: Record<string, Modelo> = {
@@ -47,6 +49,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "sinais_vitais", rotulo: "Sinais vitais", tipo: "texto", grupo: "Exame" },
       { chave: "exame_fisico", rotulo: "Exame físico", tipo: "longo", grupo: "Exame" },
       { chave: "impressao_profissional", rotulo: "Impressão / hipótese do profissional", tipo: "longo", grupo: "Avaliação" },
+      cid("Avaliação"),
       { chave: "conduta", rotulo: "Conduta", tipo: "longo", grupo: "Plano" },
       { chave: "prescricoes", rotulo: "Prescrições", tipo: "longo", grupo: "Plano" },
       { chave: "exames_solicitados", rotulo: "Exames solicitados", tipo: "longo", grupo: "Plano" },
@@ -69,6 +72,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "oe_eixo", rotulo: "OE eixo (°)", tipo: "inteiro", grupo: "Olho esquerdo (OE)" },
       { chave: "adicao", rotulo: "Adição", tipo: "numero", grupo: "Outros" },
       { chave: "dnp", rotulo: "DNP", tipo: "texto", grupo: "Outros" },
+      cid("Outros"),
       { chave: "observacoes", rotulo: "Observações", tipo: "longo", grupo: "Outros" },
       RETORNO,
     ],
@@ -99,6 +103,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "subjetivo", rotulo: "S: Subjetivo (relato do paciente)", tipo: "longo", grupo: "SOAP" },
       { chave: "objetivo", rotulo: "O: Objetivo (exame, sinais vitais, resultados)", tipo: "longo", grupo: "SOAP" },
       { chave: "avaliacao", rotulo: "A: Avaliação do profissional", tipo: "longo", grupo: "SOAP" },
+      cid("SOAP"),
       { chave: "plano", rotulo: "P: Plano", tipo: "longo", grupo: "SOAP" },
       RETORNO,
     ],
@@ -120,6 +125,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "vacinacao", rotulo: "Situação vacinal", tipo: "longo", grupo: "Desenvolvimento" },
       { chave: "exame_fisico", rotulo: "Exame físico", tipo: "longo", grupo: "Exame" },
       { chave: "impressao_profissional", rotulo: "Impressão do profissional", tipo: "longo", grupo: "Avaliação" },
+      cid("Avaliação"),
       { chave: "conduta", rotulo: "Conduta e orientações", tipo: "longo", grupo: "Plano" },
       RETORNO,
     ],
@@ -158,6 +164,7 @@ export const MODELOS: Record<string, Modelo> = {
       { chave: "exame_estado_mental", rotulo: "Exame do estado mental (aparência, humor, afeto, pensamento, sensopercepção, juízo, crítica)", tipo: "longo", grupo: "Exame" },
       { chave: "risco", rotulo: "Avaliação de risco (conforme o profissional)", tipo: "longo", grupo: "Exame" },
       { chave: "impressao_profissional", rotulo: "Impressão / hipótese do profissional", tipo: "longo", grupo: "Avaliação" },
+      cid("Avaliação"),
       { chave: "conduta", rotulo: "Conduta e prescrições", tipo: "longo", grupo: "Plano" },
       RETORNO,
     ],

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELOS, camposDoModelo, type Ficha } from "./modelos";
+import { normalizarCid } from "./cid10";
 
 // O SDK já repete sozinho quando a API está sobrecarregada ou fora do ar.
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 4 });
@@ -13,6 +14,7 @@ Regras obrigatórias:
 - Não faça diagnóstico próprio. Em campos de impressão/hipótese, registre apenas o que o PROFISSIONAL disse.
 - Use português correto e terminologia técnica da área.
 - CPF: apenas os 11 dígitos, sem pontuação.
+- cid10: código(s) CID-10 da impressão/hipótese/avaliação que o PROFISSIONAL disse (ex.: "J45.9"; vários separados por "; "). Se ele ditou o código, use exatamente esse. Se ele disse o diagnóstico sem o código, use o código CID-10 mais específico que corresponda exatamente ao que ele disse. Se não houve impressão/hipótese dita, null. Nunca sugira diagnóstico que o profissional não disse.
 - retorno_meses: "retorno em um ano" = 12; "em seis meses" = 6; "em 15 dias" = null e anote nas orientações/plano.`;
 
 function tipoJson(t: string) {
@@ -21,10 +23,10 @@ function tipoJson(t: string) {
   return { type: ["string", "null"] };
 }
 
-/** Garante que todos os campos existam (null quando não ditados). */
+/** Garante que todos os campos existam (null quando não ditados). O CID-10 só fica se existir na tabela oficial. */
 function completar(f: Ficha, chaves: string[]): Ficha {
   const out: Ficha = {};
-  for (const k of chaves) out[k] = f?.[k] ?? null;
+  for (const k of chaves) out[k] = k === "cid10" ? normalizarCid(f?.[k]) : f?.[k] ?? null;
   return out;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 import { useAcesso } from "@/lib/useAcesso";
+import CampoCid from "@/components/CampoCid";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -260,7 +261,9 @@ export default function Novo() {
     return (
       <div key={c.chave} style={c.tipo === "longo" ? { gridColumn: "1 / -1" } : undefined}>
         <label>{c.rotulo}</label>
-        {c.tipo === "longo" ? (
+        {c.chave === "cid10" ? (
+          <CampoCid valor={texto} onChange={(v) => setFicha((f) => (f ? { ...f, cid10: v.trim() === "" ? null : v } : f))} />
+        ) : c.tipo === "longo" ? (
           <textarea rows={3} value={texto} onChange={(e) => alterar(c, e.target.value)} />
         ) : (
           <input value={texto} onChange={(e) => alterar(c, e.target.value)} inputMode={c.tipo === "texto" ? "text" : "decimal"} />
