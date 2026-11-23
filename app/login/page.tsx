@@ -123,8 +123,8 @@ export default function Login() {
                 )}
               </div>
               <div>
-                <label>Registro no conselho (ex.: CRM-PA 12345)</label>
-                <input value={conselho} onChange={(e) => setConselho(e.target.value)} />
+                <label>Registro no conselho</label>
+                <input placeholder="CRM-PA 12345" value={conselho} onChange={(e) => setConselho(e.target.value)} />
               </div>
             </div>
             <div style={{ height: 10 }} />
