@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { idsAdmin, supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PLANOS } from "@/lib/planos";
-import { acessoDe, assinar, cancelarAssinatura, cobrancaConfigurada, pagarAvulso, removerCartao, sincronizar, trocarCartao, trocarPlano, validarCartao, type CartaoInformado } from "@/lib/assinatura";
+import { acessoDe, assinar, cancelarAssinatura, cobrancaConfigurada, pagarAvulso, removerCartao, sincronizar, trocarCartao, trocarPlano, validarCartao, iniciarPixAutomatico, situacaoPix, type CartaoInformado } from "@/lib/assinatura";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -29,11 +29,11 @@ export async function GET() {
   const user = await usuario();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
   const sb = supabaseAdmin();
-  let { data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, gateway_assinatura_id, renovacao_automatica, cortesia_ate").eq("profissional_id", user.id).maybeSingle();
+  let { data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, gateway_assinatura_id, renovacao_automatica, forma_pagamento, cortesia_ate").eq("profissional_id", user.id).maybeSingle();
   // Confere no Asaas se faz mais de 6 horas, ou se o período pago venceu.
   if (a?.gateway_assinatura_id && (Date.now() - new Date(a.atualizado_em).getTime() > 6 * 3600e3 || (a.pago_ate && new Date(a.pago_ate) < new Date()))) {
     await sincronizar(user.id).catch(() => {});
-    ({ data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, gateway_assinatura_id, renovacao_automatica, cortesia_ate").eq("profissional_id", user.id).maybeSingle());
+    ({ data: a } = await sb.from("assinaturas").select("plano, status, cartao_final, cartao_bandeira, valor, pago_ate, ultimo_pagamento_em, falha_desde, falha_motivo, proxima_cobranca, cancelada_em, atualizado_em, gateway_assinatura_id, renovacao_automatica, forma_pagamento, cortesia_ate").eq("profissional_id", user.id).maybeSingle());
   }
   const [{ data: cfg }, { data: fimTeste }, acesso] = await Promise.all([
     sb.from("auris_config").select("cobranca_ativa").eq("id", 1).maybeSingle(),
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   const user = await usuario();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
   if (!cobrancaConfigurada()) return NextResponse.json({ erro: "A assinatura ainda não está disponível. Tente mais tarde." }, { status: 503 });
-  const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; motivo?: string; cartao?: CartaoInformado } | null;
+  const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; motivo?: string; cpf?: string; cartao?: CartaoInformado } | null;
   const plano = PLANOS.find((p) => p.id === b?.plano);
   if (plano?.oculto && !admins().includes(user.id) && !(await podeVerTeste(user.id))) return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
   const precisaCartao = b?.acao === "assinar" || b?.acao === "pagar_avulso" || b?.acao === "trocar_cartao";
@@ -69,6 +69,12 @@ export async function POST(req: Request) {
     // Com a cobrança ainda desligada (fase de testes), cobra na hora; com ela ligada, só no fim do teste grátis.
     return cfg?.cobranca_ativa && fim ? new Date(fim as string) : null;
   };
+  if (b?.acao === "pix_iniciar") {
+    if (!plano) return NextResponse.json({ erro: "Escolha o plano." }, { status: 400 });
+    const p = await iniciarPixAutomatico({ uid: user.id, email: user.email || "", planoId: plano.id, cpf: String(b.cpf || "") });
+    return p.ok ? NextResponse.json(p) : NextResponse.json({ erro: p.erro }, { status: 402 });
+  }
+  if (b?.acao === "pix_situacao") return NextResponse.json({ situacao: await situacaoPix(user.id) });
   let r: { ok: boolean; erro?: string };
   if (b?.acao === "assinar") {
     if (!plano) return NextResponse.json({ erro: "Escolha o plano." }, { status: 400 });

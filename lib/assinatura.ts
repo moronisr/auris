@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/admin";
 import { planoPorId } from "@/lib/planos";
+import QRCode from "qrcode";
 import { asaas, asaasConfigurado, bandeiraCurta, diaBR, ErroAsaas, statusCobranca } from "@/lib/asaas";
 
 /**
@@ -88,7 +89,7 @@ function motivoAsaas(e: unknown): string {
 type Cliente = { id: string };
 type Assinatura = { id: string; status: string; nextDueDate?: string; deleted?: boolean; value?: number; creditCard?: { creditCardNumber?: string; creditCardBrand?: string } };
 type Cobranca = {
-  id: string; status: string; value: number; dueDate: string; paymentDate?: string | null; confirmedDate?: string | null; dateCreated?: string; deleted?: boolean;
+  id: string; customer?: string; status: string; value: number; dueDate: string; paymentDate?: string | null; confirmedDate?: string | null; dateCreated?: string; deleted?: boolean;
   creditCard?: { creditCardNumber?: string; creditCardBrand?: string };
 };
 
@@ -215,11 +216,12 @@ export async function pagarAvulso(o: { uid: string; email: string; planoId: stri
 /** Remove o cartão: a renovação automática para. O acesso continua até o fim do período já pago. */
 export async function removerCartao(uid: string) {
   const sb = supabaseAdmin();
-  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id, pix_autorizacao_id").eq("profissional_id", uid).maybeSingle();
   if (!a) return { ok: false as const, erro: "Não há cartão cadastrado." };
   try {
     if (a.gateway_assinatura_id) await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "DELETE" });
-    await sb.from("assinaturas").update({ gateway_assinatura_id: null, cartao_final: null, cartao_bandeira: null, renovacao_automatica: false, proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    await encerrarPix(a.pix_autorizacao_id);
+    await sb.from("assinaturas").update({ gateway_assinatura_id: null, pix_autorizacao_id: null, forma_pagamento: "cartao", cartao_final: null, cartao_bandeira: null, renovacao_automatica: false, proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
     console.error("remover cartao", String(e).slice(0, 300));
@@ -230,8 +232,9 @@ export async function removerCartao(uid: string) {
 /** Troca o cartão da assinatura sem cobrar na hora. Cobranças pendentes passam a usar o novo cartão. */
 export async function trocarCartao(uid: string, cartao: CartaoInformado, ip: string) {
   const sb = supabaseAdmin();
-  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id, status").eq("profissional_id", uid).maybeSingle();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id, status, forma_pagamento").eq("profissional_id", uid).maybeSingle();
   if (!a?.gateway_assinatura_id) return { ok: false as const, erro: "Você ainda não tem assinatura." };
+  if (a.forma_pagamento === "pix_automatico") return { ok: false as const, erro: "Seu plano renova pelo Pix Automático. Para usar cartão, cancele a renovação e assine de novo com o cartão." };
   try {
     const s = await asaas<Assinatura>(`/subscriptions/${a.gateway_assinatura_id}/creditCard`, { method: "PUT", body: JSON.stringify(corpoCartao(cartao, ip)) });
     const numero = soDigitos(cartao.numero);
@@ -249,8 +252,9 @@ export async function trocarCartao(uid: string, cartao: CartaoInformado, ip: str
 /** Muda o plano: o novo valor vale a partir da próxima cobrança. */
 export async function trocarPlano(uid: string, planoId: string) {
   const plano = planoPorId(planoId);
-  const { data: a } = await supabaseAdmin().from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  const { data: a } = await supabaseAdmin().from("assinaturas").select("gateway_assinatura_id, forma_pagamento").eq("profissional_id", uid).maybeSingle();
   if (!plano || !a?.gateway_assinatura_id) return { ok: false as const, erro: "Assinatura ou plano não encontrado." };
+  if (a.forma_pagamento === "pix_automatico") return { ok: false as const, erro: "No Pix Automático o valor autorizado é fixo. Para mudar de plano, cancele a renovação e autorize de novo com o novo plano." };
   try {
     await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "PUT", body: JSON.stringify({ value: plano.valor, description: `Auris - plano ${plano.nome}`, updatePendingPayments: true }) });
     await supabaseAdmin().from("assinaturas").update({ plano: plano.id, valor: plano.valor, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
@@ -264,10 +268,11 @@ export async function trocarPlano(uid: string, planoId: string) {
 /** Cancela a renovação. O acesso continua até o fim do período já pago. */
 export async function cancelarAssinatura(uid: string) {
   const sb = supabaseAdmin();
-  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id, pix_autorizacao_id").eq("profissional_id", uid).maybeSingle();
   try {
     if (a?.gateway_assinatura_id) await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "DELETE" });
-    await sb.from("assinaturas").update({ status: "cancelada", gateway_assinatura_id: null, renovacao_automatica: false, cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    await encerrarPix(a?.pix_autorizacao_id);
+    await sb.from("assinaturas").update({ status: "cancelada", gateway_assinatura_id: null, pix_autorizacao_id: null, renovacao_automatica: false, cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
     console.error("cancelar", String(e).slice(0, 300));
@@ -332,7 +337,12 @@ export async function sincronizarPorAssinatura(id: string, pagamentoId?: string)
  */
 export async function atualizarCobranca(c: Cobranca) {
   const sb = supabaseAdmin();
-  const { data } = await sb.from("auris_cobrancas").select("profissional_id, plano, origem").eq("gateway_pagamento_id", c.id).maybeSingle();
+  let { data } = await sb.from("auris_cobrancas").select("profissional_id, plano, origem").eq("gateway_pagamento_id", c.id).maybeSingle();
+  if (!data && c.customer) {
+    // Primeiro pagamento do Pix Automático (QR Code da autorização): ainda não está no histórico.
+    const { data: a } = await sb.from("assinaturas").select("profissional_id, pix_plano, plano").eq("asaas_cliente_id", c.customer).maybeSingle();
+    if (a) data = { profissional_id: a.profissional_id, plano: a.pix_plano || a.plano, origem: "assinatura" };
+  }
   if (!data) return;
   await registrarCobranca(data.profissional_id, c, data.origem === "assinatura" ? "assinatura" : "avulso", data.plano);
   if (/REFUND|CHARGEBACK/.test(c.status)) {
@@ -349,4 +359,95 @@ export async function sincronizarTodas(): Promise<number> {
   let n = 0;
   for (const a of data || []) { try { await sincronizar(a.profissional_id); n++; } catch (e) { console.error("sync assinatura", String(e).slice(0, 200)); } }
   return n;
+}
+
+
+/* ---------------------------- Pix Automático ---------------------------- */
+
+type AutorizacaoPix = {
+  id: string; status: string; subscriptionId?: string | null; value?: number | null;
+  payload?: string; encodedImage?: string | null;
+  immediateQrCode?: { payload?: string; encodedImage?: string | null; expirationDate?: string; conciliationIdentifier?: string } | null;
+};
+
+async function encerrarPix(id?: string | null) {
+  if (!id) return;
+  await asaas(`/pix/automatic/authorizations/${encodeURIComponent(id)}`, { method: "DELETE" }).catch((e) => console.error("cancelar pix automatico", String(e).slice(0, 200)));
+}
+
+/**
+ * Pix Automático: cria a autorização com o QR Code do primeiro mês.
+ * Ao pagar, o médico autoriza no app do banco os débitos mensais seguintes (o Asaas gera as cobranças por uma assinatura).
+ */
+export async function iniciarPixAutomatico(o: { uid: string; email: string; planoId: string; cpf: string }) {
+  const plano = planoPorId(o.planoId);
+  if (!plano) return { ok: false as const, erro: "Plano inválido." };
+  const cpf = soDigitos(o.cpf);
+  if (cpf.length !== 11) return { ok: false as const, erro: "Confira o seu CPF." };
+  const sb = supabaseAdmin();
+  try {
+    const cliente = await clienteDoProfissional(o.uid, o.email, cpf);
+    const { data: atual } = await sb.from("assinaturas").select("pix_autorizacao_id, gateway_assinatura_id, forma_pagamento").eq("profissional_id", o.uid).maybeSingle();
+    if (atual?.gateway_assinatura_id) return { ok: false as const, erro: "Você já tem renovação automática. Cancele a atual antes de trocar a forma de pagamento." };
+    if (atual?.pix_autorizacao_id) await encerrarPix(atual.pix_autorizacao_id);
+    const proxima = new Date(); proxima.setMonth(proxima.getMonth() + 1);
+    const desc = `Auris plano ${plano.nome}`.slice(0, 35);
+    const r = await asaas<AutorizacaoPix>("/pix/automatic/authorizations", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId: cliente, frequency: "MONTHLY", contractId: `AURIS-${o.uid.slice(0, 8)}-${Date.now().toString(36)}`.slice(0, 35),
+        startDate: diaBR(proxima), value: plano.valor, description: desc, paymentCreationMode: "SUBSCRIPTION", retryPolicy: "ALLOW_THREE_IN_SEVEN_DAYS",
+        immediateQrCode: { originalValue: plano.valor, expirationSeconds: 3600, description: desc },
+      }),
+    });
+    const codigo = r.payload || r.immediateQrCode?.payload || "";
+    if (!codigo) { console.error("pix automatico sem payload", JSON.stringify(r).slice(0, 400)); return { ok: false as const, erro: "O Asaas não devolveu o QR Code. Tente de novo em alguns minutos." }; }
+    const base64 = r.encodedImage || r.immediateQrCode?.encodedImage;
+    const imagem = base64 ? `data:image/png;base64,${base64}` : await QRCode.toDataURL(codigo, { margin: 1, width: 280 });
+    await sb.from("assinaturas").upsert({ profissional_id: o.uid, pix_autorizacao_id: r.id, pix_plano: plano.id, atualizado_em: new Date().toISOString() }, { onConflict: "profissional_id" });
+    return { ok: true as const, codigo, imagem, expira: r.immediateQrCode?.expirationDate || null };
+  } catch (e) {
+    console.error("pix automatico", String(e).slice(0, 400));
+    return { ok: false as const, erro: e instanceof ErroAsaas && e.descricao ? e.descricao : "Não foi possível gerar o Pix Automático agora. Tente de novo em alguns minutos." };
+  }
+}
+
+/** Atualiza a assinatura a partir da autorização do Pix Automático (aviso do Asaas ou consulta da tela). */
+export async function sincronizarPix(autorizacaoId: string) {
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("*").eq("pix_autorizacao_id", autorizacaoId).maybeSingle();
+  if (!a) return;
+  const au = await asaas<AutorizacaoPix>(`/pix/automatic/authorizations/${encodeURIComponent(autorizacaoId)}`);
+  if (au.status === "ACTIVE") {
+    const plano = planoPorId(a.pix_plano || a.plano || "");
+    const ate = new Date(); ate.setMonth(ate.getMonth() + 1);
+    const pagoAte = a.pago_ate && new Date(a.pago_ate) > ate ? a.pago_ate : ate.toISOString();
+    await sb.from("assinaturas").update({
+      status: "ativa", plano: plano?.id || a.plano, valor: plano?.valor ?? au.value ?? a.valor, forma_pagamento: "pix_automatico",
+      gateway_assinatura_id: au.subscriptionId || a.gateway_assinatura_id || null, cartao_final: null, cartao_bandeira: null,
+      renovacao_automatica: true, pago_ate: a.forma_pagamento === "pix_automatico" ? a.pago_ate : pagoAte,
+      ultimo_pagamento_em: a.forma_pagamento === "pix_automatico" ? a.ultimo_pagamento_em : new Date().toISOString(),
+      falha_desde: null, falha_motivo: null, cancelada_em: null, atualizado_em: new Date().toISOString(),
+    }).eq("profissional_id", a.profissional_id);
+    if (au.subscriptionId) await sincronizar(a.profissional_id).catch(() => {});
+  } else if (/CANCELLED|REFUSED|EXPIRED/.test(au.status)) {
+    if (a.forma_pagamento === "pix_automatico" && a.renovacao_automatica) {
+      // O médico cancelou o Pix Automático no banco: a renovação para; o acesso segue até o fim do período pago.
+      if (a.gateway_assinatura_id) await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "DELETE" }).catch(() => {});
+      await sb.from("assinaturas").update({ status: "cancelada", gateway_assinatura_id: null, pix_autorizacao_id: null, renovacao_automatica: false, proxima_cobranca: null, cancelada_em: new Date().toISOString(), atualizado_em: new Date().toISOString() }).eq("profissional_id", a.profissional_id);
+    } else {
+      await sb.from("assinaturas").update({ pix_autorizacao_id: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", a.profissional_id);
+    }
+  }
+}
+
+/** Consulta feita pela tela enquanto o médico paga o QR Code. */
+export async function situacaoPix(uid: string): Promise<"pendente" | "ativo" | "nenhum"> {
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("pix_autorizacao_id, forma_pagamento, renovacao_automatica").eq("profissional_id", uid).maybeSingle();
+  if (!a?.pix_autorizacao_id) return a?.forma_pagamento === "pix_automatico" && a.renovacao_automatica ? "ativo" : "nenhum";
+  await sincronizarPix(a.pix_autorizacao_id).catch((e) => console.error("situacao pix", String(e).slice(0, 200)));
+  const { data: b } = await sb.from("assinaturas").select("forma_pagamento, renovacao_automatica, pix_autorizacao_id").eq("profissional_id", uid).maybeSingle();
+  if (b?.forma_pagamento === "pix_automatico" && b.renovacao_automatica) return "ativo";
+  return b?.pix_autorizacao_id ? "pendente" : "nenhum";
 }

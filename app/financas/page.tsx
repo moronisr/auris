@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import CartaoAsaas, { type CartaoForm } from "@/components/CartaoAsaas";
+import PixAutomatico from "@/components/PixAutomatico";
 import Recebimentos from "@/components/Recebimentos";
 import { buscarSituacao, dataCurtaBR, type SituacaoAssinatura } from "@/lib/useAcesso";
 
@@ -21,6 +22,7 @@ export default function Financas() {
   const [escolhido, setEscolhido] = useState("");
   const [modo, setModo] = useState<"" | "assinar" | "cartao" | "plano" | "remover" | "cancelar">("");
   const [salvarCartao, setSalvarCartao] = useState(true);
+  const [forma, setForma] = useState<"cartao" | "pix">("cartao");
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -51,6 +53,7 @@ export default function Financas() {
   const ativo = !!a?.plano && (s.acesso === "ativa" || s.acesso === "aviso" || s.acesso === "liberado") && !!a.pago_ate && new Date(a.pago_ate) > new Date(Date.now() - 7 * 864e5);
   const recorrente = !!a?.recorrente;
   const temCartao = !!a?.cartao_final;
+  const pix = a?.forma_pagamento === "pix_automatico" && recorrente;
   const plano = s.planos.find((p) => p.id === escolhido);
   const upgrades = planoAtual ? s.planos.filter((p) => !p.oculto && p.valor > planoAtual.valor) : [];
   const testeAte = s.cobrancaAtiva && s.fimTeste && new Date(s.fimTeste) > new Date() ? s.fimTeste : null;
@@ -59,6 +62,15 @@ export default function Financas() {
 
   const formCartao = (modoForm: "assinar" | "cartao", p: { id: string; nome: string; valor: number }) => (
     <div style={{ marginTop: 14 }}>
+      {modoForm === "assinar" && (
+        <div className="abas-login" role="tablist" aria-label="Forma de pagamento" style={{ marginBottom: 12 }}>
+          <button type="button" role="tab" aria-selected={forma === "cartao"} className={forma === "cartao" ? "ativa" : ""} onClick={() => setForma("cartao")}>Cartão de crédito</button>
+          <button type="button" role="tab" aria-selected={forma === "pix"} className={forma === "pix" ? "ativa" : ""} onClick={() => setForma("pix")}>Pix Automático</button>
+        </div>
+      )}
+      {modoForm === "assinar" && forma === "pix" ? (
+        <PixAutomatico key={p.id} plano={p} onAtivo={() => pronto(`Pix Automático autorizado. Plano ${p.nome} ativo com renovação automática.`)} />
+      ) : <>
       {modoForm === "assinar" && (
         <label className="aceite">
           <input type="checkbox" checked={salvarCartao} onChange={(e) => setSalvarCartao(e.target.checked)} />
@@ -79,6 +91,7 @@ export default function Financas() {
           if (!e) pronto(salvarCartao ? `Plano ${p.nome} ativado com renovação automática.` : `Pagamento aprovado. Plano ${p.nome} ativo por 1 mês.`);
           return e;
         }} />
+      </>}
     </div>
   );
 
@@ -102,7 +115,7 @@ export default function Financas() {
         {a?.plano ? (
           <dl className="comprovante">
             <dt>Plano</dt><dd>{planoAtual?.nome || a.plano}{a.valor ? `, ${reais(Number(a.valor))} por mês` : ""}</dd>
-            <dt>Renovação</dt><dd>{recorrente ? "Automática, no cartão" : "Manual (cartão não salvo)"}</dd>
+            <dt>Renovação</dt><dd>{recorrente ? (pix ? "Automática, no Pix Automático" : "Automática, no cartão") : "Manual (cartão não salvo)"}</dd>
             {recorrente && a.proxima_cobranca && <><dt>Próxima cobrança</dt><dd>{dataCurtaBR(a.proxima_cobranca)}</dd></>}
             {a.pago_ate && <><dt>{recorrente ? "Acesso garantido até" : "Vence em"}</dt><dd>{dataCurtaBR(a.pago_ate)}</dd></>}
             {a.ultimo_pagamento_em && <><dt>Último pagamento</dt><dd>{dataCurtaBR(a.ultimo_pagamento_em)}</dd></>}
@@ -169,18 +182,20 @@ export default function Financas() {
       {s.configurada && a?.plano && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Forma de pagamento</h2>
-          {temCartao ? (
+          {pix ? (
+            <p style={{ margin: 0 }}><b>Pix Automático</b> <span className="muted">(débito mensal autorizado no app do seu banco)</span></p>
+          ) : temCartao ? (
             <div className="row" style={{ alignItems: "center" }}>
               <span>Cartão de crédito <b>{BANDEIRA[a.cartao_bandeira || ""] || ""} final {a.cartao_final}</b>{!recorrente && <span className="muted"> (não salvo para renovação)</span>}</span>
             </div>
           ) : <p className="muted" style={{ margin: 0 }}>Nenhum cartão salvo.</p>}
           <div className="acoes-pequenas">
-            {recorrente && <button type="button" className="link" onClick={() => { setModo(modo === "cartao" ? "" : "cartao"); setMsg(null); }}>Trocar cartão</button>}
+            {recorrente && !pix && <button type="button" className="link" onClick={() => { setModo(modo === "cartao" ? "" : "cartao"); setMsg(null); }}>Trocar cartão</button>}
             {!recorrente && <button type="button" className="link" onClick={() => { setEscolhido(a.plano!); setSalvarCartao(true); setModo("assinar"); }}>Salvar um cartão</button>}
-            {recorrente && <button type="button" className="link" onClick={() => { setModo(modo === "remover" ? "" : "remover"); setMsg(null); }}>Remover cartão</button>}
-            {ativo && <button type="button" className="link" onClick={() => { setModo(modo === "plano" ? "" : "plano"); setEscolhido(a.plano || ""); setMsg(null); }}>Mudar de plano</button>}
+            {recorrente && !pix && <button type="button" className="link" onClick={() => { setModo(modo === "remover" ? "" : "remover"); setMsg(null); }}>Remover cartão</button>}
+            {ativo && !pix && <button type="button" className="link" onClick={() => { setModo(modo === "plano" ? "" : "plano"); setEscolhido(a.plano || ""); setMsg(null); }}>Mudar de plano</button>}
           </div>
-          <p className="muted" style={{ marginBottom: 0 }}>Pix Automático, sem cartão: em breve.</p>
+          {!recorrente && <p className="muted" style={{ marginBottom: 0 }}>Também é possível renovar pelo Pix Automático, sem cartão: escolha a opção ao salvar a forma de pagamento.</p>}
 
           {modo === "cartao" && planoAtual && formCartao("cartao", planoAtual)}
           {modo === "remover" && (

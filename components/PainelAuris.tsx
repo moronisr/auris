@@ -198,7 +198,7 @@ export default function PainelAuris() {
           <p style={{ marginTop: 0 }}>
             Asaas: <b>{!d.asaas.configurado ? "sem chave" : d.asaas.erro ? d.asaas.erro : d.asaas.producao ? "conta real (produção)" : "conta de teste (sandbox)"}</b>
             {d.asaas.configurado && !d.asaas.erro && <> · Avisos de pagamento: <b>{d.asaas.avisos ? "conectados" : "não conectados"}</b></>}
-            {d.asaas.configurado && !d.asaas.erro && !d.asaas.avisos && <>{" "}<button type="button" className="link" disabled={enviando} onClick={() => agir({ acao: "conectar_asaas" })}>Conectar avisos</button></>}
+            {d.asaas.configurado && !d.asaas.erro && <>{" "}<button type="button" className="link" disabled={enviando} onClick={() => agir({ acao: "conectar_asaas" })}>{d.asaas.avisos ? "Atualizar avisos" : "Conectar avisos"}</button></>}
           </p>
         )}
         <p style={{ marginTop: 0 }}>
