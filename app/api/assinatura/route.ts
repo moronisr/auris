@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { idsAdmin, supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PLANOS } from "@/lib/planos";
-import { acessoDe, assinar, cancelarAssinatura, cobrancaConfigurada, pagarAvulso, removerCartao, sincronizar, trocarCartao, trocarPlano } from "@/lib/assinatura";
+import { acessoDe, assinar, cancelarAssinatura, cobrancaConfigurada, pagarAvulso, removerCartao, sincronizar, trocarCartao, trocarPlano, vincularAssinaturaMp } from "@/lib/assinatura";
 
 export const runtime = "nodejs";
 
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { acao?: string; plano?: string; cartao?: { token?: string; payment_method_id?: string; issuer_id?: string; payer?: { email?: string; identification?: { type: string; number: string } }; aparelho?: string } } | null;
   const plano = PLANOS.find((p) => p.id === b?.plano);
   if (plano?.oculto && !admins().includes(user.id) && !(await podeVerTeste(user.id))) return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
-  let r: { ok: boolean; erro?: string };
+  let r: { ok: boolean; erro?: string; link?: string };
   if (b?.acao === "assinar") {
     if (!plano || !b.cartao?.token) return NextResponse.json({ erro: "Escolha o plano e informe o cartão." }, { status: 400 });
     const { data: atual } = await supabaseAdmin().from("assinaturas").select("status, mp_assinatura_id").eq("profissional_id", user.id).maybeSingle();
@@ -63,13 +63,17 @@ export async function POST(req: Request) {
     const { data: cfg } = await supabaseAdmin().from("auris_config").select("cobranca_ativa").eq("id", 1).maybeSingle();
     // Com a cobrança ainda desligada (fase de testes), cobra na hora; com ela ligada, só no fim do teste grátis.
     const fimTeste = cfg?.cobranca_ativa && fim ? new Date(fim as string) : null;
-    r = await assinar({ uid: user.id, email: user.email || "", planoId: plano.id, cardToken: b.cartao.token, payerEmail: b.cartao.payer?.email, fimTeste: atual?.status === "cancelada" ? null : fimTeste, base: new URL(req.url).origin });
+    r = await assinar({ uid: user.id, email: user.email || "", planoId: plano.id, cardToken: b.cartao.token, payerEmail: b.cartao.payer?.email, aparelho: /^[\w-]{8,100}$/.test(b.cartao.aparelho || "") ? b.cartao.aparelho : undefined, fimTeste: atual?.status === "cancelada" ? null : fimTeste, base: new URL(req.url).origin });
   } else if (b?.acao === "pagar_avulso") {
     if (!plano || !b.cartao?.token || !b.cartao.payment_method_id) return NextResponse.json({ erro: "Escolha o plano e informe o cartão." }, { status: 400 });
     const { data: fim } = await supabaseAdmin().rpc("auris_fim_teste", { uid: user.id });
     const { data: cfg } = await supabaseAdmin().from("auris_config").select("cobranca_ativa").eq("id", 1).maybeSingle();
     r = await pagarAvulso({ uid: user.id, email: user.email || "", planoId: plano.id, fimTeste: cfg?.cobranca_ativa && fim ? new Date(fim as string) : null,
       cartao: { token: b.cartao.token, payment_method_id: b.cartao.payment_method_id, issuer_id: b.cartao.issuer_id, payer: b.cartao.payer, aparelho: /^[\w-]{8,100}$/.test(b.cartao.aparelho || "") ? b.cartao.aparelho : undefined } });
+  } else if (b?.acao === "vincular_mp") {
+    const id = String((b as { preapproval_id?: string }).preapproval_id || "");
+    if (!/^[\w-]{6,80}$/.test(id)) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
+    r = await vincularAssinaturaMp(user.id, id);
   } else if (b?.acao === "remover_cartao") {
     r = await removerCartao(user.id);
   } else if (b?.acao === "trocar_cartao") {
@@ -85,5 +89,5 @@ export async function POST(req: Request) {
   } else {
     return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   }
-  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ erro: r.erro }, { status: 402 });
+  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ erro: r.erro, ...(r.link ? { link: r.link } : {}) }, { status: 402 });
 }

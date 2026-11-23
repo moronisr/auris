@@ -76,7 +76,7 @@ type Preapproval = {
 };
 
 /** Cria a assinatura com o cartão. Durante o teste grátis, a primeira cobrança é só no fim do teste. */
-export async function assinar(o: { uid: string; email: string; planoId: string; cardToken: string; payerEmail?: string; fimTeste: Date | null; base: string }) {
+export async function assinar(o: { uid: string; email: string; planoId: string; cardToken: string; payerEmail?: string; aparelho?: string; fimTeste: Date | null; base: string }) {
   const plano = planoPorId(o.planoId);
   if (!plano) return { ok: false as const, erro: "Plano inválido." };
   const { data: atual } = await supabaseAdmin().from("assinaturas").select("pago_ate").eq("profissional_id", o.uid).maybeSingle();
@@ -88,7 +88,8 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
     const cartao = await dadosDoCartao(o.cardToken);
     const pa = await mp<Preapproval>("/preapproval", {
       method: "POST",
-      headers: { "X-Idempotency-Key": `assinar-${o.uid}-${o.cardToken.slice(0, 16)}` },
+      // Identificação do aparelho (antifraude): sem ela, o Mercado Pago recusa a validação do cartão com frequência.
+      headers: { "X-Idempotency-Key": `assinar-${o.uid}-${o.cardToken.slice(0, 16)}`, ...(o.aparelho ? { "X-meli-session-id": o.aparelho } : {}) },
       body: JSON.stringify({
         reason: `Auris - plano ${plano.nome}`,
         external_reference: o.uid,
@@ -111,8 +112,82 @@ export async function assinar(o: { uid: string; email: string; planoId: string; 
     return { ok: true as const };
   } catch (e) {
     console.error("assinar", String(e).slice(0, 300));
+    // Validação do cartão recusada: oferece concluir na página do próprio Mercado Pago, que aprova mais.
+    if (/CC_VAL_433|high_risk|rejected|security|fraud/i.test(String(e))) {
+      const link = await linkCheckoutMp(o.planoId, o.base).catch((x) => { console.error("link assinatura", String(x).slice(0, 200)); return null; });
+      if (link) return { ok: false as const, erro: "O Mercado Pago não aprovou a validação do cartão por aqui. Nenhum valor foi cobrado. Conclua a assinatura na página segura do Mercado Pago: lá você pode usar o mesmo cartão.", link };
+    }
     return { ok: false as const, erro: motivoMp(e) };
   }
+}
+
+/** Plano de assinatura no Mercado Pago (um por plano e valor do Auris), guardado em auris_config.mp_planos. */
+async function planoMp(planoId: string, base: string): Promise<{ id: string; link: string } | null> {
+  const plano = planoPorId(planoId);
+  if (!plano) return null;
+  const sb = supabaseAdmin();
+  const { data: cfg } = await sb.from("auris_config").select("mp_planos").eq("id", 1).maybeSingle();
+  const mapa = ((cfg?.mp_planos as Record<string, { id: string; link: string }>) || {});
+  const chave = `${plano.id}:${plano.valor}`;
+  if (mapa[chave]?.id) return mapa[chave];
+  const pp = await mp<{ id: string; init_point: string }>("/preapproval_plan", {
+    method: "POST",
+    body: JSON.stringify({
+      reason: `Auris - plano ${plano.nome}`,
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: plano.valor, currency_id: "BRL" },
+      back_url: `${base}/financas?aba=plano`,
+    }),
+  });
+  mapa[chave] = { id: pp.id, link: pp.init_point };
+  await sb.from("auris_config").update({ mp_planos: mapa }).eq("id", 1);
+  return mapa[chave];
+}
+
+export async function linkCheckoutMp(planoId: string, base: string): Promise<string | null> {
+  return (await planoMp(planoId, base))?.link || null;
+}
+
+/**
+ * Volta da página do Mercado Pago com ?preapproval_id=…: confere a assinatura no Mercado Pago e liga ao profissional.
+ * Só aceita assinatura de um plano do Auris, ativa, e que ainda não esteja ligada a outra pessoa.
+ */
+export async function vincularAssinaturaMp(uid: string, preapprovalId: string) {
+  const sb = supabaseAdmin();
+  try {
+    const pa = await mp<Preapproval & { preapproval_plan_id?: string; payer_id?: number }>(`/preapproval/${encodeURIComponent(preapprovalId)}`);
+    const { data: cfg } = await sb.from("auris_config").select("mp_planos").eq("id", 1).maybeSingle();
+    const mapa = ((cfg?.mp_planos as Record<string, { id: string }>) || {});
+    const achado = Object.entries(mapa).find(([, v]) => v.id === pa.preapproval_plan_id);
+    if (!achado) return { ok: false as const, erro: "Assinatura não reconhecida." };
+    if (pa.status !== "authorized" && pa.status !== "pending") return { ok: false as const, erro: "A assinatura no Mercado Pago não foi concluída. Tente de novo." };
+    const { data: outro } = await sb.from("assinaturas").select("profissional_id").eq("mp_assinatura_id", pa.id).maybeSingle();
+    if (outro && outro.profissional_id !== uid) return { ok: false as const, erro: "Esta assinatura já está ligada a outra conta." };
+    if (outro) { await sincronizar(uid).catch(() => {}); return { ok: true as const }; }
+    const planoId = achado[0].split(":")[0];
+    const plano = planoPorId(planoId);
+    const { data: atual } = await sb.from("assinaturas").select("pago_ate").eq("profissional_id", uid).maybeSingle();
+    const pagoAte = atual?.pago_ate && new Date(atual.pago_ate) > new Date(Date.now() + 2 * 864e5) ? atual.pago_ate : new Date(Date.now() + 2 * 864e5).toISOString();
+    await sb.from("assinaturas").upsert({
+      profissional_id: uid, plano: planoId, status: "ativa", mp_assinatura_id: pa.id, valor: plano?.valor ?? pa.auto_recurring?.transaction_amount ?? null,
+      pago_ate: pagoAte, falha_desde: null, falha_motivo: null, cancelada_em: null, renovacao_automatica: true,
+      proxima_cobranca: pa.next_payment_date || null, atualizado_em: new Date().toISOString(),
+    });
+    await sincronizar(uid).catch(() => {});
+    await cartaoDaPrimeiraCobranca(uid).catch(() => {});
+    return { ok: true as const };
+  } catch (e) {
+    console.error("vincular assinatura", String(e).slice(0, 300));
+    return { ok: false as const, erro: "Não foi possível confirmar a assinatura agora. Recarregue a página em alguns minutos." };
+  }
+}
+
+/** Bandeira e 4 últimos números a partir da primeira cobrança aprovada (assinaturas feitas na página do Mercado Pago). */
+async function cartaoDaPrimeiraCobranca(uid: string) {
+  const sb = supabaseAdmin();
+  const { data: c } = await sb.from("auris_cobrancas").select("mp_pagamento_id").eq("profissional_id", uid).eq("origem", "assinatura").eq("status", "approved").order("data", { ascending: false }).limit(1).maybeSingle();
+  if (!c?.mp_pagamento_id) return;
+  const pg = await mp<{ payment_method_id?: string; card?: { last_four_digits?: string } }>(`/v1/payments/${c.mp_pagamento_id}`);
+  if (pg.card?.last_four_digits) await sb.from("assinaturas").update({ cartao_final: pg.card.last_four_digits, cartao_bandeira: pg.payment_method_id || null }).eq("profissional_id", uid);
 }
 
 /** Paga só um mês, sem guardar o cartão para as próximas cobranças. */
@@ -263,6 +338,7 @@ export async function sincronizar(uid: string): Promise<void> {
     if (a.falha_motivo !== "chargeback") console.error("CHARGEBACK assinatura", uid, estornada.payment?.id);
   }
   await sb.from("assinaturas").update(upd).eq("profissional_id", uid);
+  if (!a.cartao_final && aprovada) await cartaoDaPrimeiraCobranca(uid).catch(() => {});
 }
 
 export async function sincronizarPorAssinatura(mpId: string) {
