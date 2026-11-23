@@ -45,7 +45,7 @@ export async function GET() {
   const { data: cobrancas } = await sb.from("auris_cobrancas").select("data, valor, status, origem, plano").eq("profissional_id", user.id).order("data", { ascending: false }).limit(24);
   return NextResponse.json({
     acesso, cobrancaAtiva: !!cfg?.cobranca_ativa, configurada: cobrancaConfigurada(), fimTeste,
-    assinatura: a ? { ...a, gateway_assinatura_id: undefined, atualizado_em: undefined, recorrente: !!a.gateway_assinatura_id } : null,
+    assinatura: a ? { ...a, gateway_assinatura_id: undefined, atualizado_em: undefined, recorrente: !!a.gateway_assinatura_id || (a.forma_pagamento === "pix_automatico" && !!a.renovacao_automatica) } : null,
     cobrancas: cobrancas || [],
     planos: PLANOS.filter((p) => !p.oculto || testeLiberado), admin, email: user.email,
   });
