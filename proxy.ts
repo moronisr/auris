@@ -2,7 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { RESERVADOS } from "@/lib/agenda";
 
+/** Endereços antigos do Auris: as páginas passam a abrir no domínio oficial (as rotas /api continuam respondendo, para avisos de pagamento antigos). */
+const ENDERECOS_ANTIGOS = new Set(["aurisclinica.vercel.app", "sistema-medico-kappa.vercel.app"]);
+const DOMINIO_OFICIAL = "https://www.aurismed.com.br";
+
 export async function proxy(req: NextRequest) {
+  const host = (req.headers.get("host") || "").toLowerCase();
+  if (ENDERECOS_ANTIGOS.has(host) && !req.nextUrl.pathname.startsWith("/api")) {
+    return NextResponse.redirect(new URL(req.nextUrl.pathname + req.nextUrl.search, DOMINIO_OFICIAL), 308);
+  }
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
