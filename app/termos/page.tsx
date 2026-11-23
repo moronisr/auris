@@ -72,6 +72,7 @@ export default function Termos() {
       <h2>7. Planos e assinatura</h2>
       <h3>7.1 Planos e preços</h3>
       <p>Os planos, seus recursos e preços ficam em Finanças, na área &quot;Plano do Auris&quot;, e são mostrados antes da contratação. Os valores são cobrados por mês.</p>
+      <p><b>Consultas ilimitadas:</b> enquanto o plano estiver pago, o profissional pode registrar quantas consultas quiser no período contratado. A conta é pessoal e intransferível: cada profissional usa a sua, e o compartilhamento de uma mesma conta entre profissionais não é permitido.</p>
 
       <h3>7.2 Teste grátis</h3>
       <p>Quem ainda não tem plano usa o Auris gratuitamente por 10 dias. Ao fim do teste, é preciso contratar um plano para continuar registrando e atendendo. Nada é cobrado durante o teste.</p>
@@ -102,7 +103,10 @@ export default function Termos() {
       <h3>7.9 Contestação da mensalidade</h3>
       <p>Se uma mensalidade for contestada no banco ou na operadora do cartão (chargeback), o plano volta para a situação de pagamento pendente, com as mesmas regras do item 7.5.</p>
 
-      <h3>7.10 Acesso de cortesia</h3>
+      <h3>7.10 Reajuste de preço</h3>
+      <p>O preço do plano fica fixo por 12 meses, contados da contratação. Depois desse prazo, o valor pode ser reajustado no máximo uma vez a cada 12 meses, com aviso por e-mail pelo menos 30 dias antes. Se não concordar, o profissional pode cancelar antes do novo valor, sem custo.</p>
+
+      <h3>7.11 Acesso de cortesia</h3>
       <p>O Auris pode liberar o uso gratuito por um prazo definido, por exemplo, para profissionais de um programa piloto. Ao fim da cortesia, volta a valer a situação normal da conta: plano ativo, teste grátis ou necessidade de contratar.</p>
 
       <h2>8. Encerramento</h2>
