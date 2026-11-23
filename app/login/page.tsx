@@ -18,6 +18,8 @@ function traduzir(msg: string): string {
 export default function Login() {
   const router = useRouter();
   const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
+  // Link de convite (aurismed.com.br/login?criar=1) abre direto na aba "Criar conta".
+  useEffect(() => { if (new URLSearchParams(window.location.search).has("criar")) setModo("cadastrar"); }, []);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
