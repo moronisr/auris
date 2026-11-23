@@ -319,15 +319,28 @@ export async function sincronizar(uid: string): Promise<void> {
   await sb.from("assinaturas").update(upd).eq("profissional_id", uid);
 }
 
-export async function sincronizarPorAssinatura(id: string) {
+/** Aviso de uma cobrança da assinatura. Se a assinatura já foi cancelada, atualiza só aquela cobrança (ex.: estorno depois do cancelamento). */
+export async function sincronizarPorAssinatura(id: string, pagamentoId?: string) {
   const { data } = await supabaseAdmin().from("assinaturas").select("profissional_id").eq("gateway_assinatura_id", id).maybeSingle();
   if (data) await sincronizar(data.profissional_id);
+  else if (pagamentoId) await atualizarCobranca(await asaas<Cobranca>(`/payments/${encodeURIComponent(pagamentoId)}`));
 }
 
-/** Aviso de uma cobrança avulsa (fora da assinatura): só atualiza o histórico. */
-export async function atualizarCobrancaAvulsa(c: Cobranca) {
-  const { data } = await supabaseAdmin().from("auris_cobrancas").select("profissional_id, plano").eq("gateway_pagamento_id", c.id).maybeSingle();
-  if (data) await registrarCobranca(data.profissional_id, c, "avulso", data.plano);
+/**
+ * Aviso de uma cobrança fora de uma assinatura ativa: atualiza o histórico.
+ * Se a cobrança devolvida era a que pagava o período atual, o acesso pago termina agora (devolução integral).
+ */
+export async function atualizarCobranca(c: Cobranca) {
+  const sb = supabaseAdmin();
+  const { data } = await sb.from("auris_cobrancas").select("profissional_id, plano, origem").eq("gateway_pagamento_id", c.id).maybeSingle();
+  if (!data) return;
+  await registrarCobranca(data.profissional_id, c, data.origem === "assinatura" ? "assinatura" : "avulso", data.plano);
+  if (/REFUND|CHARGEBACK/.test(c.status)) {
+    const { data: a } = await sb.from("assinaturas").select("ultimo_pagamento_id, pago_ate").eq("profissional_id", data.profissional_id).maybeSingle();
+    if (a?.ultimo_pagamento_id === c.id && a.pago_ate && new Date(a.pago_ate) > new Date()) {
+      await sb.from("assinaturas").update({ pago_ate: new Date().toISOString(), atualizado_em: new Date().toISOString() }).eq("profissional_id", data.profissional_id);
+    }
+  }
 }
 
 /** Rotina diária: todas as assinaturas ativas, com falha ou canceladas que ainda têm assinatura no Asaas. */
