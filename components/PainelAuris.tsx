@@ -10,6 +10,7 @@ type Prof = {
 };
 type Dados = {
   cobrancaAtiva: boolean; cobrancaDesde: string | null;
+  asaas?: { configurado: boolean; producao: boolean; avisos: boolean; erro: string | null };
   resumo: Record<string, number>;
   meses: { nome: string; valor: number }[];
   profissionais: Prof[];
@@ -193,6 +194,13 @@ export default function PainelAuris() {
 
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Cobrança dos planos</h2>
+        {d.asaas && (
+          <p style={{ marginTop: 0 }}>
+            Asaas: <b>{!d.asaas.configurado ? "sem chave" : d.asaas.erro ? d.asaas.erro : d.asaas.producao ? "conta real (produção)" : "conta de teste (sandbox)"}</b>
+            {d.asaas.configurado && !d.asaas.erro && <> · Avisos de pagamento: <b>{d.asaas.avisos ? "conectados" : "não conectados"}</b></>}
+            {d.asaas.configurado && !d.asaas.erro && !d.asaas.avisos && <>{" "}<button type="button" className="link" disabled={enviando} onClick={() => agir({ acao: "conectar_asaas" })}>Conectar avisos</button></>}
+          </p>
+        )}
         <p style={{ marginTop: 0 }}>
           {d.cobrancaAtiva
             ? <>Ligada{d.cobrancaDesde ? ` desde ${dia(d.cobrancaDesde)}` : ""}. Quem não tem plano nem cortesia passa pelos 10 dias de teste e depois precisa assinar.</>
@@ -204,7 +212,7 @@ export default function PainelAuris() {
           <div className="aviso" style={{ marginBottom: 0 }}>
             <b>{d.cobrancaAtiva ? "Desligar a cobrança de todos?" : "Ligar a cobrança para todos os profissionais?"}</b>
             <div style={{ marginTop: 4 }}>{d.cobrancaAtiva
-              ? "Todos voltam a usar o Auris liberado. As assinaturas no cartão continuam sendo cobradas pelo Mercado Pago; cancele-as se for o caso."
+              ? "Todos voltam a usar o Auris liberado. As assinaturas no cartão continuam sendo cobradas pelo Asaas; cancele-as se for o caso."
               : "A partir de agora, quem não tem plano nem cortesia entra em 10 dias de teste e depois precisa assinar para registrar e atender. Fichas antigas continuam acessíveis."}</div>
             <div className="acoes-ficha" style={{ marginTop: 10 }}>
               <button type="button" disabled={enviando} onClick={() => agir({ acao: "cobranca", ativa: !d.cobrancaAtiva })}>{enviando ? "Salvando" : d.cobrancaAtiva ? "Sim, desligar" : "Sim, ligar a cobrança"}</button>

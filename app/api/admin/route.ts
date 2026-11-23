@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import { ehAdmin, supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PLANOS } from "@/lib/planos";
+import { asaas, asaasConfigurado, asaasProducao, tokenWebhookAsaas } from "@/lib/asaas";
+
+type WebhookAsaas = { id: string; url: string; enabled: boolean; interrupted: boolean };
+const urlAvisos = (req: Request) => `${new URL(req.url).origin.replace("://aurismed", "://www.aurismed")}/api/assinatura/webhook`;
+
+/** Situação da conexão com o Asaas, para o Painel. */
+async function situacaoAsaas(req: Request) {
+  if (!asaasConfigurado()) return { configurado: false, producao: false, avisos: false, erro: null as string | null };
+  try {
+    const w = await asaas<{ data: WebhookAsaas[] }>("/webhooks?limit=20");
+    const nosso = (w.data || []).find((x) => x.url === urlAvisos(req));
+    return { configurado: true, producao: asaasProducao(), avisos: !!nosso && nosso.enabled && !nosso.interrupted, erro: null };
+  } catch (e) {
+    return { configurado: true, producao: asaasProducao(), avisos: false, erro: String(e).includes("401") ? "Chave do Asaas recusada." : "Asaas sem resposta." };
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +33,7 @@ async function dono() {
 }
 const naoExiste = () => NextResponse.json({ erro: "Não encontrado." }, { status: 404 });
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await dono();
   if (!user) return naoExiste();
   const sb = supabaseAdmin();
@@ -28,7 +44,7 @@ export async function GET() {
   const [usuarios, { data: profs }, { data: assin }, { data: cfg }, { data: cobr }, { data: regs }, { data: teles }, { data: alertas }] = await Promise.all([
     sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     sb.from("profissionais").select("id, nome, profissao, especialidade, created_at, plano_teste"),
-    sb.from("assinaturas").select("profissional_id, plano, status, valor, pago_ate, falha_desde, falha_motivo, cancelada_em, cancelamento_motivo, cortesia_ate, cortesia_motivo, mp_assinatura_id"),
+    sb.from("assinaturas").select("profissional_id, plano, status, valor, pago_ate, falha_desde, falha_motivo, cancelada_em, cancelamento_motivo, cortesia_ate, cortesia_motivo, gateway_assinatura_id"),
     sb.from("auris_config").select("cobranca_ativa, cobranca_desde").eq("id", 1).maybeSingle(),
     sb.from("auris_cobrancas").select("profissional_id, valor, status, data, origem").gte("data", new Date(agora.getFullYear(), agora.getMonth() - 5, 1).toISOString()).order("data", { ascending: false }).limit(1000),
     sb.from("registros").select("profissional_id, created_at").gte("created_at", trintaDias).limit(20000),
@@ -54,7 +70,7 @@ export async function GET() {
     return {
       id: p.id, nome: p.nome, email: u?.email || "", profissao: p.profissao, especialidade: p.especialidade,
       cadastro: p.created_at, ultimoAcesso: u?.last_sign_in_at || null, emailConfirmado: !!u?.email_confirmed_at,
-      plano: a?.plano || null, valor: a?.valor ? Number(a.valor) : null, status: a?.status || null, recorrente: !!a?.mp_assinatura_id,
+      plano: a?.plano || null, valor: a?.valor ? Number(a.valor) : null, status: a?.status || null, recorrente: !!a?.gateway_assinatura_id,
       pagoAte: a?.pago_ate || null, planoTeste: !!(p as { plano_teste?: boolean }).plano_teste, cortesiaAte: cortesia, cortesiaMotivo: cortesia ? a?.cortesia_motivo || null : null,
       acesso: acessoDe.get(p.id) || "liberado", fichas30: fichas30.get(p.id) || 0, teleconsultas30: teles30.get(p.id) || 0,
       alertasPagamento: (alertas || []).filter((x) => x.profissional_id === p.id).length,
@@ -77,6 +93,7 @@ export async function GET() {
 
   return NextResponse.json({
     cobrancaAtiva: !!cfg?.cobranca_ativa, cobrancaDesde: cfg?.cobranca_desde || null,
+    asaas: await situacaoAsaas(req),
     resumo: {
       mrr, recebidoMes, profissionais: clientes.length,
       pagantes: pagantes.length,
@@ -110,6 +127,25 @@ export async function POST(req: Request) {
     const { data: atual } = await sb.from("auris_config").select("cobranca_desde").eq("id", 1).maybeSingle();
     await sb.from("auris_config").update({ cobranca_ativa: ativa, ...(ativa && !atual?.cobranca_desde ? { cobranca_desde: new Date().toISOString() } : {}) }).eq("id", 1);
     return NextResponse.json({ ok: true, mensagem: ativa ? "Cobrança dos planos ligada. Os profissionais sem plano entram nos 10 dias de teste." : "Cobrança dos planos desligada. Todos usam o Auris liberado." });
+  }
+
+  if (b?.acao === "conectar_asaas") {
+    if (!asaasConfigurado()) return NextResponse.json({ erro: "Coloque a chave do Asaas (ASAAS_API_KEY) no Vercel primeiro." }, { status: 400 });
+    const corpo = {
+      name: "Auris - plano", url: urlAvisos(req), email: "contato@aurismed.com.br", enabled: true, interrupted: false, apiVersion: 3,
+      authToken: tokenWebhookAsaas(), sendType: "SEQUENTIALLY",
+      events: ["PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_DELETED", "PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL", "PAYMENT_REPROVED_BY_RISK_ANALYSIS", "PAYMENT_APPROVED_BY_RISK_ANALYSIS"],
+    };
+    try {
+      const w = await asaas<{ data: WebhookAsaas[] }>("/webhooks?limit=20");
+      const nosso = (w.data || []).find((x) => x.url === corpo.url);
+      if (nosso) await asaas(`/webhooks/${nosso.id}`, { method: "PUT", body: JSON.stringify(corpo) });
+      else await asaas("/webhooks", { method: "POST", body: JSON.stringify(corpo) });
+      return NextResponse.json({ ok: true, mensagem: `Avisos do Asaas conectados (${asaasProducao() ? "produção" : "teste"}).` });
+    } catch (e) {
+      console.error("conectar asaas", String(e).slice(0, 300));
+      return NextResponse.json({ erro: `Não foi possível conectar os avisos: ${String(e).slice(0, 160)}` }, { status: 502 });
+    }
   }
 
   if (!b?.uid || !/^[0-9a-f-]{36}$/.test(b.uid)) return NextResponse.json({ erro: "Profissional não encontrado." }, { status: 400 });

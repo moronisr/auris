@@ -8,7 +8,7 @@ export type SituacaoAssinatura = {
   assinatura: null | { plano: string | null; status: string; cartao_final: string | null; cartao_bandeira: string | null; valor: number | null; pago_ate: string | null; ultimo_pagamento_em: string | null; falha_desde: string | null; falha_motivo?: string | null; cortesia_ate?: string | null; proxima_cobranca: string | null; cancelada_em: string | null; recorrente?: boolean; renovacao_automatica?: boolean };
   cobrancas?: { data: string; valor: number | null; status: string; origem: string; plano: string | null }[];
   planos: { id: string; nome: string; valor: number; resumo: string; recursos: string[]; destaque?: boolean; oculto?: boolean }[];
-  publicKey: string | null;
+  publicKey?: string | null;
   admin?: boolean;
 };
 

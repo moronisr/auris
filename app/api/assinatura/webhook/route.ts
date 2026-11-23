@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server";
-import { sincronizarPorAssinatura, sincronizarPorFatura } from "@/lib/assinatura";
+import { timingSafeEqual, createHash } from "crypto";
+import { atualizarCobrancaAvulsa, sincronizarPorAssinatura } from "@/lib/assinatura";
+import { asaas, asaasConfigurado, tokenWebhookAsaas } from "@/lib/asaas";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
-/** Aviso do Mercado Pago sobre assinaturas. Só serve de gatilho: o servidor consulta o Mercado Pago antes de mudar qualquer coisa. */
+const igual = (a: string, b: string) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
+
+/**
+ * Aviso do Asaas sobre cobranças do plano. Só serve de gatilho: o servidor consulta o Asaas antes de mudar qualquer coisa.
+ * Só aceita avisos com o token combinado no cabeçalho asaas-access-token.
+ */
 export async function POST(req: Request) {
-  const url = new URL(req.url);
-  const b = (await req.json().catch(() => ({}))) as { type?: string; topic?: string; data?: { id?: string }; id?: string };
-  const tipo = b.type || b.topic || url.searchParams.get("type") || url.searchParams.get("topic") || "";
-  const id = String(b.data?.id || url.searchParams.get("data.id") || url.searchParams.get("id") || "");
+  if (!asaasConfigurado() || !igual(req.headers.get("asaas-access-token") || "", tokenWebhookAsaas())) {
+    return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
+  }
+  const b = (await req.json().catch(() => ({}))) as { event?: string; payment?: { id?: string; subscription?: string | null } };
   try {
-    if (id && /preapproval$/.test(tipo)) await sincronizarPorAssinatura(id);
-    else if (id && /authorized_payment/.test(tipo)) await sincronizarPorFatura(id);
+    if (b.payment?.subscription) await sincronizarPorAssinatura(b.payment.subscription);
+    else if (b.payment?.id) await atualizarCobrancaAvulsa(await asaas(`/payments/${encodeURIComponent(b.payment.id)}`));
   } catch (e) {
-    console.error("webhook assinatura", tipo, String(e).slice(0, 200));
+    console.error("webhook asaas", b.event, String(e).slice(0, 200));
   }
   return NextResponse.json({ ok: true });
 }

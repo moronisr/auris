@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import CartaoBrick, { type DadosCartao } from "@/components/CartaoBrick";
+import CartaoAsaas, { type CartaoForm } from "@/components/CartaoAsaas";
 import Recebimentos from "@/components/Recebimentos";
 import { buscarSituacao, dataCurtaBR, type SituacaoAssinatura } from "@/lib/useAcesso";
 
@@ -21,25 +21,13 @@ export default function Financas() {
   const [escolhido, setEscolhido] = useState("");
   const [modo, setModo] = useState<"" | "assinar" | "cartao" | "plano" | "remover" | "cancelar">("");
   const [salvarCartao, setSalvarCartao] = useState(true);
-  const [outroTitular, setOutroTitular] = useState(false);
-  const [emailTitular, setEmailTitular] = useState("");
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [aba, setAba] = useState<"" | "recebimentos" | "plano">("");
 
   const recarregar = async () => setS(await buscarSituacao(true));
-  useEffect(() => {
-    // Volta da página do Mercado Pago: liga a assinatura feita lá à conta.
-    const pre = new URLSearchParams(location.search).get("preapproval_id");
-    if (!pre) { recarregar(); return; }
-    (async () => {
-      const e = await enviar({ acao: "vincular_mp", preapproval_id: pre });
-      history.replaceState(null, "", "/financas?aba=plano");
-      setMsg(e ? { tipo: "erro", texto: e } : { tipo: "ok", texto: "Assinatura concluída no Mercado Pago. Plano ativo com renovação automática." });
-      recarregar();
-    })();
-  }, []);
+  useEffect(() => { recarregar(); }, []);
   useEffect(() => {
     if (!s || aba) return;
     const pedida = new URLSearchParams(location.search).get("aba");
@@ -76,37 +64,16 @@ export default function Financas() {
           <span><b>Salvar este cartão para renovar automaticamente todo mês</b> (recomendado). Você não precisa lembrar de pagar e não corre o risco de ter o acesso interrompido.</span>
         </label>
       )}
-      {modoForm === "assinar" && (
-        <>
-          <label className="aceite">
-            <input type="checkbox" checked={outroTitular} onChange={(e) => setOutroTitular(e.target.checked)} />
-            <span><b>O cartão está no nome de outra pessoa</b> (cônjuge, familiar ou sócio)</span>
-          </label>
-          {outroTitular && (
-            <div style={{ marginBottom: 10 }}>
-              <label htmlFor="email-titular">E-mail do titular do cartão</label>
-              <input id="email-titular" type="email" inputMode="email" autoComplete="off" placeholder="email.do.titular@exemplo.com" value={emailTitular} onChange={(e) => setEmailTitular(e.target.value)} />
-              <p className="muted" style={{ marginTop: 6 }}>No formulário abaixo, use o nome e o CPF do titular, como estão no cartão. Dados que batem com o cartão aumentam a aprovação do pagamento.</p>
-            </div>
-          )}
-        </>
-      )}
       <p className="muted">
         {modoForm === "cartao" ? "O novo cartão passa a ser usado nas próximas cobranças."
           : salvarCartao ? (testeAte ? `Nada é cobrado agora. A primeira cobrança de ${reais(p.valor)} é em ${dataCurtaBR(testeAte)}, e depois todo mês.` : `A cobrança de ${reais(p.valor)} é feita agora e depois todo mês, na mesma data.`)
           : `Você paga ${reais(p.valor)} agora, por 1 mês, e o cartão não fica salvo. Para continuar depois, pague de novo antes do vencimento.`}
-        {" "}Os dados do cartão ficam com o Mercado Pago; o Auris guarda só a bandeira e os 4 últimos números.
+        {" "}O cartão fica guardado no Asaas, instituição de pagamento autorizada pelo Banco Central; o Auris guarda só a bandeira e os 4 últimos números.
       </p>
-      <CartaoBrick key={`${modoForm}-${p.id}-${salvarCartao}`} id={`brick-${modoForm}`} publicKey={s.publicKey!} valor={p.valor} email={s.email}
+      <CartaoAsaas key={`${modoForm}-${p.id}-${salvarCartao}`} email={s.email} permitirOutroTitular={modoForm === "assinar"}
         rotulo={modoForm === "cartao" ? "Salvar novo cartão" : salvarCartao ? (testeAte ? "Cadastrar cartão" : `Assinar por ${reais(p.valor)} por mês`) : `Pagar ${reais(p.valor)} por 1 mês`}
-        onCartao={async (d: DadosCartao) => {
-          if (modoForm === "cartao") { const e = await enviar({ acao: "trocar_cartao", cartao: d }); if (!e) pronto("Cartão atualizado."); return e; }
-          let cartao = d;
-          if (outroTitular) {
-            const em = emailTitular.trim().toLowerCase();
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return "Informe o e-mail do titular do cartão, acima do formulário.";
-            cartao = { ...d, payer: { ...d.payer, email: em } };
-          }
+        onCartao={async (cartao: CartaoForm) => {
+          if (modoForm === "cartao") { const e = await enviar({ acao: "trocar_cartao", cartao }); if (!e) pronto("Cartão atualizado."); return e; }
           const e = await enviar({ acao: salvarCartao ? "assinar" : "pagar_avulso", plano: p.id, cartao });
           if (!e) pronto(salvarCartao ? `Plano ${p.nome} ativado com renovação automática.` : `Pagamento aprovado. Plano ${p.nome} ativo por 1 mês.`);
           return e;
@@ -154,7 +121,7 @@ export default function Financas() {
       {!s.configurada && <div className="aviso">O pagamento do plano está sendo preparado. Em breve você poderá escolher o seu plano aqui.</div>}
 
       {/* 2. Upgrade (sempre em destaque) */}
-      {s.configurada && s.publicKey && ativo && upgrades.length > 0 && (
+      {s.configurada && ativo && upgrades.length > 0 && (
         <div className="card upgrade">
           <h2 style={{ marginTop: 0 }}>Faça mais com o Auris</h2>
           <div className="planos">
@@ -176,7 +143,7 @@ export default function Financas() {
       )}
 
       {/* 3. Escolher plano (sem plano ativo) */}
-      {s.configurada && s.publicKey && !ativo && (
+      {s.configurada && !ativo && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Escolha o seu plano</h2>
           <p className="muted">Consultas ilimitadas em todos os planos. Pagamento no cartão de crédito.</p>
@@ -192,13 +159,13 @@ export default function Financas() {
             ))}
           </div>
           {modo === "assinar" && plano && formCartao("assinar", plano)}
-          <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>Ao contratar, você concorda com os <Link href="/termos">Termos de uso</Link>. Na fatura, a cobrança aparece como Mercado Pago, Auris.</p>
+          <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>Ao contratar, você concorda com os <Link href="/termos">Termos de uso</Link>. Na fatura do cartão, a cobrança aparece identificada pelo Asaas, que processa o pagamento do Auris.</p>
         </div>
       )}
-      {s.configurada && s.publicKey && ativo && modo === "assinar" && plano && <div className="card">{formCartao("assinar", plano)}</div>}
+      {s.configurada && ativo && modo === "assinar" && plano && <div className="card">{formCartao("assinar", plano)}</div>}
 
       {/* 4. Forma de pagamento */}
-      {s.configurada && s.publicKey && a?.plano && (
+      {s.configurada && a?.plano && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Forma de pagamento</h2>
           {temCartao ? (
@@ -266,7 +233,7 @@ export default function Financas() {
         <h2 style={{ marginTop: 0 }}>Ajuda com pagamentos</h2>
         <ul className="politica-lista">
           <li><b>Pagamento recusado:</b> confira o limite com o seu banco ou troque o cartão. Você tem 7 dias de uso normal para resolver.</li>
-          <li><b>Cobrança na fatura:</b> aparece como Mercado Pago, Auris.</li>
+          <li><b>Cobrança na fatura:</b> aparece identificada pelo Asaas, que processa o pagamento do Auris.</li>
           <li><b>Nota fiscal e dúvidas:</b> escreva para <a href="mailto:contato@aurismed.com.br">contato@aurismed.com.br</a>.</li>
         </ul>
       </div>

@@ -1,24 +1,13 @@
 import { supabaseAdmin } from "@/lib/admin";
 import { planoPorId } from "@/lib/planos";
+import { asaas, asaasConfigurado, bandeiraCurta, diaBR, ErroAsaas, statusCobranca } from "@/lib/asaas";
 
 /**
- * Assinatura do Auris paga pelo profissional: cartão recorrente pelo Mercado Pago (Assinaturas / preapproval),
- * recebido na conta do Auris. O cartão fica guardado no Mercado Pago; o Auris guarda só bandeira e 4 últimos dígitos.
+ * Assinatura do Auris paga pelo profissional: cartão de crédito recorrente pelo Asaas, recebido na conta do Auris.
+ * O cartão fica guardado no Asaas; o Auris guarda só a bandeira e os 4 últimos números.
+ * Os dados do cartão passam pelo servidor do Auris apenas para serem enviados ao Asaas e nunca são gravados nem registrados.
  */
-const API = "https://api.mercadopago.com";
-const token = () => process.env.MP_AURIS_ACCESS_TOKEN || "";
-export const cobrancaConfigurada = () => !!process.env.MP_AURIS_ACCESS_TOKEN && !!process.env.MP_AURIS_PUBLIC_KEY;
-
-async function mp<T>(caminho: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(API + caminho, {
-    ...init,
-    headers: { Authorization: `Bearer ${token()}`, "Content-Type": "application/json", ...(init?.headers || {}) },
-    signal: AbortSignal.timeout(20_000), cache: "no-store",
-  });
-  const corpo = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Mercado Pago ${r.status}: ${JSON.stringify(corpo).slice(0, 300)}`);
-  return corpo as T;
-}
+export const cobrancaConfigurada = () => asaasConfigurado();
 
 export type Acesso = "liberado" | "teste" | "ativa" | "aviso" | "bloqueado";
 
@@ -27,330 +16,321 @@ export async function acessoDe(uid: string): Promise<Acesso> {
   return (data as Acesso) || "liberado";
 }
 
-async function dadosDoCartao(cardToken: string): Promise<{ final: string | null; bandeira: string | null; titular: string | null }> {
-  try {
-    const c = await mp<{ last_four_digits?: string; payment_method?: { id?: string }; cardholder?: { name?: string } }>(`/v1/card_tokens/${encodeURIComponent(cardToken)}`);
-    return { final: c.last_four_digits || null, bandeira: c.payment_method?.id || null, titular: c.cardholder?.name?.trim() || null };
-  } catch { return { final: null, bandeira: null, titular: null }; }
+/** Cartão digitado no formulário do Auris, com os dados do titular que o Asaas pede. */
+export type CartaoInformado = {
+  nome: string; numero: string; mes: string; ano: string; cvv: string;
+  titular: { nome: string; email: string; cpf: string; cep: string; numeroEndereco: string; celular: string };
+  /** CPF do profissional, quando o cartão é de outra pessoa. */
+  cpfProfissional?: string;
+};
+
+const soDigitos = (s: unknown) => String(s ?? "").replace(/\D/g, "");
+
+/** Confere o formato antes de enviar ao Asaas. Devolve a mensagem do primeiro problema ou null. */
+export function validarCartao(c: CartaoInformado | null | undefined): string | null {
+  if (!c) return "Informe os dados do cartão.";
+  const n = soDigitos(c.numero);
+  if (n.length < 13 || n.length > 19) return "Confira o número do cartão.";
+  const mes = Number(c.mes), ano = Number(soDigitos(c.ano).length === 2 ? `20${soDigitos(c.ano)}` : soDigitos(c.ano));
+  if (!(mes >= 1 && mes <= 12) || !(ano >= 2024 && ano <= 2060)) return "Confira a validade do cartão.";
+  if (!/^\d{3,4}$/.test(soDigitos(c.cvv))) return "Confira o código de segurança do cartão.";
+  if ((c.nome || "").trim().length < 3) return "Informe o nome como está no cartão.";
+  if (soDigitos(c.titular?.cpf).length !== 11 && soDigitos(c.titular?.cpf).length !== 14) return "Confira o CPF do titular do cartão.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((c.titular?.email || "").trim())) return "Confira o e-mail do titular do cartão.";
+  if (soDigitos(c.titular?.cep).length !== 8) return "Confira o CEP do titular do cartão.";
+  if (!(c.titular?.numeroEndereco || "").trim()) return "Informe o número do endereço do titular.";
+  if (soDigitos(c.titular?.celular).length < 10) return "Confira o celular do titular do cartão, com DDD.";
+  if (c.cpfProfissional !== undefined && soDigitos(c.cpfProfissional).length !== 11) return "Confira o seu CPF.";
+  return null;
 }
 
-/** Nome do titular do cartão separado em nome e sobrenome, como o Mercado Pago pede no pagador. */
-function nomeDoTitular(nome: string | null) {
-  const partes = (nome || "").split(/\s+/).filter(Boolean);
-  if (!partes.length) return {};
-  return { first_name: partes[0], ...(partes.length > 1 ? { last_name: partes.slice(1).join(" ") } : {}) };
+function corpoCartao(c: CartaoInformado, ip: string) {
+  const ano = soDigitos(c.ano).length === 2 ? `20${soDigitos(c.ano)}` : soDigitos(c.ano);
+  return {
+    creditCard: { holderName: c.nome.trim(), number: soDigitos(c.numero), expiryMonth: String(Number(c.mes)).padStart(2, "0"), expiryYear: ano, ccv: soDigitos(c.cvv) },
+    creditCardHolderInfo: {
+      name: (c.titular.nome || c.nome).trim(), email: c.titular.email.trim().toLowerCase(), cpfCnpj: soDigitos(c.titular.cpf),
+      postalCode: soDigitos(c.titular.cep), addressNumber: c.titular.numeroEndereco.trim().slice(0, 20), mobilePhone: soDigitos(c.titular.celular),
+    },
+    remoteIp: ip,
+  };
+}
+
+/** Bandeira pelo início do número, para quando o Asaas não devolver. */
+function bandeiraPeloNumero(n: string): string | null {
+  if (/^4/.test(n)) return "visa";
+  if (/^(5[1-5]|2[2-7])/.test(n)) return "master";
+  if (/^3[47]/.test(n)) return "amex";
+  if (/^(606282|3841)/.test(n)) return "hipercard";
+  if (/^(4011|4312|4389|4514|4576|5041|5066|5067|509|6277|6362|6363|650|6516|6550)/.test(n)) return "elo";
+  return null;
 }
 
 const NADA_COBRADO = " Nenhum valor foi cobrado.";
-const MSG_SEGURANCA = "O Mercado Pago recusou o pagamento pelos controles de segurança dele. Isso costuma acontecer quando o cartão está no nome de outra pessoa ou quando os dados não batem. Use um cartão no seu nome ou, se o cartão for de outra pessoa, marque \"O cartão está no nome de outra pessoa\" e informe o e-mail do titular." + NADA_COBRADO;
 
-/** Mensagem clara para cada motivo de recusa do Mercado Pago, dizendo o que fazer. */
-export function motivoRecusa(detalhe: string | undefined | null): string {
-  const d = String(detalhe || "");
-  if (/high_risk|CC_VAL_433|blacklist|fraud/i.test(d)) return MSG_SEGURANCA;
-  if (/insufficient_amount/i.test(d)) return "O cartão não tem limite disponível para este valor. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
-  if (/bad_filled_security_code/i.test(d)) return "O código de segurança (CVV) não confere. Confira os 3 ou 4 números no verso do cartão e tente de novo." + NADA_COBRADO;
-  if (/bad_filled_date/i.test(d)) return "A validade do cartão não confere. Confira o mês e o ano e tente de novo." + NADA_COBRADO;
-  if (/bad_filled/i.test(d)) return "Algum dado do cartão não confere. Confira o número, a validade, o código de segurança, o nome e o CPF do titular." + NADA_COBRADO;
-  if (/call_for_authorize/i.test(d)) return "O banco pediu para você autorizar este pagamento. Ligue para o banco ou abra o app dele, autorize o pagamento ao Mercado Pago e tente de novo." + NADA_COBRADO;
-  if (/card_disabled/i.test(d)) return "O cartão não está ativo para compras online. Ative no app do banco ou use outro cartão." + NADA_COBRADO;
-  if (/duplicated_payment/i.test(d)) return "Já houve um pagamento igual há poucos minutos. Confira o histórico de cobranças antes de tentar de novo." + NADA_COBRADO;
-  if (/max_attempts/i.test(d)) return "Foram muitas tentativas com este cartão. Espere algumas horas ou use outro cartão." + NADA_COBRADO;
-  return "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
+/** Mensagem clara para o profissional a partir do erro do Asaas. */
+function motivoAsaas(e: unknown): string {
+  if (e instanceof ErroAsaas) {
+    const d = e.descricao;
+    if (e.status === 401) return "A cobrança do Auris está em manutenção. Tente de novo em alguns minutos.";
+    if (/cpf|cnpj/i.test(d)) return "Confira o CPF do titular do cartão." + NADA_COBRADO;
+    if (/cep|postal/i.test(d)) return "Confira o CEP do titular do cartão." + NADA_COBRADO;
+    if (/telefone|celular|phone/i.test(d)) return "Confira o celular do titular do cartão, com DDD." + NADA_COBRADO;
+    if (/validade|expir/i.test(d)) return "Confira a validade do cartão." + NADA_COBRADO;
+    if (/seguran|ccv|cvv/i.test(d)) return "Confira o código de segurança do cartão." + NADA_COBRADO;
+    if (d) return (/[.!]$/.test(d) ? d : `${d}.`) + NADA_COBRADO;
+    if (e.status >= 500) return "O Asaas não respondeu agora. Tente de novo em alguns minutos." + NADA_COBRADO;
+  }
+  if (/timeout|abort/i.test(String(e))) return "A confirmação demorou mais que o normal. Confira o histórico de cobranças antes de tentar de novo.";
+  return "Não foi possível concluir o pagamento agora. Tente de novo em alguns minutos." + NADA_COBRADO;
 }
 
-const motivoMp = (e: unknown): string => {
-  const t = String(e);
-  if (/card_token|invalid.*token/i.test(t)) return "Os dados do cartão expiraram. Digite o cartão de novo.";
-  if (/high_risk|security|fraud|CC_VAL_433/i.test(t)) return MSG_SEGURANCA;
-  if (/cc_rejected_\w+/i.test(t)) return motivoRecusa(t.match(/cc_rejected_\w+/i)![0]);
-  if (/rejected|insufficient/i.test(t)) return "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO;
-  if (/payer_email|email/i.test(t)) return "Confira o e-mail do titular do cartão informado no formulário.";
-  return "Não foi possível concluir com o Mercado Pago agora. Tente de novo em alguns minutos.";
+type Cliente = { id: string };
+type Assinatura = { id: string; status: string; nextDueDate?: string; deleted?: boolean; value?: number; creditCard?: { creditCardNumber?: string; creditCardBrand?: string } };
+type Cobranca = {
+  id: string; status: string; value: number; dueDate: string; paymentDate?: string | null; confirmedDate?: string | null; dateCreated?: string; deleted?: boolean;
+  creditCard?: { creditCardNumber?: string; creditCardBrand?: string };
 };
 
-type Preapproval = {
-  id: string; status: string; reason?: string; next_payment_date?: string;
-  auto_recurring?: { transaction_amount?: number; start_date?: string };
-  summarized?: { last_charged_date?: string; semaphore?: string };
-};
+/** Cliente do profissional no Asaas: criado uma vez e guardado em assinaturas.asaas_cliente_id. */
+async function clienteDoProfissional(uid: string, email: string, cpf: string): Promise<string> {
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("asaas_cliente_id").eq("profissional_id", uid).maybeSingle();
+  if (a?.asaas_cliente_id) return a.asaas_cliente_id;
+  const { data: prof } = await sb.from("profissionais").select("nome").eq("id", uid).maybeSingle();
+  const c = await asaas<Cliente>("/customers", {
+    method: "POST",
+    body: JSON.stringify({ name: (prof?.nome || email).slice(0, 100), email, cpfCnpj: cpf, externalReference: uid, notificationDisabled: true }),
+  });
+  await sb.from("assinaturas").upsert({ profissional_id: uid, asaas_cliente_id: c.id, atualizado_em: new Date().toISOString() }, { onConflict: "profissional_id" });
+  return c.id;
+}
+
+const cpfDoCliente = (c: CartaoInformado) => soDigitos(c.cpfProfissional || c.titular.cpf);
+const pago = (s: string) => /^(CONFIRMED|RECEIVED|RECEIVED_IN_CASH)$/.test(s);
+
+async function registrarCobranca(uid: string, c: Cobranca, origem: "assinatura" | "avulso", plano: string | null) {
+  await supabaseAdmin().from("auris_cobrancas").upsert({
+    profissional_id: uid, gateway_pagamento_id: c.id, origem, plano, valor: c.value,
+    status: c.deleted ? "cancelled" : statusCobranca(c.status), data: new Date(c.confirmedDate || c.paymentDate || c.dueDate || Date.now()).toISOString(),
+  }, { onConflict: "gateway_pagamento_id" });
+}
 
 /** Cria a assinatura com o cartão. Durante o teste grátis, a primeira cobrança é só no fim do teste. */
-export async function assinar(o: { uid: string; email: string; planoId: string; cardToken: string; payerEmail?: string; aparelho?: string; fimTeste: Date | null; base: string }) {
+export async function assinar(o: { uid: string; email: string; planoId: string; cartao: CartaoInformado; ip: string; fimTeste: Date | null }) {
   const plano = planoPorId(o.planoId);
   if (!plano) return { ok: false as const, erro: "Plano inválido." };
-  const { data: atual } = await supabaseAdmin().from("assinaturas").select("pago_ate").eq("profissional_id", o.uid).maybeSingle();
+  const sb = supabaseAdmin();
+  const { data: atual } = await sb.from("assinaturas").select("pago_ate").eq("profissional_id", o.uid).maybeSingle();
   const pagoAte = atual?.pago_ate ? new Date(atual.pago_ate) : null;
-  const candidatos = [o.fimTeste, pagoAte].filter((d): d is Date => !!d && d.getTime() > Date.now() + 60_000);
+  const candidatos = [o.fimTeste, pagoAte].filter((d): d is Date => !!d && diaBR(d) > diaBR());
   // Sem cobrar duas vezes: a renovação começa no fim do teste grátis ou do período que já foi pago.
   const inicio = candidatos.length ? new Date(Math.max(...candidatos.map((d) => d.getTime()))) : null;
+  let assinaturaId: string | null = null;
   try {
-    const cartao = await dadosDoCartao(o.cardToken);
-    const pa = await mp<Preapproval>("/preapproval", {
+    const cliente = await clienteDoProfissional(o.uid, o.email, cpfDoCliente(o.cartao));
+    const s = await asaas<Assinatura>("/subscriptions", {
       method: "POST",
-      // Identificação do aparelho (antifraude): sem ela, o Mercado Pago recusa a validação do cartão com frequência.
-      headers: { "X-Idempotency-Key": `assinar-${o.uid}-${o.cardToken.slice(0, 16)}`, ...(o.aparelho ? { "X-meli-session-id": o.aparelho } : {}) },
       body: JSON.stringify({
-        reason: `Auris - plano ${plano.nome}`,
-        external_reference: o.uid,
-        payer_email: o.payerEmail || o.email,
-        card_token_id: o.cardToken,
-        back_url: `${o.base}/financas`,
-        status: "authorized",
-        auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: plano.valor, currency_id: "BRL", ...(inicio ? { start_date: inicio.toISOString() } : {}) },
+        customer: cliente, billingType: "CREDIT_CARD", value: plano.valor, cycle: "MONTHLY",
+        nextDueDate: diaBR(inicio || new Date()), description: `Auris - plano ${plano.nome}`, externalReference: o.uid,
+        ...corpoCartao(o.cartao, o.ip),
       }),
     });
-    await supabaseAdmin().from("assinaturas").upsert({
-      profissional_id: o.uid, plano: plano.id, status: "ativa", mp_assinatura_id: pa.id, valor: plano.valor,
-      cartao_final: cartao.final, cartao_bandeira: cartao.bandeira, teste_ate: o.fimTeste?.toISOString() ?? null,
-      // No teste, o acesso já está garantido até o fim dele; fora do teste, até a confirmação da primeira cobrança.
-      pago_ate: inicio ? inicio.toISOString() : new Date(Date.now() + 2 * 864e5).toISOString(),
-      falha_desde: null, falha_motivo: null, cancelada_em: null, renovacao_automatica: true,
-      proxima_cobranca: pa.next_payment_date || (inicio ? inicio.toISOString() : null), atualizado_em: new Date().toISOString(),
-    });
-    if (!inicio) await sincronizar(o.uid).catch(() => {});
-    return { ok: true as const };
-  } catch (e) {
-    console.error("assinar", String(e).slice(0, 300));
-    // Validação do cartão para renovação recusada: o pagamento de 1 mês segue outro caminho no Mercado Pago.
-    if (/CC_VAL_433|high_risk|security|fraud/i.test(String(e))) return { ok: false as const, erro: "O Mercado Pago não aprovou salvar este cartão para a renovação automática. Nenhum valor foi cobrado. Desmarque \"Salvar este cartão\" acima e pague 1 mês com o mesmo cartão." };
-    return { ok: false as const, erro: motivoMp(e) };
-  }
-}
-
-/** Plano de assinatura no Mercado Pago (um por plano e valor do Auris), guardado em auris_config.mp_planos. */
-async function planoMp(planoId: string, base: string): Promise<{ id: string; link: string } | null> {
-  const plano = planoPorId(planoId);
-  if (!plano) return null;
-  const sb = supabaseAdmin();
-  const { data: cfg } = await sb.from("auris_config").select("mp_planos").eq("id", 1).maybeSingle();
-  const mapa = ((cfg?.mp_planos as Record<string, { id: string; link: string }>) || {});
-  const chave = `${plano.id}:${plano.valor}`;
-  if (mapa[chave]?.id) return mapa[chave];
-  const pp = await mp<{ id: string; init_point: string }>("/preapproval_plan", {
-    method: "POST",
-    body: JSON.stringify({
-      reason: `Auris - plano ${plano.nome}`,
-      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: plano.valor, currency_id: "BRL" },
-      back_url: `${base}/financas?aba=plano`,
-    }),
-  });
-  mapa[chave] = { id: pp.id, link: pp.init_point };
-  await sb.from("auris_config").update({ mp_planos: mapa }).eq("id", 1);
-  return mapa[chave];
-}
-
-export async function linkCheckoutMp(planoId: string, base: string): Promise<string | null> {
-  return (await planoMp(planoId, base))?.link || null;
-}
-
-/**
- * Volta da página do Mercado Pago com ?preapproval_id=…: confere a assinatura no Mercado Pago e liga ao profissional.
- * Só aceita assinatura de um plano do Auris, ativa, e que ainda não esteja ligada a outra pessoa.
- */
-export async function vincularAssinaturaMp(uid: string, preapprovalId: string) {
-  const sb = supabaseAdmin();
-  try {
-    const pa = await mp<Preapproval & { preapproval_plan_id?: string; payer_id?: number }>(`/preapproval/${encodeURIComponent(preapprovalId)}`);
-    const { data: cfg } = await sb.from("auris_config").select("mp_planos").eq("id", 1).maybeSingle();
-    const mapa = ((cfg?.mp_planos as Record<string, { id: string }>) || {});
-    const achado = Object.entries(mapa).find(([, v]) => v.id === pa.preapproval_plan_id);
-    if (!achado) return { ok: false as const, erro: "Assinatura não reconhecida." };
-    if (pa.status !== "authorized" && pa.status !== "pending") return { ok: false as const, erro: "A assinatura no Mercado Pago não foi concluída. Tente de novo." };
-    const { data: outro } = await sb.from("assinaturas").select("profissional_id").eq("mp_assinatura_id", pa.id).maybeSingle();
-    if (outro && outro.profissional_id !== uid) return { ok: false as const, erro: "Esta assinatura já está ligada a outra conta." };
-    if (outro) { await sincronizar(uid).catch(() => {}); return { ok: true as const }; }
-    const planoId = achado[0].split(":")[0];
-    const plano = planoPorId(planoId);
-    const { data: atual } = await sb.from("assinaturas").select("pago_ate").eq("profissional_id", uid).maybeSingle();
-    const pagoAte = atual?.pago_ate && new Date(atual.pago_ate) > new Date(Date.now() + 2 * 864e5) ? atual.pago_ate : new Date(Date.now() + 2 * 864e5).toISOString();
+    assinaturaId = s.id;
+    const numero = soDigitos(o.cartao.numero);
+    const base = {
+      profissional_id: o.uid, plano: plano.id, status: "ativa", gateway_assinatura_id: s.id, valor: plano.valor,
+      cartao_final: s.creditCard?.creditCardNumber || numero.slice(-4), cartao_bandeira: bandeiraCurta(s.creditCard?.creditCardBrand) || bandeiraPeloNumero(numero),
+      teste_ate: o.fimTeste?.toISOString() ?? null, falha_desde: null, falha_motivo: null, cancelada_em: null, renovacao_automatica: true,
+      proxima_cobranca: s.nextDueDate ? new Date(`${s.nextDueDate}T12:00:00-03:00`).toISOString() : null, atualizado_em: new Date().toISOString(),
+    };
+    if (inicio) {
+      await sb.from("assinaturas").upsert({ ...base, pago_ate: inicio.toISOString() }, { onConflict: "profissional_id" });
+      return { ok: true as const };
+    }
+    // Vencimento hoje: o Asaas cobra na hora. Confere a primeira cobrança antes de dar o plano como ativo.
+    let primeira: Cobranca | undefined;
+    for (let i = 0; i < 4 && !(primeira && primeira.status !== "PENDING"); i++) {
+      if (i) await new Promise((r) => setTimeout(r, 2500));
+      primeira = (await asaas<{ data: Cobranca[] }>(`/subscriptions/${s.id}/payments?limit=1`)).data?.[0];
+    }
+    if (primeira) await registrarCobranca(o.uid, primeira, "assinatura", plano.id);
+    if (primeira && (primeira.status === "OVERDUE" || primeira.status === "REFUNDED")) {
+      await asaas(`/subscriptions/${s.id}`, { method: "DELETE" }).catch(() => {});
+      return { ok: false as const, erro: "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO };
+    }
+    const ate = new Date(); ate.setMonth(ate.getMonth() + 1);
     await sb.from("assinaturas").upsert({
-      profissional_id: uid, plano: planoId, status: "ativa", mp_assinatura_id: pa.id, valor: plano?.valor ?? pa.auto_recurring?.transaction_amount ?? null,
-      pago_ate: pagoAte, falha_desde: null, falha_motivo: null, cancelada_em: null, renovacao_automatica: true,
-      proxima_cobranca: pa.next_payment_date || null, atualizado_em: new Date().toISOString(),
-    });
-    await sincronizar(uid).catch(() => {});
-    await cartaoDaPrimeiraCobranca(uid).catch(() => {});
+      ...base, pago_ate: primeira && pago(primeira.status) ? ate.toISOString() : new Date(Date.now() + 2 * 864e5).toISOString(),
+      ...(primeira && pago(primeira.status) ? { ultimo_pagamento_em: new Date().toISOString(), ultimo_pagamento_id: primeira.id } : {}),
+    }, { onConflict: "profissional_id" });
     return { ok: true as const };
   } catch (e) {
-    console.error("vincular assinatura", String(e).slice(0, 300));
-    return { ok: false as const, erro: "Não foi possível confirmar a assinatura agora. Recarregue a página em alguns minutos." };
+    console.error("assinar", String(e).slice(0, 400));
+    if (assinaturaId) await asaas(`/subscriptions/${assinaturaId}`, { method: "DELETE" }).catch(() => {});
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
-}
-
-/** Bandeira e 4 últimos números a partir da primeira cobrança aprovada (assinaturas feitas na página do Mercado Pago). */
-async function cartaoDaPrimeiraCobranca(uid: string) {
-  const sb = supabaseAdmin();
-  const { data: c } = await sb.from("auris_cobrancas").select("mp_pagamento_id").eq("profissional_id", uid).eq("origem", "assinatura").eq("status", "approved").order("data", { ascending: false }).limit(1).maybeSingle();
-  if (!c?.mp_pagamento_id) return;
-  const pg = await mp<{ payment_method_id?: string; card?: { last_four_digits?: string } }>(`/v1/payments/${c.mp_pagamento_id}`);
-  if (pg.card?.last_four_digits) await sb.from("assinaturas").update({ cartao_final: pg.card.last_four_digits, cartao_bandeira: pg.payment_method_id || null }).eq("profissional_id", uid);
 }
 
 /** Paga só um mês, sem guardar o cartão para as próximas cobranças. */
-export async function pagarAvulso(o: {
-  uid: string; email: string; planoId: string; fimTeste: Date | null;
-  cartao: { token: string; payment_method_id: string; issuer_id?: string | number; payer?: { email?: string; identification?: { type: string; number: string } }; aparelho?: string };
-}) {
+export async function pagarAvulso(o: { uid: string; email: string; planoId: string; cartao: CartaoInformado; ip: string; fimTeste: Date | null }) {
   const plano = planoPorId(o.planoId);
   if (!plano) return { ok: false as const, erro: "Plano inválido." };
+  const sb = supabaseAdmin();
   try {
-    const cartao = await dadosDoCartao(o.cartao.token);
-    const pg = await mp<{ id: number; status: string; status_detail: string; date_approved?: string }>("/v1/payments", {
+    const cliente = await clienteDoProfissional(o.uid, o.email, cpfDoCliente(o.cartao));
+    const pg = await asaas<Cobranca>("/payments", {
       method: "POST",
-      headers: { "X-Idempotency-Key": `avulso-${o.uid}-${o.cartao.token.slice(0, 16)}`, ...(o.cartao.aparelho ? { "X-meli-session-id": o.cartao.aparelho } : {}) },
       body: JSON.stringify({
-        transaction_amount: plano.valor, token: o.cartao.token, installments: 1, description: `Auris - plano ${plano.nome} (1 mês)`,
-        payment_method_id: o.cartao.payment_method_id, ...(o.cartao.issuer_id ? { issuer_id: Number(o.cartao.issuer_id) } : {}),
-        payer: { email: o.cartao.payer?.email || o.email, ...nomeDoTitular(cartao.titular), ...(o.cartao.payer?.identification?.number ? { identification: o.cartao.payer.identification } : {}) },
-        external_reference: `auris-${o.uid}`, statement_descriptor: "AURIS", binary_mode: true,
-        additional_info: { payer: nomeDoTitular(cartao.titular), items: [{ id: `plano-${plano.id}`, title: `Auris - plano ${plano.nome}`, description: "Assinatura mensal de software", category_id: "services", quantity: 1, unit_price: plano.valor }] },
+        customer: cliente, billingType: "CREDIT_CARD", value: plano.valor, dueDate: diaBR(),
+        description: `Auris - plano ${plano.nome} (1 mês)`, externalReference: `avulso-${o.uid}`, ...corpoCartao(o.cartao, o.ip),
       }),
     });
-    const sb = supabaseAdmin();
-    await sb.from("auris_cobrancas").upsert({ profissional_id: o.uid, mp_pagamento_id: String(pg.id), origem: "avulso", plano: plano.id, valor: plano.valor, status: pg.status, data: new Date().toISOString() }, { onConflict: "mp_pagamento_id" });
-    if (pg.status !== "approved") console.error("avulso recusado", pg.id, pg.status, pg.status_detail);
-    if (pg.status !== "approved") return { ok: false as const, erro: motivoRecusa(pg.status_detail) };
-    const { data: atual } = await sb.from("assinaturas").select("pago_ate, mp_assinatura_id").eq("profissional_id", o.uid).maybeSingle();
+    await registrarCobranca(o.uid, pg, "avulso", plano.id);
+    if (!pago(pg.status)) {
+      console.error("avulso nao confirmado", pg.id, pg.status);
+      if (pg.status === "AWAITING_RISK_ANALYSIS") return { ok: false as const, erro: "O pagamento está em análise pelo Asaas. Você recebe a confirmação aqui em até algumas horas." };
+      return { ok: false as const, erro: "O banco recusou o cartão. Use outro cartão ou fale com o seu banco." + NADA_COBRADO };
+    }
+    const { data: atual } = await sb.from("assinaturas").select("pago_ate, gateway_assinatura_id").eq("profissional_id", o.uid).maybeSingle();
     const base = Math.max(Date.now(), o.fimTeste?.getTime() || 0, atual?.pago_ate ? new Date(atual.pago_ate).getTime() : 0);
     const ate = new Date(base); ate.setMonth(ate.getMonth() + 1);
+    const numero = soDigitos(o.cartao.numero);
     await sb.from("assinaturas").upsert({
-      profissional_id: o.uid, plano: plano.id, valor: plano.valor, status: "ativa", renovacao_automatica: !!atual?.mp_assinatura_id,
-      pago_ate: ate.toISOString(), ultimo_pagamento_em: new Date().toISOString(), ultimo_pagamento_id: String(pg.id),
-      ...(atual?.mp_assinatura_id ? {} : { cartao_final: cartao.final, cartao_bandeira: cartao.bandeira, proxima_cobranca: null }),
+      profissional_id: o.uid, plano: plano.id, valor: plano.valor, status: "ativa", renovacao_automatica: !!atual?.gateway_assinatura_id,
+      pago_ate: ate.toISOString(), ultimo_pagamento_em: new Date().toISOString(), ultimo_pagamento_id: pg.id,
+      ...(atual?.gateway_assinatura_id ? {} : { cartao_final: pg.creditCard?.creditCardNumber || numero.slice(-4), cartao_bandeira: bandeiraCurta(pg.creditCard?.creditCardBrand) || bandeiraPeloNumero(numero), proxima_cobranca: null }),
       falha_desde: null, falha_motivo: null, cancelada_em: null, atualizado_em: new Date().toISOString(),
-    });
+    }, { onConflict: "profissional_id" });
     return { ok: true as const, ate: ate.toISOString() };
   } catch (e) {
-    console.error("avulso", String(e).slice(0, 300));
-    return { ok: false as const, erro: motivoMp(e) };
+    console.error("avulso", String(e).slice(0, 400));
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
 }
 
 /** Remove o cartão: a renovação automática para. O acesso continua até o fim do período já pago. */
 export async function removerCartao(uid: string) {
   const sb = supabaseAdmin();
-  const { data: a } = await sb.from("assinaturas").select("mp_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
   if (!a) return { ok: false as const, erro: "Não há cartão cadastrado." };
   try {
-    if (a.mp_assinatura_id) await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
-    await sb.from("assinaturas").update({ mp_assinatura_id: null, cartao_final: null, cartao_bandeira: null, renovacao_automatica: false, proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    if (a.gateway_assinatura_id) await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "DELETE" });
+    await sb.from("assinaturas").update({ gateway_assinatura_id: null, cartao_final: null, cartao_bandeira: null, renovacao_automatica: false, proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
     console.error("remover cartao", String(e).slice(0, 300));
-    return { ok: false as const, erro: motivoMp(e) };
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
 }
 
-export async function trocarCartao(uid: string, cardToken: string) {
-  const { data: a } = await supabaseAdmin().from("assinaturas").select("mp_assinatura_id, status").eq("profissional_id", uid).maybeSingle();
-  if (!a?.mp_assinatura_id) return { ok: false as const, erro: "Você ainda não tem assinatura." };
+/** Troca o cartão da assinatura sem cobrar na hora. Cobranças pendentes passam a usar o novo cartão. */
+export async function trocarCartao(uid: string, cartao: CartaoInformado, ip: string) {
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id, status").eq("profissional_id", uid).maybeSingle();
+  if (!a?.gateway_assinatura_id) return { ok: false as const, erro: "Você ainda não tem assinatura." };
   try {
-    const cartao = await dadosDoCartao(cardToken);
-    await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ card_token_id: cardToken, ...(a.status === "falha" ? { status: "authorized" } : {}) }) });
-    await supabaseAdmin().from("assinaturas").update({ cartao_final: cartao.final, cartao_bandeira: cartao.bandeira, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    const s = await asaas<Assinatura>(`/subscriptions/${a.gateway_assinatura_id}/creditCard`, { method: "PUT", body: JSON.stringify(corpoCartao(cartao, ip)) });
+    const numero = soDigitos(cartao.numero);
+    await sb.from("assinaturas").update({
+      cartao_final: s.creditCard?.creditCardNumber || numero.slice(-4), cartao_bandeira: bandeiraCurta(s.creditCard?.creditCardBrand) || bandeiraPeloNumero(numero), atualizado_em: new Date().toISOString(),
+    }).eq("profissional_id", uid);
     await sincronizar(uid).catch(() => {});
     return { ok: true as const };
   } catch (e) {
     console.error("trocar cartao", String(e).slice(0, 300));
-    return { ok: false as const, erro: motivoMp(e) };
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
 }
 
+/** Muda o plano: o novo valor vale a partir da próxima cobrança. */
 export async function trocarPlano(uid: string, planoId: string) {
   const plano = planoPorId(planoId);
-  const { data: a } = await supabaseAdmin().from("assinaturas").select("mp_assinatura_id").eq("profissional_id", uid).maybeSingle();
-  if (!plano || !a?.mp_assinatura_id) return { ok: false as const, erro: "Assinatura ou plano não encontrado." };
+  const { data: a } = await supabaseAdmin().from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
+  if (!plano || !a?.gateway_assinatura_id) return { ok: false as const, erro: "Assinatura ou plano não encontrado." };
   try {
-    await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ reason: `Auris - plano ${plano.nome}`, auto_recurring: { transaction_amount: plano.valor, currency_id: "BRL" } }) });
+    await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "PUT", body: JSON.stringify({ value: plano.valor, description: `Auris - plano ${plano.nome}`, updatePendingPayments: true }) });
     await supabaseAdmin().from("assinaturas").update({ plano: plano.id, valor: plano.valor, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
     console.error("trocar plano", String(e).slice(0, 300));
-    return { ok: false as const, erro: motivoMp(e) };
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
 }
 
 /** Cancela a renovação. O acesso continua até o fim do período já pago. */
 export async function cancelarAssinatura(uid: string) {
-  const { data: a } = await supabaseAdmin().from("assinaturas").select("mp_assinatura_id").eq("profissional_id", uid).maybeSingle();
-  if (!a?.mp_assinatura_id) return { ok: false as const, erro: "Você ainda não tem assinatura." };
+  const sb = supabaseAdmin();
+  const { data: a } = await sb.from("assinaturas").select("gateway_assinatura_id").eq("profissional_id", uid).maybeSingle();
   try {
-    await mp(`/preapproval/${a.mp_assinatura_id}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
-    await supabaseAdmin().from("assinaturas").update({ status: "cancelada", mp_assinatura_id: null, renovacao_automatica: false, cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
+    if (a?.gateway_assinatura_id) await asaas(`/subscriptions/${a.gateway_assinatura_id}`, { method: "DELETE" });
+    await sb.from("assinaturas").update({ status: "cancelada", gateway_assinatura_id: null, renovacao_automatica: false, cancelada_em: new Date().toISOString(), proxima_cobranca: null, atualizado_em: new Date().toISOString() }).eq("profissional_id", uid);
     return { ok: true as const };
   } catch (e) {
-    console.error("cancelar assinatura", String(e).slice(0, 300));
-    return { ok: false as const, erro: motivoMp(e) };
+    console.error("cancelar", String(e).slice(0, 300));
+    return { ok: false as const, erro: motivoAsaas(e) };
   }
 }
 
-type Fatura = { id: number; status: string; debit_date?: string; date_created?: string; transaction_amount?: number; payment?: { id?: number; status?: string; status_detail?: string }; rejection_code?: string };
-
 /**
- * Atualiza a assinatura consultando o Mercado Pago (nunca confia no aviso recebido).
- * Pagamento aprovado: acesso por mais um mês. Recusado: começa a contagem de 7 dias de tolerância.
+ * Atualiza a assinatura consultando o Asaas (nunca confia no aviso recebido).
+ * Cobrança paga: acesso até um mês depois do vencimento dela. Atrasada (cartão recusado): começa a contagem de 7 dias de tolerância.
  */
 export async function sincronizar(uid: string): Promise<void> {
   const sb = supabaseAdmin();
   const { data: a } = await sb.from("assinaturas").select("*").eq("profissional_id", uid).maybeSingle();
-  if (!a?.mp_assinatura_id || !token()) return;
-  const pa = await mp<Preapproval>(`/preapproval/${a.mp_assinatura_id}`);
-  const faturas = await mp<{ results?: Fatura[] }>(`/authorized_payments/search?preapproval_id=${encodeURIComponent(a.mp_assinatura_id)}&sort=date_created&criteria=desc&limit=10`).catch(() => ({ results: [] as Fatura[] }));
-  const lista = faturas.results || [];
-  for (const f of lista) {
-    if (!f.payment?.id) continue;
-    await sb.from("auris_cobrancas").upsert({
-      profissional_id: uid, mp_pagamento_id: String(f.payment.id), origem: "assinatura", plano: a.plano, valor: f.transaction_amount ?? a.valor,
-      status: f.payment.status || f.status, data: f.debit_date || f.date_created || new Date().toISOString(),
-    }, { onConflict: "mp_pagamento_id" });
-  }
-  const aprovada = lista.find((f) => f.payment?.status === "approved");
-  const ultima = lista[0];
-  const upd: Record<string, unknown> = { proxima_cobranca: pa.next_payment_date || null, atualizado_em: new Date().toISOString() };
+  if (!a?.gateway_assinatura_id || !asaasConfigurado()) return;
+  const s = await asaas<Assinatura>(`/subscriptions/${a.gateway_assinatura_id}`);
+  const lista = (await asaas<{ data: Cobranca[] }>(`/subscriptions/${a.gateway_assinatura_id}/payments?limit=10`).catch(() => ({ data: [] as Cobranca[] }))).data || [];
+  lista.sort((x, y) => (y.dueDate || "").localeCompare(x.dueDate || ""));
+  for (const c of lista) await registrarCobranca(uid, c, "assinatura", a.plano);
+  const aprovada = lista.find((c) => pago(c.status) && !c.deleted);
+  const ultima = lista.find((c) => !c.deleted && c.status !== "PENDING" && c.status !== "AWAITING_RISK_ANALYSIS");
+  const upd: Record<string, unknown> = {
+    proxima_cobranca: s.nextDueDate ? new Date(`${s.nextDueDate}T12:00:00-03:00`).toISOString() : null, atualizado_em: new Date().toISOString(),
+  };
   if (aprovada) {
-    const quando = new Date(aprovada.debit_date || aprovada.date_created || Date.now());
-    const ate = new Date(quando); ate.setMonth(ate.getMonth() + 1);
+    const ate = new Date(`${aprovada.dueDate}T12:00:00-03:00`); ate.setMonth(ate.getMonth() + 1);
     if (!a.pago_ate || new Date(a.pago_ate) < ate) upd.pago_ate = ate.toISOString();
-    upd.ultimo_pagamento_em = quando.toISOString();
+    upd.ultimo_pagamento_em = new Date(aprovada.confirmedDate || aprovada.paymentDate || aprovada.dueDate).toISOString();
+    upd.ultimo_pagamento_id = aprovada.id;
   }
-  if (pa.status === "cancelled") {
+  if (s.deleted || s.status === "INACTIVE" || s.status === "EXPIRED") {
     upd.status = "cancelada"; upd.proxima_cobranca = null;
-  } else if (ultima && ultima.payment?.status && ultima.payment.status !== "approved" && ultima.payment.status !== "in_process" && ultima.payment.status !== "pending" && (!aprovada || ultima.id !== aprovada.id)) {
-    upd.status = "falha"; upd.falha_desde = a.falha_desde || new Date(ultima.date_created || Date.now()).toISOString();
-    upd.falha_motivo = ultima.payment.status_detail || ultima.rejection_code || "recusado";
-  } else if (pa.status === "authorized") {
+  } else if (ultima && ultima.status === "OVERDUE" && (!aprovada || ultima.dueDate > aprovada.dueDate)) {
+    upd.status = "falha"; upd.falha_desde = a.falha_desde || new Date(`${ultima.dueDate}T12:00:00-03:00`).toISOString(); upd.falha_motivo = "recusado";
+  } else {
     upd.status = "ativa"; upd.falha_desde = null; upd.falha_motivo = null;
   }
-  // Contestação no cartão (chargeback): o mês daquela cobrança deixa de contar como pago.
-  // Entra na tolerância de 7 dias, como uma cobrança recusada; os prontuários continuam acessíveis.
-  const estornada = lista.find((f) => f.payment?.status === "charged_back" && f.payment.status_detail !== "reimbursed");
-  const posterior = estornada && aprovada && new Date(aprovada.debit_date || aprovada.date_created || 0) > new Date(estornada.debit_date || estornada.date_created || 0);
+  // Contestação no cartão (chargeback): o mês daquela cobrança deixa de contar como pago e entra na tolerância de 7 dias.
+  const estornada = lista.find((c) => /CHARGEBACK/.test(c.status));
+  const posterior = estornada && aprovada && aprovada.dueDate > estornada.dueDate;
   if (estornada && !posterior) {
-    const desde = new Date(estornada.debit_date || estornada.date_created || Date.now());
+    const desde = new Date(`${estornada.dueDate}T12:00:00-03:00`);
     if (!a.pago_ate || new Date(a.pago_ate) > desde) upd.pago_ate = desde.toISOString();
-    if (pa.status !== "cancelled") upd.status = "falha";
+    if (upd.status !== "cancelada") upd.status = "falha";
     upd.falha_desde = a.falha_desde || new Date().toISOString();
     upd.falha_motivo = "chargeback";
-    if (a.falha_motivo !== "chargeback") console.error("CHARGEBACK assinatura", uid, estornada.payment?.id);
+    if (a.falha_motivo !== "chargeback") console.error("CHARGEBACK assinatura", uid, estornada.id);
   }
   await sb.from("assinaturas").update(upd).eq("profissional_id", uid);
-  if (!a.cartao_final && aprovada) await cartaoDaPrimeiraCobranca(uid).catch(() => {});
 }
 
-export async function sincronizarPorAssinatura(mpId: string) {
-  const { data } = await supabaseAdmin().from("assinaturas").select("profissional_id").eq("mp_assinatura_id", mpId).maybeSingle();
+export async function sincronizarPorAssinatura(id: string) {
+  const { data } = await supabaseAdmin().from("assinaturas").select("profissional_id").eq("gateway_assinatura_id", id).maybeSingle();
   if (data) await sincronizar(data.profissional_id);
 }
 
-export async function sincronizarPorFatura(faturaId: string) {
-  const f = await mp<{ preapproval_id?: string }>(`/authorized_payments/${encodeURIComponent(faturaId)}`);
-  if (f.preapproval_id) await sincronizarPorAssinatura(f.preapproval_id);
+/** Aviso de uma cobrança avulsa (fora da assinatura): só atualiza o histórico. */
+export async function atualizarCobrancaAvulsa(c: Cobranca) {
+  const { data } = await supabaseAdmin().from("auris_cobrancas").select("profissional_id, plano").eq("gateway_pagamento_id", c.id).maybeSingle();
+  if (data) await registrarCobranca(data.profissional_id, c, "avulso", data.plano);
 }
 
-/** Rotina diária: todas as assinaturas ativas ou com falha. */
+/** Rotina diária: todas as assinaturas ativas, com falha ou canceladas que ainda têm assinatura no Asaas. */
 export async function sincronizarTodas(): Promise<number> {
-  const { data } = await supabaseAdmin().from("assinaturas").select("profissional_id").in("status", ["ativa", "falha", "cancelada"]).not("mp_assinatura_id", "is", null).limit(200);
+  const { data } = await supabaseAdmin().from("assinaturas").select("profissional_id").in("status", ["ativa", "falha", "cancelada"]).not("gateway_assinatura_id", "is", null).limit(200);
   let n = 0;
   for (const a of data || []) { try { await sincronizar(a.profissional_id); n++; } catch (e) { console.error("sync assinatura", String(e).slice(0, 200)); } }
   return n;
