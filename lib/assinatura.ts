@@ -429,6 +429,13 @@ export async function sincronizarPix(autorizacaoId: string) {
       ultimo_pagamento_em: a.forma_pagamento === "pix_automatico" ? a.ultimo_pagamento_em : new Date().toISOString(),
       falha_desde: null, falha_motivo: null, cancelada_em: null, atualizado_em: new Date().toISOString(),
     }).eq("profissional_id", a.profissional_id);
+    if (a.forma_pagamento !== "pix_automatico") {
+      // Primeiro mês pago pelo QR Code da autorização: o Asaas pode registrá-lo em outro cliente (o pagador), então entra no histórico aqui.
+      await sb.from("auris_cobrancas").upsert({
+        profissional_id: a.profissional_id, gateway_pagamento_id: `pix-autorizacao-${autorizacaoId}`, origem: "assinatura",
+        plano: plano?.id || a.plano, valor: plano?.valor ?? au.value ?? a.valor, status: "approved", data: new Date().toISOString(),
+      }, { onConflict: "gateway_pagamento_id" });
+    }
     if (au.subscriptionId) await sincronizar(a.profissional_id).catch(() => {});
   } else if (/CANCELLED|REFUSED|EXPIRED/.test(au.status)) {
     if (a.forma_pagamento === "pix_automatico" && a.renovacao_automatica) {
