@@ -121,7 +121,7 @@ export default function Financas() {
             {a.ultimo_pagamento_em && <><dt>Último pagamento</dt><dd>{dataCurtaBR(a.ultimo_pagamento_em)}</dd></>}
           </dl>
         ) : (
-          <p className="muted" style={{ marginBottom: 0 }}>{s.acesso === "teste" ? `Você está no teste grátis até ${dataCurtaBR(s.fimTeste)}. Escolha um plano para continuar sem interrupção.` : s.acesso === "liberado" ? "Fase de testes do Auris: uso liberado, sem cobrança." : "Escolha um plano para usar o Auris."}</p>
+          <p className="muted" style={{ marginBottom: 0 }}>{s.acesso === "teste" ? `Você está no teste grátis com todos os recursos do plano Max até ${dataCurtaBR(s.fimTeste)}. Escolha um plano para continuar sem interrupção.` : s.acesso === "liberado" ? "Fase de testes do Auris: uso liberado com todos os recursos do plano Max, sem cobrança." : "Escolha um plano para usar o Auris."}</p>
         )}
         {a?.cortesia_ate && new Date(a.cortesia_ate) > new Date() && <div className="ok" style={{ marginTop: 10 }}>Você tem acesso de cortesia ao Auris até {dataCurtaBR(a.cortesia_ate)}, sem cobrança.</div>}
         {s.acesso === "aviso" && <div className="erro" style={{ marginTop: 10 }}>{a?.falha_motivo === "chargeback"

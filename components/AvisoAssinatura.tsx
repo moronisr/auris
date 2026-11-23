@@ -22,7 +22,7 @@ export default function AvisoAssinatura() {
     tipo = "erro";
   } else if (s.acesso === "teste" && !a?.plano) {
     const dias = s.fimTeste ? Math.max(0, Math.ceil((new Date(s.fimTeste).getTime() - Date.now()) / 864e5)) : null;
-    texto = dias !== null ? `Teste grátis: ${dias === 0 ? "termina hoje" : `faltam ${dias} ${dias === 1 ? "dia" : "dias"}`}. Escolha um plano para continuar usando sem interrupção.` : "Você está no teste grátis.";
+    texto = dias !== null ? `Teste grátis do plano Max: ${dias === 0 ? "termina hoje" : `faltam ${dias} ${dias === 1 ? "dia" : "dias"}`}. Escolha um plano para continuar usando sem interrupção.` : "Você está no teste grátis do plano Max.";
   } else if (a?.status === "cancelada" && a.pago_ate) {
     texto = `Assinatura cancelada. Seu acesso continua até ${dataCurtaBR(a.pago_ate)}.`;
   }
