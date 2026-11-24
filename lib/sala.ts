@@ -11,11 +11,22 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 export type Papel = "medico" | "paciente";
 export type EstadoConexao = "aguardando" | "conectando" | "conectado" | "instavel" | "encerrada";
 
-function servidoresIce(): RTCIceServer[] {
-  const lista: RTCIceServer[] = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
-  const turn = process.env.NEXT_PUBLIC_TURN_URL;
-  if (turn) lista.push({ urls: turn, username: process.env.NEXT_PUBLIC_TURN_USER, credential: process.env.NEXT_PUBLIC_TURN_PASS });
-  return lista;
+// STUN descobre o endereço público; o TURN (Cloudflare, credencial temporária) repassa o vídeo quando a rede bloqueia a conexão direta.
+let turnSala: { codigo: string; lista: Promise<RTCIceServer[]> } | null = null;
+function turnDaSala(codigo: string): Promise<RTCIceServer[]> {
+  if (turnSala?.codigo !== codigo) {
+    turnSala = {
+      codigo,
+      lista: fetch(`/api/turn?sala=${encodeURIComponent(codigo)}`, { cache: "no-store" })
+        .then((r) => r.json()).then((d) => (Array.isArray(d.iceServers) ? d.iceServers : [])).catch(() => []),
+    };
+  }
+  return turnSala.lista;
+}
+async function servidoresIce(codigo: string): Promise<RTCIceServer[]> {
+  const lista: RTCIceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }];
+  const turn = await Promise.race([turnDaSala(codigo), new Promise<RTCIceServer[]>((ok) => setTimeout(() => ok([]), 4000))]);
+  return [...lista, ...turn];
 }
 
 type Sinal =
@@ -39,10 +50,13 @@ export function useSala(codigo: string, papel: Papel, local: MediaStream | null,
     canal.current = ch;
     const enviar = (s: Sinal) => ch.send({ type: "broadcast", event: "sinal", payload: s });
 
-    const novaConexao = () => {
+    turnDaSala(codigo); // busca a credencial TURN já ao entrar na sala
+
+    const novaConexao = async () => {
       pc.current?.close();
+      pc.current = null;
       fila.current = [];
-      const c = new RTCPeerConnection({ iceServers: servidoresIce() });
+      const c = new RTCPeerConnection({ iceServers: await servidoresIce(codigo) });
       local.getTracks().forEach((tr) => c.addTrack(tr, local));
       c.onicecandidate = (e) => e.candidate && enviar({ t: "ice", de: papel, c: e.candidate.toJSON() });
       c.ontrack = (e) => setRemoto(e.streams[0] ?? new MediaStream([e.track]));
@@ -64,8 +78,8 @@ export function useSala(codigo: string, papel: Papel, local: MediaStream | null,
     };
 
     const ofertar = async () => {
-      const c = novaConexao();
       setEstado("conectando");
+      const c = await novaConexao();
       const oferta = await c.createOffer();
       await c.setLocalDescription(oferta);
       enviar({ t: "oferta", sdp: c.localDescription!.toJSON() });
@@ -78,8 +92,8 @@ export function useSala(codigo: string, papel: Papel, local: MediaStream | null,
           if (papel === "medico" && s.de === "paciente") await ofertar();
           if (papel === "paciente" && s.de === "medico") enviar({ t: "presente", de: "paciente" });
         } else if (s.t === "oferta" && papel === "paciente") {
-          const c = novaConexao();
           setEstado("conectando");
+          const c = await novaConexao();
           await c.setRemoteDescription(s.sdp);
           await aplicarFila();
           const resp = await c.createAnswer();
