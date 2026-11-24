@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const codigo = new URL(req.url).searchParams.get("sala")?.trim() ?? "";
-  const id = process.env.CLOUDFLARE_TURN_KEY_ID;
-  const token = process.env.CLOUDFLARE_TURN_API_TOKEN;
+  const id = process.env.CLOUDFLARE_TURN_KEY_ID?.trim();
+  const token = process.env.CLOUDFLARE_TURN_API_TOKEN?.trim();
   if (!id || !token || !/^[A-Za-z0-9_-]{4,64}$/.test(codigo)) return NextResponse.json({ iceServers: [] });
 
   const { data: t } = await supabaseAdmin().from("teleconsultas").select("status").eq("codigo", codigo).maybeSingle();
