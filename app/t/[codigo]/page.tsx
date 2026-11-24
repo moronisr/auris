@@ -32,7 +32,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const { codigo } = use(params);
   const [info, setInfo] = useState<Info | null | undefined>(undefined);
   const [aceito, setAceito] = useState(false);
-  const [usoIA, setUsoIA] = useState<"sim" | "nao" | null>(null);
+  const [usoIA, setUsoIA] = useState<"sim" | "nao">("sim");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [qr, setQr] = useState("");
@@ -256,17 +256,22 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <Passos atual={1} total={total} />
           <h2 style={{ marginTop: 12 }}>Termo de consentimento</h2>
           <div className="termo">{termo}</div>
-          <p style={{ marginBottom: 6 }}><b>Ajuda para escrever o registro</b></p>
-          <div className="opcoes" role="radiogroup" aria-label="Ajuda para escrever o registro">
-            <button type="button" role="radio" aria-checked={usoIA === "sim"} className={usoIA === "sim" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("sim")}>Pode usar</button>
-            <button type="button" role="radio" aria-checked={usoIA === "nao"} className={usoIA === "nao" ? "opcao ativa" : "opcao"} onClick={() => setUsoIA("nao")}>Prefiro sem</button>
-          </div>
-          <p className="muted" style={{ marginTop: 6 }}>{usoIA === "nao" ? "Tudo bem. O atendimento é o mesmo; o registro é escrito sem o assistente." : <>O assistente só ajuda a escrever. <a href="/ia" target="_blank" rel="noreferrer">Saiba como funciona</a></>}</p>
+          {usoIA === "sim" ? (
+            <p className="muted" style={{ marginTop: 10 }}>
+              O assistente de IA só ajuda o profissional a escrever o registro. <a href="/ia" target="_blank" rel="noreferrer">Saiba como funciona</a>.{" "}
+              <button type="button" className="link" onClick={() => setUsoIA("nao")}>Não quero o assistente de IA neste atendimento</button>
+            </p>
+          ) : (
+            <p className="muted" style={{ marginTop: 10 }}>
+              Combinado: o registro será escrito sem o assistente de IA. O atendimento é o mesmo.{" "}
+              <button type="button" className="link" onClick={() => setUsoIA("sim")}>Desfazer</button>
+            </p>
+          )}
           <label className="aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
             <span>Li e concordo em ser atendido(a) online.</span>
           </label>
-          <button type="button" disabled={!aceito || !usoIA || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
+          <button type="button" disabled={!aceito || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
           <p className="muted" style={{ marginBottom: 0 }}>Seu aceite fica guardado no prontuário, com data e hora.</p>
         </div>
       ) : temValor && recemPago && info.pagamento_status === "confirmado" ? (
