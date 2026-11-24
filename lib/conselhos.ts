@@ -24,7 +24,7 @@ const BASE: Record<Grupo, string> = {
 /** Termo de consentimento da teleconsulta, com o texto certo para o conselho do profissional. */
 export function termoTeleconsulta(grupo: Grupo): string {
   const quem = grupo === "medicina" ? "o médico" : "o profissional";
-  const ia = `3. Registro da consulta: para ${quem} dar toda a atenção a você, sem precisar digitar durante a conversa, um assistente de inteligência artificial pode ajudar a escrever o registro a partir do áudio. ${quem === "o médico" ? "O médico" : "O profissional"} confere e corrige tudo antes de salvar, e as decisões são sempre ${grupo === "medicina" ? "dele" : "dele ou dela"}. O vídeo não é gravado e o áudio é apagado logo depois. Se preferir que não seja usado, toque em "Não quero o assistente de IA", logo abaixo, sem nenhuma diferença no atendimento${grupo === "medicina" ? " (Resolução CFM nº 2.454/2026)" : ""}.`;
+  const ia = `3. Anotações da consulta: para ${quem} dar atenção total a você, sem precisar digitar, o Auris, uma tecnologia de apoio com inteligência artificial, organiza as anotações a partir da conversa. ${quem === "o médico" ? "O médico" : "O profissional"} revisa tudo antes de salvar. O vídeo não é gravado e o áudio não fica guardado. Se preferir, é só tocar em "Prefiro sem o assistente", logo abaixo.`;
   const sigilo = grupo === "psicologia"
     ? "4. Tudo o que for dito é protegido pelo sigilo profissional. O registro fica no prontuário psicológico, com proteção de dados conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), e você tem direito de acesso a ele."
     : "4. O registro do atendimento fica no prontuário eletrônico, com sigilo profissional e proteção de dados conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).";

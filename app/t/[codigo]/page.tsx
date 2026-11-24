@@ -258,12 +258,12 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <div className="termo">{termo}</div>
           {usoIA === "sim" ? (
             <p className="muted" style={{ marginTop: 10 }}>
-              O assistente de IA só ajuda o profissional a escrever o registro. <a href="/ia" target="_blank" rel="noreferrer">Saiba como funciona</a>.{" "}
-              <button type="button" className="link" onClick={() => setUsoIA("nao")}>Não quero o assistente de IA neste atendimento</button>
+              O Auris só organiza as anotações para o profissional. <a href="/ia" target="_blank" rel="noreferrer">Saiba mais</a>.{" "}
+              <button type="button" className="link" onClick={() => setUsoIA("nao")}>Prefiro sem o assistente</button>
             </p>
           ) : (
             <p className="muted" style={{ marginTop: 10 }}>
-              Combinado: o registro será escrito sem o assistente de IA. O atendimento é o mesmo.{" "}
+              Tudo bem. As anotações serão feitas sem o assistente, e o atendimento é o mesmo.{" "}
               <button type="button" className="link" onClick={() => setUsoIA("sim")}>Desfazer</button>
             </p>
           )}
