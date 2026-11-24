@@ -258,7 +258,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <div className="termo">{termo}</div>
           <label className="aceite">
             <input type="checkbox" checked={usoIA === "sim"} onChange={(e) => setUsoIA(e.target.checked ? "sim" : "nao")} />
-            <span>Autorizo o uso do Auris para organizar as anotações da consulta.</span>
+            <span>Autorizo o Auris para a organização das anotações da consulta.</span>
           </label>
           <label className="aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
