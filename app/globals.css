@@ -271,3 +271,7 @@ button.link.link-discreto { color: var(--suave); font-weight: 400; font-size: 13
 .item-admin { border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; background: var(--superficie); }
 .dados-admin { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 13.5px; color: var(--suave); }
 .erro-texto { color: var(--erro-tinta); }
+
+/* Celular: caixas de marcar com tamanho bom para o dedo */
+input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--destaque); cursor: pointer; }
+.dia-nome { min-height: 44px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
