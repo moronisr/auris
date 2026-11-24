@@ -32,7 +32,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   const { codigo } = use(params);
   const [info, setInfo] = useState<Info | null | undefined>(undefined);
   const [aceito, setAceito] = useState(false);
-  const [usoIA, setUsoIA] = useState<"sim" | "nao">("sim");
+  const [usoIA, setUsoIA] = useState<"sim" | "nao">("nao");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [qr, setQr] = useState("");
@@ -256,17 +256,10 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <Passos atual={1} total={total} />
           <h2 style={{ marginTop: 12 }}>Termo de consentimento</h2>
           <div className="termo">{termo}</div>
-          {usoIA === "sim" ? (
-            <p className="muted" style={{ marginTop: 10 }}>
-              O Auris só organiza as anotações para o profissional. <a href="/ia" target="_blank" rel="noreferrer">Saiba mais</a>.{" "}
-              <button type="button" className="link" onClick={() => setUsoIA("nao")}>Prefiro sem o assistente</button>
-            </p>
-          ) : (
-            <p className="muted" style={{ marginTop: 10 }}>
-              Tudo bem. As anotações serão feitas sem o assistente, e o atendimento é o mesmo.{" "}
-              <button type="button" className="link" onClick={() => setUsoIA("sim")}>Desfazer</button>
-            </p>
-          )}
+          <label className="aceite">
+            <input type="checkbox" checked={usoIA === "sim"} onChange={(e) => setUsoIA(e.target.checked ? "sim" : "nao")} />
+            <span>Autorizo o uso do Auris para organizar as anotações da consulta.</span>
+          </label>
           <label className="aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
             <span>Li e concordo em ser atendido(a) online.</span>
