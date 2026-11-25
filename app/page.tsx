@@ -8,7 +8,8 @@ import { AjudaConvite, AjudaLink } from "@/components/AjudaInicio";
 export const dynamic = "force-dynamic";
 
 
-export default async function Inicio() {
+export default async function Inicio({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const busca = String((await searchParams)?.q || "").trim().slice(0, 80);
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   const { data: perfil } = await sb.from("profissionais").select("nome, slug, agenda_ativa, agenda, agenda_excecoes, duracao_consulta, antecedencia_horas, mp_conectado").eq("id", user!.id).maybeSingle();
@@ -19,6 +20,17 @@ export default async function Inicio() {
     .limit(100);
 
   const lista = registros ?? [];
+  // Busca de pacientes pelo nome (só nas fichas do próprio profissional; a regra de acesso do banco garante isso).
+  let encontrados = lista;
+  if (busca) {
+    const termo = busca.replace(/[%_\\,()]/g, " ").trim();
+    const { data } = await sb.from("registros")
+      .select("id, created_at, modelo, paciente_nome, retorno_data, corrigido_pelo_medico")
+      .ilike("paciente_nome", `%${termo}%`)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    encontrados = data ?? [];
+  }
   const total = lista.length;
   const semCorrecao = lista.filter((r) => !r.corrigido_pelo_medico).length;
   const precisao = total ? Math.round((semCorrecao / total) * 100) : 0;
@@ -79,10 +91,18 @@ export default async function Inicio() {
         <div className="card"><div className="muted">Retornos agendados</div><div className="numero">{retornos30}</div></div>
       </div>
 
-      <h2>Últimos pacientes</h2>
+      <h2 id="ultimos-pacientes">{busca ? "Pacientes encontrados" : "Últimos pacientes"}</h2>
+      {total > 0 && (
+        <form method="get" action="/#ultimos-pacientes" className="busca-pacientes" role="search">
+          <input name="q" defaultValue={busca} placeholder="Buscar paciente pelo nome" aria-label="Buscar paciente pelo nome" />
+          <button type="submit">Buscar</button>
+          {busca && <Link href="/#ultimos-pacientes" className="btn btn-sec">Limpar</Link>}
+        </form>
+      )}
+      {busca && encontrados.length === 0 && <p className="muted">Nenhum paciente com &quot;{busca}&quot;. Confira a grafia ou busque só pelo primeiro nome.</p>}
       {total > 0 && <p className="muted" style={{ marginTop: -4, marginBottom: 10 }}>Para emitir uma receita com assinatura gov.br, abra a ficha do paciente.</p>}
       {total === 0 && <p className="muted">Nenhum registro ainda. Toque em “Novo registro por voz”.</p>}
-      {lista.map((r) => (
+      {encontrados.map((r) => (
         <Link href={`/registro/${r.id}`} className="card" key={r.id} style={{ display: "block", color: "inherit", textDecoration: "none" }}>
           <div className="row">
             <b>{r.paciente_nome}</b>

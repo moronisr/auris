@@ -294,3 +294,23 @@ input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: va
 .ajuda-link { background: transparent; color: var(--destaque); min-height: 0; padding: 6px 8px; font-weight: 500; font-size: 14px; text-decoration: underline; }
 .ajuda-convite { border-color: var(--destaque); background: var(--destaque-claro); }
 .ajuda-link:hover { background: transparent; color: var(--destaque-escuro); }
+
+/* Busca das funções do Auris */
+.topo-direita { display: flex; align-items: center; gap: 4px; }
+.busca-botao { background: transparent; color: var(--suave); min-height: 38px; width: 38px; padding: 0; border-radius: 10px; }
+.busca-botao:hover { background: #EEF0EC; color: var(--tinta); }
+.busca-fundo { position: fixed; inset: 0; z-index: 70; background: rgba(15, 23, 20, .25); display: flex; justify-content: center; align-items: flex-start; padding: 70px 12px 12px; }
+.busca-painel { width: 100%; max-width: 560px; background: var(--superficie); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,.18); overflow: hidden; }
+.busca-campo { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linha); color: var(--suave); }
+.busca-campo input { border: 0; box-shadow: none !important; background: transparent; flex: 1; font-size: 16px; padding: 8px 4px; }
+.busca-fechar { background: transparent; color: var(--suave); min-height: 34px; padding: 6px 10px; font-weight: 500; font-size: 14px; }
+.busca-fechar:hover { background: #EEF0EC; }
+.busca-lista { list-style: none; margin: 0; padding: 6px; }
+.busca-lista button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; background: transparent; color: var(--tinta); text-align: left; padding: 10px 12px; min-height: 0; border-radius: 10px; font-weight: 400; }
+.busca-lista button:hover, .busca-lista button:focus { background: var(--destaque-claro); }
+.busca-lista b { font-weight: 600; }
+.busca-lista .muted { font-size: 13px; }
+.busca-vazia { padding: 14px 16px; margin: 0; }
+.busca-pacientes { display: flex; gap: 8px; margin-bottom: 12px; }
+.busca-pacientes input { flex: 1; }
+.busca-pacientes button, .busca-pacientes .btn { min-height: 44px; padding: 10px 16px; }

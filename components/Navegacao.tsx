@@ -1,5 +1,6 @@
 "use client";
 import { RESERVADOS } from "@/lib/agenda";
+import BuscaAuris from "./BuscaAuris";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AvisoAssinatura from "@/components/AvisoAssinatura";
@@ -37,12 +38,15 @@ export default function Navegacao() {
             <span>Auris</span>
             <span className="marca-desc">Registro clínico</span>
           </Link>
+          <div className="topo-direita">
           <nav className="topo-links" aria-label="Navegação principal">
             {ITENS.map((i) => (
               <Link key={i.href} href={i.href} className={ativo(i.href) ? "ativo" : ""}>{i.rotulo}</Link>
             ))}
             {dono && <Link href="/admin" className={ativo("/admin") ? "ativo" : ""}>Painel</Link>}
           </nav>
+          <BuscaAuris />
+          </div>
         </div>
       </header>
       <AvisoAssinatura />
