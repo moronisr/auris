@@ -2,6 +2,7 @@
 import { useAcesso } from "@/lib/useAcesso";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { AjudaLink } from "@/components/AjudaInicio";
 import CancelarDevolver from "@/components/CancelarDevolver";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { linkPagamentoValido, reais } from "@/lib/pix";
@@ -125,6 +126,7 @@ export default function Teleconsultas() {
         <h1>Teleconsultas</h1>
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
+      <div style={{ marginTop: -6, marginBottom: 10 }}><AjudaLink roteiro="tele" texto="Ajuda para fazer uma teleconsulta" /></div>
       {acessoAss?.acesso === "bloqueado" && (
         <div className="card bloqueio">
           <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
@@ -144,7 +146,7 @@ export default function Teleconsultas() {
       <form className="card" onSubmit={criar}>
         <h2 style={{ marginTop: 0 }}>Agendar teleconsulta</h2>
         <div className="grid">
-          <div style={{ gridColumn: "1 / -1" }}>
+          <div style={{ gridColumn: "1 / -1" }} data-ajuda="tc-paciente">
             <label htmlFor="tc-nome">Nome do paciente</label>
             <input id="tc-nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </div>
@@ -152,7 +154,7 @@ export default function Teleconsultas() {
             <label htmlFor="tc-tel">WhatsApp do paciente</label>
             <input id="tc-tel" inputMode="tel" placeholder="(91) 99999-9999" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
           </div>
-          <div>
+          <div data-ajuda="tc-quando">
             <label htmlFor="tc-data">Data</label>
             <input id="tc-data" type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
           </div>
@@ -166,7 +168,7 @@ export default function Teleconsultas() {
               {["20", "30", "40", "60"].map((m) => <option key={m} value={m}>{m} minutos</option>)}
             </select>
           </div>
-          <div>
+          <div data-ajuda="tc-valor">
             <label htmlFor="tc-valor">Valor (vazio = sem cobrança)</label>
             <input id="tc-valor" inputMode="decimal" placeholder="150,00" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
           </div>
@@ -178,7 +180,7 @@ export default function Teleconsultas() {
           )}
         </div>
         {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
-        <button type="submit" disabled={salvando} style={{ width: "100%", marginTop: 14 }}>{salvando ? "Agendando" : "Agendar e gerar o link do paciente"}</button>
+        <button type="submit" data-ajuda="tc-agendar" disabled={salvando} style={{ width: "100%", marginTop: 14 }}>{salvando ? "Agendando" : "Agendar e gerar o link do paciente"}</button>
       </form>
       )}
 
@@ -187,7 +189,7 @@ export default function Teleconsultas() {
           <b>Teleconsulta agendada para {dataCurta(criada.inicio)}.</b>
           <p className="muted" style={{ margin: "6px 0 12px" }}>Pelo link, o paciente aceita o termo, paga (se houver valor), responde a pré-consulta e entra na sala.{whats && criada.paciente_telefone ? " O convite sai automaticamente pelo WhatsApp do Auris, e os lembretes vão um dia antes e uma hora antes." : ""}</p>
           {envio[criada.id] && <p className={/enviado/.test(envio[criada.id]) ? "ok" : envio[criada.id] === "Enviando" ? "muted" : "erro"} style={{ marginTop: 0 }}>{envio[criada.id]}</p>}
-          <div className="acoes-ficha">
+          <div className="acoes-ficha" data-ajuda="tc-convite">
             {(!whats || !criada.paciente_telefone || (envio[criada.id] && !/enviado|Enviando/.test(envio[criada.id]))) && (
               <a className="btn" href={linkWhatsApp(criada.paciente_telefone, mensagemConvite(criada, nomeProf, link(criada)))} target="_blank" rel="noreferrer">Enviar convite pelo meu WhatsApp</a>
             )}
@@ -228,7 +230,7 @@ export default function Teleconsultas() {
             </div>
           )}
           <div className="acoes-ficha" style={{ marginTop: 12 }}>
-            <Link className="btn" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
+            <Link className="btn" data-ajuda="tc-abrir" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
             {whats && t.paciente_telefone && (
               <button type="button" className="btn-sec" onClick={() => enviarWhats("lembrete", t)} disabled={envio[t.id] === "Enviando"}>Enviar lembrete agora</button>
             )}

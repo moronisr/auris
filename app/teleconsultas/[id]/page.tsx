@@ -314,16 +314,16 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
               {ativo && <span className="video-tag"><span className={gravando ? "ponto ponto-ativo" : "ponto"} aria-hidden="true" />{t.ia_autorizada === false ? "Sem IA: o paciente não autorizou" : gravando ? `Registro por voz ativo, ${tempo}` : "Registro por voz pausado"}</span>}
             </div>
             {!ativo ? (
-              <button type="button" className="gravar" onClick={entrar} style={{ marginTop: 12 }}>Entrar na sala</button>
+              <button type="button" className="gravar" data-ajuda="tc-entrar" onClick={entrar} style={{ marginTop: 12 }}>Entrar na sala</button>
             ) : (
               <div className="controles">
-                <button type="button" className="btn-sec" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
+                <button type="button" className="btn-sec" data-ajuda="tc-controles" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
                 <button type="button" className="btn-sec" onClick={alternarCam} aria-pressed={!camOn}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
                 {t.ia_autorizada === false ? (
-                  <button type="button" onClick={encerrarSemFicha}>Encerrar consulta</button>
+                  <button type="button" data-ajuda="tc-encerrar" onClick={encerrarSemFicha}>Encerrar consulta</button>
                 ) : (
                   <>
-                    <button type="button" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
+                    <button type="button" data-ajuda="tc-encerrar" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
                     <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
                   </>
                 )}

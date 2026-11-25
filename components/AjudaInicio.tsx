@@ -19,7 +19,7 @@ export function AjudaConvite({ novato }: { novato: boolean }) {
       <b>Quer uma ajuda rápida para começar?</b>
       <p className="muted" style={{ margin: "4px 0 12px" }}>Eu mostro onde tocar, passo a passo. Leva 1 minuto.</p>
       <div className="row" style={{ justifyContent: "flex-start", gap: 8 }}>
-        <button type="button" onClick={() => { iniciarAjuda(); setMostrar(false); }}>Sim, me mostre</button>
+        <button type="button" onClick={() => { iniciarAjuda("registro"); setMostrar(false); }}>Sim, me mostre</button>
         <button type="button" className="btn-sec" onClick={recusar}>Agora não</button>
       </div>
     </div>
@@ -27,8 +27,8 @@ export function AjudaConvite({ novato }: { novato: boolean }) {
 }
 
 /** Link discreto para abrir a ajuda quando quiser. */
-export function AjudaLink() {
+export function AjudaLink({ roteiro = "registro", texto = "Ajuda para usar o Auris" }: { roteiro?: "registro" | "tele"; texto?: string }) {
   return (
-    <button type="button" className="ajuda-link" onClick={iniciarAjuda}>Ajuda para usar o Auris</button>
+    <button type="button" className="ajuda-link" onClick={() => iniciarAjuda(roteiro)}>{texto}</button>
   );
 }

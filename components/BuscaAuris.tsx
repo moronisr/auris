@@ -8,7 +8,7 @@ import { iniciarAjuda } from "./AjudaGuia";
  * Busca das funções do Auris (não busca pacientes).
  * A pessoa digita com as palavras dela ("cartão", "gravar", "agenda") e toca no atalho.
  */
-type Atalho = { titulo: string; desc: string; href?: string; acao?: "ajuda"; palavras: string };
+type Atalho = { titulo: string; desc: string; href?: string; acao?: "ajuda" | "ajuda-tele"; palavras: string };
 
 const ATALHOS: Atalho[] = [
   { titulo: "Novo registro", desc: "Gravar um atendimento por voz", href: "/novo", palavras: "gravar gravacao audio ditado ditar microfone consulta conversa registrar registro ficha nova atendimento" },
@@ -22,6 +22,7 @@ const ATALHOS: Atalho[] = [
   { titulo: "Pagamento das teleconsultas", desc: "Chave Pix e link de cartão para o paciente pagar", href: "/perfil", palavras: "chave pix link cartao paciente pagar consulta cobrar recebimento" },
   { titulo: "Exportar prontuário", desc: "Baixar todas as fichas", href: "/perfil#exportar", palavras: "exportar exportacao backup baixar copia prontuario todas fichas guardar" },
   { titulo: "Ajuda para usar o Auris", desc: "Passo a passo mostrando onde tocar", acao: "ajuda", palavras: "ajuda tutorial como usar comecar duvida passo guia" },
+  { titulo: "Ajuda para fazer uma teleconsulta", desc: "Agendar, mandar o link, entrar na sala e encerrar", acao: "ajuda-tele", palavras: "ajuda teleconsulta video online sala link paciente camera microfone como usar tutorial" },
   { titulo: "Como a IA funciona", desc: "O que a IA faz e o que não faz", href: "/ia", palavras: "ia inteligencia artificial como funciona seguranca" },
   { titulo: "Privacidade", desc: "Como os dados são tratados", href: "/privacidade", palavras: "privacidade lgpd dados protecao" },
   { titulo: "Termos de uso", desc: "Regras de uso do Auris", href: "/termos", palavras: "termos uso contrato regras cancelamento" },
@@ -53,7 +54,8 @@ export default function BuscaAuris() {
 
   const abrir = (a: Atalho) => {
     setAberta(false);
-    if (a.acao === "ajuda") { router.push("/"); setTimeout(iniciarAjuda, 400); return; }
+    if (a.acao === "ajuda") { router.push("/"); setTimeout(() => iniciarAjuda("registro"), 400); return; }
+    if (a.acao === "ajuda-tele") { router.push("/teleconsultas"); setTimeout(() => iniciarAjuda("tele"), 400); return; }
     if (a.href) router.push(a.href);
   };
 

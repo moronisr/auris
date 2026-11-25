@@ -12,7 +12,7 @@ export const CHAVE_AJUDA_VISTA = "auris_ajuda_vista";
 
 type Passo = { alvo: string; texto: string; aoTocar?: boolean; opcional?: boolean };
 
-const PASSOS: Passo[] = [
+const PASSOS_REGISTRO: Passo[] = [
   { alvo: "novo", texto: "Comece por aqui: toque em Novo registro.", aoTocar: true },
   { alvo: "modo", texto: "Escolha Ditado, se for falar sozinho depois do atendimento, ou Consulta, para gravar a conversa com o paciente." },
   { alvo: "area", texto: "Confira a sua área. O formato da ficha já vem escolhido por ela." },
@@ -23,39 +23,61 @@ const PASSOS: Passo[] = [
   { alvo: "documentos", texto: "Atestado, pedido de exames e outros documentos ficam aqui. Pronto, você já sabe o caminho." },
 ];
 
-export function iniciarAjuda() {
+const PASSOS_TELE: Passo[] = [
+  { alvo: "tc-paciente", texto: "Preencha o nome e o WhatsApp do paciente. É por esse número que ele recebe o link." },
+  { alvo: "tc-quando", texto: "Escolha a data, a hora e a duração da consulta." },
+  { alvo: "tc-valor", texto: "Se for cobrar, coloque o valor: o paciente paga pelo link antes de entrar. Vazio = sem cobrança." },
+  { alvo: "tc-agendar", texto: "Toque para agendar. O Auris gera o link do paciente.", aoTocar: true },
+  { alvo: "tc-convite", texto: "Envie o link ao paciente pelo WhatsApp ou copie. Pelo link ele aceita o termo, paga e entra na sala." },
+  { alvo: "tc-abrir", texto: "Na hora da consulta, toque em Abrir a sala.", aoTocar: true },
+  { alvo: "tc-entrar", texto: "Toque em Entrar na sala. Quando o navegador pedir a câmera e o microfone, toque em Permitir.", aoTocar: true },
+  { alvo: "tc-controles", texto: "Aqui e no botão ao lado você liga e desliga o microfone e a câmera. Se o paciente não te ouvir, confira se o microfone está ligado." },
+  { alvo: "tc-encerrar", texto: "Ao terminar, toque em Encerrar e montar a ficha. A conversa vira a ficha para a sua revisão. Pronto." },
+];
+
+const ROTEIROS: Record<string, Passo[]> = { registro: PASSOS_REGISTRO, tele: PASSOS_TELE };
+type Estado = { roteiro: string; passo: number };
+
+export function iniciarAjuda(roteiro: "registro" | "tele" = "registro") {
   try {
-    localStorage.setItem(CHAVE_AJUDA, "0");
+    localStorage.setItem(CHAVE_AJUDA, `${roteiro}:0`);
     localStorage.setItem(CHAVE_AJUDA_VISTA, "1");
   } catch {}
   window.dispatchEvent(new Event("auris-ajuda"));
 }
 
-function lerPasso(): number | null {
+function lerEstado(): Estado | null {
   try {
     const v = localStorage.getItem(CHAVE_AJUDA);
-    return v === null ? null : Number(v);
+    if (v === null) return null;
+    const [roteiro, n] = v.includes(":") ? v.split(":") : ["registro", v];
+    return ROTEIROS[roteiro] ? { roteiro, passo: Number(n) || 0 } : null;
   } catch {
     return null;
   }
 }
 
 export default function AjudaGuia() {
-  const [passo, setPasso] = useState<number | null>(null);
+  const [estado, setEstado] = useState<Estado | null>(null);
+  const PASSOS = estado ? ROTEIROS[estado.roteiro] : PASSOS_REGISTRO;
+  const passo = estado ? estado.passo : null;
   const [caixa, setCaixa] = useState<DOMRect | null>(null);
 
   const definir = useCallback((n: number | null) => {
-    try {
-      if (n === null || n >= PASSOS.length) localStorage.removeItem(CHAVE_AJUDA);
-      else localStorage.setItem(CHAVE_AJUDA, String(n));
-    } catch {}
-    setPasso(n === null || n >= PASSOS.length ? null : n);
+    setEstado((atual) => {
+      const fim = !atual || n === null || n >= ROTEIROS[atual.roteiro].length;
+      try {
+        if (fim) localStorage.removeItem(CHAVE_AJUDA);
+        else localStorage.setItem(CHAVE_AJUDA, `${atual!.roteiro}:${n}`);
+      } catch {}
+      return fim ? null : { roteiro: atual!.roteiro, passo: n! };
+    });
     setCaixa(null);
   }, []);
 
   // Começa (ou continua) a ajuda ao abrir a página ou quando o profissional escolhe "Sim".
   useEffect(() => {
-    const atualizar = () => setPasso(lerPasso());
+    const atualizar = () => setEstado(lerEstado());
     atualizar();
     window.addEventListener("auris-ajuda", atualizar);
     return () => window.removeEventListener("auris-ajuda", atualizar);
@@ -65,6 +87,7 @@ export default function AjudaGuia() {
   useEffect(() => {
     if (passo === null) return;
     const atual = PASSOS[passo];
+    if (!atual) return;
     let rolou = false;
     let espera = 0;
     const achar = () => {
@@ -95,7 +118,7 @@ export default function AjudaGuia() {
       window.removeEventListener("resize", achar);
       document.removeEventListener("click", aoClicar, true);
     };
-  }, [passo, definir]);
+  }, [passo, definir, PASSOS]);
 
   if (passo === null || !caixa) return null;
   const atual = PASSOS[passo];

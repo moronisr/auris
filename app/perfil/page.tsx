@@ -75,7 +75,7 @@ export default function Perfil() {
       </div>
       <a className="card card-link" href="/financas"><b>Finanças</b><span className="muted">Seu plano, forma de pagamento, cobranças e upgrade</span></a>
       <LinkPainel />
-      <button type="button" className="card card-link" style={{ width: "100%", textAlign: "left", color: "inherit", fontWeight: 400 }} onClick={iniciarAjuda}><b>Ajuda para usar o Auris</b><span className="muted">Passo a passo mostrando onde tocar para registrar, assinar e emitir receita</span></button>
+      <button type="button" className="card card-link" style={{ width: "100%", textAlign: "left", color: "inherit", fontWeight: 400 }} onClick={() => iniciarAjuda("registro")}><b>Ajuda para usar o Auris</b><span className="muted">Passo a passo mostrando onde tocar para registrar, assinar e emitir receita</span></button>
       <form className="card" onSubmit={salvar}>
         <label>Nome completo</label>
         <input value={nome} onChange={(e) => setNome(e.target.value)} required />
