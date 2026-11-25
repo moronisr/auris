@@ -229,7 +229,7 @@ export default function Teleconsultas() {
               <div style={{ marginTop: 8 }}><button type="button" onClick={() => confirmarPagamento(t)}>Confirmar pagamento recebido</button></div>
             </div>
           )}
-          <div className="acoes-ficha" style={{ marginTop: 12 }}>
+          <div className="acoes-ficha" data-ajuda="tc-lista" style={{ marginTop: 12 }}>
             <Link className="btn" data-ajuda="tc-abrir" href={`/teleconsultas/${t.id}`}>Abrir a sala</Link>
             {whats && t.paciente_telefone && (
               <button type="button" className="btn-sec" onClick={() => enviarWhats("lembrete", t)} disabled={envio[t.id] === "Enviando"}>Enviar lembrete agora</button>

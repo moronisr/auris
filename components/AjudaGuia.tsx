@@ -10,15 +10,22 @@ import { useCallback, useEffect, useState } from "react";
 export const CHAVE_AJUDA = "auris_ajuda_passo";
 export const CHAVE_AJUDA_VISTA = "auris_ajuda_vista";
 
-type Passo = { alvo: string; texto: string; aoTocar?: boolean; opcional?: boolean };
+type Passo = {
+  alvo: string;
+  texto: string;
+  /** Avança quando a pessoa toca no item destacado e a próxima parte aparece na tela. */
+  aoTocar?: boolean;
+  /** Frase mostrada enquanto a parte deste passo ainda não apareceu (ex.: aguardando o pagamento). */
+  espera?: string;
+};
 
 const PASSOS_REGISTRO: Passo[] = [
   { alvo: "novo", texto: "Comece por aqui: toque em Novo registro.", aoTocar: true },
   { alvo: "modo", texto: "Escolha Ditado, se for falar sozinho depois do atendimento, ou Consulta, para gravar a conversa com o paciente." },
   { alvo: "area", texto: "Confira a sua área. O formato da ficha já vem escolhido por ela." },
   { alvo: "gravar", texto: "Toque para gravar. Quando terminar, toque em Parar e espere a ficha ficar pronta.", aoTocar: true },
-  { alvo: "aprovar", texto: "Confira a ficha, corrija o que precisar e toque em Aprovar.", aoTocar: true },
-  { alvo: "receita", texto: "Aqui você emite a receita com a assinatura gov.br.", opcional: true },
+  { alvo: "aprovar", texto: "Confira a ficha, corrija o que precisar e toque em Aprovar.", aoTocar: true, espera: "Montando a ficha. Em alguns segundos ela aparece aqui para a sua revisão." },
+  { alvo: "receita", texto: "Aqui você emite a receita com a assinatura gov.br." },
   { alvo: "assinar", texto: "Aqui você assina a ficha digitalmente, para ela valer sem papel." },
   { alvo: "documentos", texto: "Atestado, pedido de exames e outros documentos ficam aqui. Pronto, você já sabe o caminho." },
 ];
@@ -27,21 +34,44 @@ const PASSOS_TELE: Passo[] = [
   { alvo: "tc-paciente", texto: "Preencha o nome e o WhatsApp do paciente. É por esse número que ele recebe o link." },
   { alvo: "tc-quando", texto: "Escolha a data, a hora e a duração da consulta." },
   { alvo: "tc-valor", texto: "Se for cobrar, coloque o valor: o paciente paga pelo link antes de entrar. Vazio = sem cobrança." },
-  { alvo: "tc-agendar", texto: "Toque para agendar. O Auris gera o link do paciente.", aoTocar: true },
-  { alvo: "tc-convite", texto: "Envie o link ao paciente pelo WhatsApp ou copie. Pelo link ele aceita o termo, paga e entra na sala." },
+  { alvo: "tc-agendar", texto: "Toque para agendar. O Auris gera o link do paciente. Se aparecer um aviso em vermelho, corrija e toque de novo.", aoTocar: true },
+  { alvo: "tc-convite", texto: "Link gerado. Envie ao paciente pelo WhatsApp ou toque em Copiar link para colar onde quiser. Pelo link ele aceita o termo, paga e entra na sala." },
+  { alvo: "tc-lista", texto: "A consulta fica na sua agenda. Aqui você manda um lembrete ao paciente, copia o link de novo ou cancela. Os selos acima mostram se ele já aceitou o termo, pagou e respondeu a pré-consulta." },
   { alvo: "tc-abrir", texto: "Na hora da consulta, toque em Abrir a sala.", aoTocar: true },
-  { alvo: "tc-entrar", texto: "Toque em Entrar na sala. Quando o navegador pedir a câmera e o microfone, toque em Permitir.", aoTocar: true },
-  { alvo: "tc-controles", texto: "Aqui e no botão ao lado você liga e desliga o microfone e a câmera. Se o paciente não te ouvir, confira se o microfone está ligado." },
-  { alvo: "tc-encerrar", texto: "Ao terminar, toque em Encerrar e montar a ficha. A conversa vira a ficha para a sua revisão. Pronto." },
+  { alvo: "tc-status", texto: "Aqui você acompanha o paciente: termo aceito, pagamento, pré-consulta e se ele já chegou à sala de espera." },
+  { alvo: "tc-entrar", texto: "Toque em Entrar na sala. Quando o navegador pedir, toque em Permitir para a câmera e o microfone. Se negar sem querer, toque no cadeado ao lado do endereço do site e libere os dois.", aoTocar: true },
+  { alvo: "tc-controles", texto: "Aqui você liga e desliga o microfone; ao lado, a câmera. Se o paciente não te ouvir, confira se o microfone está ligado." },
+  { alvo: "tc-encerrar", texto: "Ao terminar, toque em Encerrar e montar a ficha. A conversa vira a ficha para a sua revisão.", aoTocar: true },
+  { alvo: "aprovar", texto: "A ficha da teleconsulta chegou. Confira, corrija o que precisar e toque em Aprovar. Pronto.", espera: "Montando a ficha da consulta. Em alguns segundos ela aparece aqui para a sua revisão." },
 ];
 
-const ROTEIROS: Record<string, Passo[]> = { registro: PASSOS_REGISTRO, tele: PASSOS_TELE };
+const ESPERA_PAGAMENTO = "Aguardando a confirmação do pagamento. Deixe esta página aberta: ela atualiza sozinha.";
+
+const PASSOS_PACIENTE: Passo[] = [
+  { alvo: "p-termo", texto: "Leia o termo da consulta online. Ele explica como funciona o atendimento pela internet." },
+  { alvo: "p-ia", texto: "Opcional: marque se autoriza o Auris a organizar as anotações da consulta." },
+  { alvo: "p-aceite", texto: "Marque aqui para concordar em ser atendido(a) online." },
+  { alvo: "p-concordar", texto: "Toque em Concordar e continuar.", aoTocar: true },
+  { alvo: "p-pagar", texto: "Escolha como pagar: Pix, cartão de crédito ou cartão de débito. O valor vai direto para o profissional." },
+  { alvo: "p-pix", texto: "Toque para copiar o código Pix. No app do seu banco, escolha Pix, depois Pix Copia e Cola, e cole o código.", espera: ESPERA_PAGAMENTO },
+  { alvo: "p-cartao", texto: "Preencha os dados do cartão e confirme. Os dados ficam só no site de pagamento seguro; o Auris não vê.", espera: ESPERA_PAGAMENTO },
+  { alvo: "p-informar", texto: "Depois de pagar, toque em Já fiz o pagamento. O consultório confere e libera a sala de espera.", espera: ESPERA_PAGAMENTO },
+  { alvo: "p-pago", texto: "Pagamento aprovado. Guarde o número da transação e toque em Continuar.", aoTocar: true, espera: ESPERA_PAGAMENTO },
+  { alvo: "p-pre", texto: "Responda em poucas palavras o motivo da consulta, os remédios que toma e se tem alergia. O profissional lê antes da chamada." },
+  { alvo: "p-pre-enviar", texto: "Toque em Enviar e ir para a sala de espera. Se preferir, toque em Prefiro falar na consulta, logo abaixo.", aoTocar: true },
+  { alvo: "p-testar", texto: "Toque em Testar câmera e microfone. Quando o celular perguntar, toque em Permitir. Se aparecer um erro, toque no cadeado ao lado do endereço do site e libere a câmera e o microfone.", aoTocar: true },
+  { alvo: "p-entrar", texto: "Você aparece na tela? Então toque em Entrar na sala de espera.", aoTocar: true },
+  { alvo: "p-controles", texto: "Pronto, você está na sala. Aqui você liga e desliga o microfone e a câmera. Deixe esta tela aberta: o profissional entra no horário marcado." },
+];
+
+export type Roteiro = "registro" | "tele" | "paciente";
+const ROTEIROS: Record<string, Passo[]> = { registro: PASSOS_REGISTRO, tele: PASSOS_TELE, paciente: PASSOS_PACIENTE };
 type Estado = { roteiro: string; passo: number };
 
-export function iniciarAjuda(roteiro: "registro" | "tele" = "registro") {
+export function iniciarAjuda(roteiro: Roteiro = "registro") {
   try {
     localStorage.setItem(CHAVE_AJUDA, `${roteiro}:0`);
-    localStorage.setItem(CHAVE_AJUDA_VISTA, "1");
+    if (roteiro !== "paciente") localStorage.setItem(CHAVE_AJUDA_VISTA, "1");
   } catch {}
   window.dispatchEvent(new Event("auris-ajuda"));
 }
@@ -57,11 +87,20 @@ function lerEstado(): Estado | null {
   }
 }
 
+/** O item do passo que está visível na tela agora (pode haver mais de um com o mesmo nome). */
+function alvoVisivel(passo: Passo | undefined): HTMLElement | null {
+  if (!passo) return null;
+  const todos = document.querySelectorAll<HTMLElement>(`[data-ajuda="${passo.alvo}"]`);
+  for (const el of todos) if (el.offsetParent !== null) return el;
+  return null;
+}
+
 export default function AjudaGuia() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const PASSOS = estado ? ROTEIROS[estado.roteiro] : PASSOS_REGISTRO;
   const passo = estado ? estado.passo : null;
   const [caixa, setCaixa] = useState<DOMRect | null>(null);
+  const [solto, setSolto] = useState(false);
 
   const definir = useCallback((n: number | null) => {
     setEstado((atual) => {
@@ -83,21 +122,39 @@ export default function AjudaGuia() {
     return () => window.removeEventListener("auris-ajuda", atualizar);
   }, []);
 
-  // Procura o botão do passo atual na tela e acompanha a posição dele.
+  // Primeiro passo à frente cuja parte já está na tela.
+  const proximoVisivel = useCallback((de: number) => {
+    for (let i = de + 1; i < PASSOS.length; i++) if (alvoVisivel(PASSOS[i])) return i;
+    return -1;
+  }, [PASSOS]);
+
+  const avancar = useCallback(() => {
+    if (passo === null) return;
+    const i = proximoVisivel(passo);
+    definir(i >= 0 ? i : passo + 1);
+  }, [passo, proximoVisivel, definir]);
+
+  // Procura o item do passo atual e acompanha a posição dele. A ajuda nunca some sozinha:
+  // se a parte do passo ainda não apareceu, mostra um aviso fixo até ela aparecer.
   useEffect(() => {
     if (passo === null) return;
     const atual = PASSOS[passo];
     if (!atual) return;
     let rolou = false;
-    let espera = 0;
+    let tocado = false;
     const achar = () => {
-      const el = document.querySelector<HTMLElement>(`[data-ajuda="${atual.alvo}"]`);
-      if (!el || el.offsetParent === null) {
-        // Passo que nem sempre existe (ex.: receita só para quem pode receitar): pula sozinho.
-        if (atual.opcional && document.querySelector('[data-ajuda="assinar"]') && ++espera > 4) definir(passo + 1);
+      // Tocou no item destacado: segue quando a parte seguinte aparecer (se der erro, continua aqui).
+      if (tocado && alvoVisivel(PASSOS[passo + 1])) return definir(passo + 1);
+      const el = alvoVisivel(atual);
+      if (!el) {
+        // A pessoa já está mais adiante (outra tela ou outra etapa): pula para o passo que está na tela.
+        const i = proximoVisivel(passo);
+        if (i >= 0) return definir(i);
         setCaixa(null);
+        setSolto(true);
         return;
       }
+      setSolto(false);
       if (!rolou) { el.scrollIntoView({ block: "center", behavior: "smooth" }); rolou = true; }
       setCaixa(el.getBoundingClientRect());
     };
@@ -105,11 +162,10 @@ export default function AjudaGuia() {
     const t = window.setInterval(achar, 400);
     window.addEventListener("scroll", achar, true);
     window.addEventListener("resize", achar);
-    // Passos que avançam quando o profissional toca no botão destacado.
     const aoClicar = (e: MouseEvent) => {
-      if (!atual.aoTocar) return;
-      const el = document.querySelector(`[data-ajuda="${atual.alvo}"]`);
-      if (el && e.target instanceof Node && el.contains(e.target)) definir(passo + 1);
+      if (!atual.aoTocar || !(e.target instanceof Node)) return;
+      const el = alvoVisivel(atual);
+      if (el && el.contains(e.target)) { tocado = true; window.setTimeout(achar, 300); }
     };
     document.addEventListener("click", aoClicar, true);
     return () => {
@@ -118,9 +174,22 @@ export default function AjudaGuia() {
       window.removeEventListener("resize", achar);
       document.removeEventListener("click", aoClicar, true);
     };
-  }, [passo, definir, PASSOS]);
+  }, [passo, definir, PASSOS, proximoVisivel]);
 
-  if (passo === null || !caixa) return null;
+  if (passo === null) return null;
+  if (!caixa) {
+    if (!solto) return null;
+    const p = PASSOS[passo];
+    return (
+      <div className="ajuda-balao ajuda-solto" role="dialog" aria-label="Ajuda">
+        <div className="ajuda-contador">Passo {passo + 1} de {PASSOS.length}</div>
+        <p>{p?.espera ?? "Continue nesta tela. Quando a próxima parte aparecer, a ajuda mostra onde tocar."}</p>
+        <div className="ajuda-acoes">
+          <button type="button" className="ajuda-sair" onClick={() => definir(null)}>Sair da ajuda</button>
+        </div>
+      </div>
+    );
+  }
   const atual = PASSOS[passo];
   const ultimo = passo === PASSOS.length - 1;
 
@@ -148,7 +217,7 @@ export default function AjudaGuia() {
         <div className="ajuda-acoes">
           <button type="button" className="ajuda-sair" onClick={() => definir(null)}>Sair da ajuda</button>
           {!atual.aoTocar && (
-            <button type="button" className="ajuda-proximo" onClick={() => definir(passo + 1)}>{ultimo ? "Concluir" : "Próximo"}</button>
+            <button type="button" className="ajuda-proximo" onClick={avancar}>{ultimo ? "Concluir" : "Próximo"}</button>
           )}
         </div>
       </div>

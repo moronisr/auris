@@ -1,5 +1,6 @@
 "use client";
 
+import { AjudaLink } from "@/components/AjudaInicio";
 import CancelarDevolver from "@/components/CancelarDevolver";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -253,6 +254,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
         </div>
         <a className="btn btn-sec" href="/teleconsultas">Voltar à agenda</a>
       </div>
+      <div style={{ margin: "4px 0 6px" }}><AjudaLink roteiro="tele" texto="Ajuda para a teleconsulta" /></div>
 
       {erro && <div className="erro" style={{ margin: "12px 0" }}>{erro}</div>}
       {(t.pagamento_alerta === "contestacao" || t.pagamento_alerta === "chargeback") && (
@@ -334,7 +336,7 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
           </section>
 
           <aside className="sala-lado">
-            <div className="card">
+            <div className="card" data-ajuda="tc-status">
               <h2 style={{ marginTop: 0 }}>Antes da consulta</h2>
               <ul className="lista-check">
                 <li className={t.consentimento_em ? "feito" : ""}>{t.consentimento_em ? `Termo aceito às ${horaDe(t.consentimento_em)}` : "Termo ainda não aceito"}</li>

@@ -3,6 +3,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import Link from "next/link";
 import CartaoMP from "@/components/CartaoMP";
+import { AjudaLink } from "@/components/AjudaInicio";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -220,6 +221,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
       <div className="row">
         <div><b>{info.profissional}</b><div className="muted">{info.especialidade}</div></div>
       </div>
+      <div className="ajuda-paciente"><AjudaLink roteiro="paciente" texto="Precisa de ajuda? Ver o passo a passo" /></div>
       <div className="video-remoto video-remoto-celular">
         <video ref={videoRemoto} autoPlay playsInline />
         {!remoto && (
@@ -230,7 +232,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
         <video ref={videoLocal} className="video-local" autoPlay playsInline muted />
       </div>
       <div className="controles">
-        <button type="button" className="btn-sec" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
+        <button type="button" className="btn-sec" data-ajuda="p-controles" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
         <button type="button" className="btn-sec" onClick={alternarCam} aria-pressed={!camOn}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
         <button type="button" className="link" onClick={sair}>Sair da sala</button>
       </div>
@@ -241,6 +243,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   return (
     <div className="paciente">
       {cabecalho}
+      <div className="ajuda-paciente"><AjudaLink roteiro="paciente" texto="Precisa de ajuda? Ver o passo a passo" /></div>
       <p className="muted" style={{ marginBottom: 2 }}>Olá, {info.paciente}</p>
       <h1>Sua consulta com {info.profissional}</h1>
       <div className="card">
@@ -254,17 +257,17 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
       {!info.consentimento_em ? (
         <div className="card">
           <Passos atual={1} total={total} />
-          <h2 style={{ marginTop: 12 }}>Termo de consentimento</h2>
+          <h2 style={{ marginTop: 12 }} data-ajuda="p-termo">Termo de consentimento</h2>
           <div className="termo">{termo}</div>
-          <label className="aceite">
+          <label className="aceite" data-ajuda="p-ia">
             <input type="checkbox" checked={usoIA === "sim"} onChange={(e) => setUsoIA(e.target.checked ? "sim" : "nao")} />
             <span>Autorizo o Auris para a organização das anotações da consulta.</span>
           </label>
-          <label className="aceite">
+          <label className="aceite" data-ajuda="p-aceite">
             <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} />
             <span>Li e concordo em ser atendido(a) online.</span>
           </label>
-          <button type="button" disabled={!aceito || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
+          <button type="button" data-ajuda="p-concordar" disabled={!aceito || enviando} style={{ width: "100%", marginTop: 12 }} onClick={() => acao("consentir", { texto: `${termo}\n\nUso de IA no registro: ${usoIA === "sim" ? "autorizado" : "não autorizado"} pelo paciente.`, ia: usoIA === "sim" ? "true" : "false" })}>Concordar e continuar</button>
           <p className="muted" style={{ marginBottom: 0 }}>Seu aceite fica guardado no prontuário, com data e hora.</p>
         </div>
       ) : temValor && recemPago && info.pagamento_status === "confirmado" ? (
@@ -282,7 +285,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
             <dt>Consulta</dt><dd>{(() => { const d = dataHora(info.inicio); return d.charAt(0).toUpperCase() + d.slice(1); })()}</dd>
           </dl>
           <p className="muted">Guarde este número da transação, se precisar falar com o consultório. Boa consulta!</p>
-          <button type="button" style={{ width: "100%" }} onClick={() => setRecemPago(false)}>Continuar</button>
+          <button type="button" data-ajuda="p-pago" style={{ width: "100%" }} onClick={() => setRecemPago(false)}>Continuar</button>
         </div>
       ) : precisaPagar ? (
         <div className="card">
@@ -296,11 +299,11 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
             ) : cartaoOnline && info.pagamento_status !== "confirmado" ? (
               <>
                 <p className="muted">Pague <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b> no cartão de {cartaoOnline.metodo === "credito" ? "crédito, à vista" : "débito"}. Os dados do cartão ficam só no Mercado Pago; o Auris não vê nem guarda. Não precisa de conta no Mercado Pago.</p>
-                <CartaoMP key={cartaoOnline.metodo} codigo={codigo} publicKey={cartaoOnline.publicKey} valor={Number(info.valor)} metodo={cartaoOnline.metodo}
+                <div data-ajuda="p-cartao"><CartaoMP key={cartaoOnline.metodo} codigo={codigo} publicKey={cartaoOnline.publicKey} valor={Number(info.valor)} metodo={cartaoOnline.metodo}
                   onAprovado={() => { setErro(""); setRecusa(null); setRecemPago(true); verificarPagamento(); }}
                   onErro={(msg, recusado) => setRecusa(recusado
                     ? { titulo: "Pagamento recusado", texto: `${msg} Nenhum valor foi cobrado. Você pode tentar de novo, usar outro cartão ou pagar com Pix.` }
-                    : { titulo: "Pagamento não concluído", texto: msg })} />
+                    : { titulo: "Pagamento não concluído", texto: msg })} /></div>
                 {recusa && <div className="erro" role="alert" style={{ marginTop: 12 }}><b>{recusa.titulo}</b><div style={{ marginTop: 4 }}>{recusa.texto}</div></div>}
                 {cartaoOnline.metodo === "debito" && <p className="muted">No débito online, nem todos os bancos aceitam. Se o seu não aceitar, use o crédito ou o Pix.</p>}
                 <button type="button" className="link" onClick={() => { setCartaoOnline(null); setErro(""); }}>Escolher outra forma de pagamento</button>
@@ -311,7 +314,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                 {pixOnline.imagem && <img src={pixOnline.imagem} alt="QR Code do Pix" className="qr" />}
                 <label htmlFor="pix-online">Pix copia e cola</label>
                 <textarea id="pix-online" readOnly rows={3} value={pixOnline.codigo} onFocus={(e) => e.currentTarget.select()} />
-                <button type="button" style={{ width: "100%", marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pixOnline.codigo).then(() => setCopiadoOnline(true)).catch(() => {}); }}>{copiadoOnline ? "Código copiado" : "Copiar código Pix"}</button>
+                <button type="button" data-ajuda="p-pix" style={{ width: "100%", marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pixOnline.codigo).then(() => setCopiadoOnline(true)).catch(() => {}); }}>{copiadoOnline ? "Código copiado" : "Copiar código Pix"}</button>
                 <p className="muted">No app do banco, escolha Pix, depois Pix Copia e Cola (ou ler QR Code).</p>
                 <div className="aviso" role="status"><b>Aguardando o pagamento.</b> Deixe esta página aberta: assim que o Pix for aprovado, aparece aqui a confirmação, em poucos segundos.</div>
                 {aviso ? <div className="aviso" role="status">{aviso}</div> : <button type="button" className="btn-sec" disabled={enviando} style={{ width: "100%", marginBottom: 8 }} onClick={jaPaguei}>{enviando ? "Conferindo com o banco" : "Já paguei e não liberou"}</button>}
@@ -322,7 +325,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                 <p>Estamos aguardando a confirmação do pagamento. Pelo Pix, costuma levar poucos segundos; esta página atualiza sozinha.</p>
                 {aviso ? <div className="aviso" role="status">{aviso}</div> : <button type="button" className="btn-sec" disabled={enviando} style={{ width: "100%", marginBottom: 8 }} onClick={jaPaguei}>{enviando ? "Conferindo com o banco" : "Já paguei e não liberou"}</button>}
                 <p className="muted">Se você fechou o pagamento sem concluir, escolha a forma de pagamento de novo:</p>
-                <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                <div className="opcoes" data-ajuda="p-pagar" role="group" aria-label="Forma de pagamento">
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
@@ -332,7 +335,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
               <>
                 <p className="muted">Valor da consulta: <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b>. O pagamento vai direto para {info.profissional} e confirma a sua consulta automaticamente.</p>
                 <p className="muted" style={{ marginBottom: 6 }}>Escolha como pagar:</p>
-                <div className="opcoes" role="group" aria-label="Forma de pagamento">
+                <div className="opcoes" data-ajuda="p-pagar" role="group" aria-label="Forma de pagamento">
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("pix")}>Pix</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("credito")}>Cartão de crédito</button>
                   <button type="button" className="opcao" disabled={abrindoPg} onClick={() => pagarOnline("debito")}>Cartão de débito</button>
@@ -349,7 +352,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
             <>
               <p className="muted">Valor da consulta: <b style={{ color: "var(--tinta)" }}>{reais(Number(info.valor))}</b>. O pagamento vai direto para {info.pix?.nome || info.profissional}.</p>
               <p className="muted" style={{ marginBottom: 6 }}>Escolha como pagar:</p>
-              <div className="opcoes" role="group" aria-label="Forma de pagamento">
+              <div className="opcoes" data-ajuda="p-pagar" role="group" aria-label="Forma de pagamento">
                 {(["pix", "credito", "debito"] as const).map((m) => {
                   const atual = metodo ?? (info.pix ? "pix" : "credito");
                   return (
@@ -367,16 +370,16 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
                     {qr && <img src={qr} alt="QR Code do Pix" className="qr" />}
                     <label htmlFor="pix-cc">Pix copia e cola</label>
                     <textarea id="pix-cc" readOnly rows={3} value={pix} onFocus={(e) => e.currentTarget.select()} />
-                    <button type="button" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
-                    <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "pix" })}>Já fiz o pagamento</button>
+                    <button type="button" data-ajuda="p-pix" className="btn-sec" style={{ width: "100%", marginTop: 8 }} onClick={copiarPix}>{copiado ? "Código copiado" : "Copiar código Pix"}</button>
+                    <button type="button" data-ajuda="p-informar" disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: "pix" })}>Já fiz o pagamento</button>
                   </>
                 ) : <p className="muted">Este consultório não recebe por Pix. Escolha cartão de crédito ou de débito.</p>;
                 const nome = atual === "credito" ? "crédito" : "débito";
                 return info.cartao_link ? (
                   <>
                     <p className="muted">Você vai pagar no <b>cartão de {nome}</b>, no site seguro de <b>{hostDoLink(info.cartao_link)}</b>. Lá, escolha a opção {nome}. Os dados do cartão ficam só nesse site; o Auris não vê nem guarda.</p>
-                    <a className="btn" href={info.cartao_link} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center" }} onClick={() => setAbriuCartao(true)}>Pagar no cartão de {nome}</a>
-                    <button type="button" className={abriuCartao ? "" : "btn-sec"} disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: atual })}>Já fiz o pagamento</button>
+                    <a className="btn" data-ajuda="p-cartao" href={info.cartao_link} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center" }} onClick={() => setAbriuCartao(true)}>Pagar no cartão de {nome}</a>
+                    <button type="button" data-ajuda="p-informar" className={abriuCartao ? "" : "btn-sec"} disabled={enviando} style={{ width: "100%", marginTop: 10 }} onClick={() => acao("pagamento_informado", { metodo: atual })}>Já fiz o pagamento</button>
                   </>
                 ) : <p className="muted">Este consultório ainda não recebe por cartão. Escolha Pix.</p>;
               })()}
@@ -389,7 +392,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <Passos atual={temValor ? 3 : 2} total={total} />
           <h2 style={{ marginTop: 12 }}>Antes da consulta</h2>
           <p className="muted">Suas respostas chegam ao profissional antes da chamada.</p>
-          <label htmlFor="pre-motivo">Qual é o motivo da consulta?</label>
+          <label htmlFor="pre-motivo" data-ajuda="p-pre">Qual é o motivo da consulta?</label>
           <textarea id="pre-motivo" rows={3} value={pre.motivo} onChange={(e) => setPre({ ...pre, motivo: e.target.value })} />
           <div style={{ height: 10 }} />
           <label htmlFor="pre-med">Você toma algum remédio todos os dias? Quais?</label>
@@ -406,7 +409,7 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
               <input id="pre-quais" value={pre.quais} onChange={(e) => setPre({ ...pre, quais: e.target.value })} />
             </>
           )}
-          <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 14 }} onClick={enviarPre}>Enviar e ir para a sala de espera</button>
+          <button type="button" data-ajuda="p-pre-enviar" disabled={enviando} style={{ width: "100%", marginTop: 14 }} onClick={enviarPre}>Enviar e ir para a sala de espera</button>
           <button type="button" className="link" style={{ width: "100%", marginTop: 4 }} onClick={() => setPulouPre(true)}>Prefiro falar na consulta</button>
         </div>
       ) : (
@@ -418,9 +421,9 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
             {local ? <video ref={videoLocal} autoPlay playsInline muted /> : <div className="video-vazio">Teste a câmera e o microfone antes de entrar.</div>}
           </div>
           {!local ? (
-            <button type="button" style={{ width: "100%", marginTop: 12 }} onClick={testarCamera}>Testar câmera e microfone</button>
+            <button type="button" data-ajuda="p-testar" style={{ width: "100%", marginTop: 12 }} onClick={testarCamera}>Testar câmera e microfone</button>
           ) : (
-            <button type="button" disabled={enviando} style={{ width: "100%", marginTop: 12 }} onClick={entrarNaEspera}>Entrar na sala de espera</button>
+            <button type="button" data-ajuda="p-entrar" disabled={enviando} style={{ width: "100%", marginTop: 12 }} onClick={entrarNaEspera}>Entrar na sala de espera</button>
           )}
           <p className="muted" style={{ marginBottom: 0 }}>Use um lugar reservado e com boa internet. No horário marcado, o profissional entra na chamada.</p>
         </div>

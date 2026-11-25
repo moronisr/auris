@@ -314,3 +314,5 @@ input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: va
 .busca-pacientes { display: flex; gap: 8px; margin-bottom: 12px; }
 .busca-pacientes input { flex: 1; }
 .busca-pacientes button, .busca-pacientes .btn { min-height: 44px; padding: 10px 16px; }
+.ajuda-solto { left: 50%; bottom: 18px; transform: translateX(-50%); width: min(340px, calc(100vw - 24px)); }
+.ajuda-paciente { text-align: center; margin: -4px 0 10px; }

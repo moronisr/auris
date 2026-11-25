@@ -27,7 +27,7 @@ export function AjudaConvite({ novato }: { novato: boolean }) {
 }
 
 /** Link discreto para abrir a ajuda quando quiser. */
-export function AjudaLink({ roteiro = "registro", texto = "Ajuda para usar o Auris" }: { roteiro?: "registro" | "tele"; texto?: string }) {
+export function AjudaLink({ roteiro = "registro", texto = "Ajuda para usar o Auris" }: { roteiro?: "registro" | "tele" | "paciente"; texto?: string }) {
   return (
     <button type="button" className="ajuda-link" onClick={() => iniciarAjuda(roteiro)}>{texto}</button>
   );
