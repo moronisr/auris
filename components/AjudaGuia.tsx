@@ -18,8 +18,8 @@ const PASSOS: Passo[] = [
   { alvo: "area", texto: "Confira a sua área. O formato da ficha já vem escolhido por ela." },
   { alvo: "gravar", texto: "Toque para gravar. Quando terminar, toque em Parar e espere a ficha ficar pronta.", aoTocar: true },
   { alvo: "aprovar", texto: "Confira a ficha, corrija o que precisar e toque em Aprovar.", aoTocar: true },
-  { alvo: "assinar", texto: "Aqui você assina a ficha digitalmente, para ela valer sem papel." },
   { alvo: "receita", texto: "Aqui você emite a receita com a assinatura gov.br.", opcional: true },
+  { alvo: "assinar", texto: "Aqui você assina a ficha digitalmente, para ela valer sem papel." },
   { alvo: "documentos", texto: "Atestado, pedido de exames e outros documentos ficam aqui. Pronto, você já sabe o caminho." },
 ];
 
@@ -71,7 +71,7 @@ export default function AjudaGuia() {
       const el = document.querySelector<HTMLElement>(`[data-ajuda="${atual.alvo}"]`);
       if (!el || el.offsetParent === null) {
         // Passo que nem sempre existe (ex.: receita só para quem pode receitar): pula sozinho.
-        if (atual.opcional && document.querySelector('[data-ajuda="documentos"]') && ++espera > 4) definir(passo + 1);
+        if (atual.opcional && document.querySelector('[data-ajuda="assinar"]') && ++espera > 4) definir(passo + 1);
         setCaixa(null);
         return;
       }

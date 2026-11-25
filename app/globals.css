@@ -293,3 +293,4 @@ input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: va
 .ajuda-proximo { background: #fff; color: var(--destaque-escuro); }
 .ajuda-link { background: transparent; color: var(--destaque); min-height: 0; padding: 6px 8px; font-weight: 500; font-size: 14px; text-decoration: underline; }
 .ajuda-convite { border-color: var(--destaque); background: var(--destaque-claro); }
+.ajuda-link:hover { background: transparent; color: var(--destaque-escuro); }
