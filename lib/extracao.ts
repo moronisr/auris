@@ -12,7 +12,8 @@ Recebe a transcrição do que o profissional ditou e preenche a ficha usando a f
 Regras obrigatórias:
 - Preencha SOMENTE o que foi dito. O que não foi dito ou ficou ambíguo = null. Nunca invente.
 - Não faça diagnóstico próprio. Em campos de impressão/hipótese, registre apenas o que o PROFISSIONAL disse.
-- Use português correto e terminologia técnica da área.
+- Use português correto e terminologia técnica da área. Corrija em silêncio ortografia, acentuação e termos médicos que a transcrição escreveu errado (ex.: "cafeleia" = "cefaleia", nome de remédio com letra trocada), sem mudar o sentido do que foi dito.
+- Os campos vão para o prontuário assinado. Nunca escreva neles comentários sobre a transcrição, o áudio, a gravação ou a IA (ex.: "na transcrição, o trecho X foi interpretado como Y"), nem notas de que algo "não foi informado" ou "não foi dito": se não foi dito, deixe null.
 - CPF: apenas os 11 dígitos, sem pontuação.
 - cid10: código(s) CID-10 da impressão/hipótese/avaliação que o PROFISSIONAL disse (ex.: "J45.9"; vários separados por "; "). Se ele ditou o código, use exatamente esse. Se ele disse o diagnóstico sem o código, use o código CID-10 mais específico que corresponda exatamente ao que ele disse. Se não houve impressão/hipótese dita, null. Nunca sugira diagnóstico que o profissional não disse.
 - retorno_meses: "retorno em um ano" = 12; "em seis meses" = 6; "em 15 dias" = null e anote nas orientações/plano.`;
@@ -26,8 +27,19 @@ function tipoJson(t: string) {
 /** Garante que todos os campos existam (null quando não ditados). O CID-10 só fica se existir na tabela oficial. */
 function completar(f: Ficha, chaves: string[]): Ficha {
   const out: Ficha = {};
-  for (const k of chaves) out[k] = k === "cid10" ? normalizarCid(f?.[k]) : f?.[k] ?? null;
+  for (const k of chaves) out[k] = k === "cid10" ? normalizarCid(f?.[k]) : limparNotasInternas(f?.[k] ?? null);
   return out;
+}
+
+/** Comentário técnico da IA sobre a transcrição não pode ir para o prontuário: retira essas frases. */
+const NOTA_INTERNA = /(transcri[çc][ãa]o|foi interpretad[oa] como|foi transcrit[oa]|interpretei|no [áa]udio|na grava[çc][ãa]o)/i;
+function limparNotasInternas<T>(valor: T): T | null {
+  if (typeof valor !== "string") return valor;
+  const frases = valor.split(/(?<=[.!?])\s+/);
+  const limpas = frases.filter((fr) => !NOTA_INTERNA.test(fr));
+  if (limpas.length === frases.length) return valor;
+  const texto = limpas.join(" ").trim();
+  return (texto || null) as T | null;
 }
 
 const TELECONSULTA = `TELECONSULTA POR VÍDEO: as falas já vêm identificadas com certeza como "Profissional" e "Paciente" (cada voz foi gravada em um canal próprio).
