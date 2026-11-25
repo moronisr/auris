@@ -65,7 +65,7 @@ export default function Privacidade() {
       <h2>7. Por quanto tempo</h2>
       <ul>
         <li><b>Áudio:</b> apagado depois da transcrição.</li>
-        <li><b>Prontuário:</b> guardado enquanto o profissional mantiver a conta. A lei pede guarda mínima de 20 anos (Lei nº 13.787/2018); por isso o profissional pode exportar todas as suas fichas a qualquer momento, em Perfil.</li>
+        <li><b>Prontuário:</b> guardado enquanto o profissional mantiver a conta. A lei pede guarda mínima de 20 anos (Lei nº 13.787/2018); por isso o profissional pode exportar todas as suas fichas a qualquer momento, em Perfil. Se a conta for encerrada, as fichas continuam disponíveis para exportação por 90 dias e depois são apagadas definitivamente.</li>
         <li><b>Registros de pagamento e devolução:</b> junto com o registro da consulta e, depois do encerramento da conta, pelo prazo necessário para comprovação fiscal e para defesa em eventual reclamação, em regra 5 anos.</li>
         <li><b>Dados de conta e do plano:</b> enquanto a conta existir e, depois do encerramento, pelo prazo exigido por lei e necessário para comprovação fiscal, em regra 5 anos.</li>
       </ul>

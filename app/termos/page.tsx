@@ -111,7 +111,7 @@ export default function Termos() {
       <p>O Auris pode liberar o uso gratuito por um prazo definido, por exemplo, para profissionais de um programa piloto. Ao fim da cortesia, volta a valer a situação normal da conta: plano ativo, teste grátis ou necessidade de contratar.</p>
 
       <h2>8. Encerramento</h2>
-      <p>O profissional pode encerrar a conta quando quiser, depois de exportar suas fichas. O Auris pode suspender contas em caso de uso indevido ou violação destes termos, com aviso prévio sempre que possível.</p>
+      <p>O profissional pode encerrar a conta quando quiser. Depois do encerramento, as fichas ficam disponíveis para exportação por 90 dias e, em seguida, são apagadas definitivamente. O Auris pode suspender contas em caso de uso indevido ou violação destes termos, com aviso prévio sempre que possível.</p>
 
       <h2>9. Lei aplicável</h2>
       <p>Estes termos seguem a legislação brasileira.</p>
