@@ -23,13 +23,14 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   // Busca de pacientes pelo nome (só nas fichas do próprio profissional; a regra de acesso do banco garante isso).
   let encontrados = lista;
   if (busca) {
-    const termo = busca.replace(/[%_\\,()]/g, " ").trim();
+    // Sem diferenciar acento nem maiúscula: "joao" encontra "João".
+    const sem = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const termos = sem(busca).split(/\s+/).filter(Boolean);
     const { data } = await sb.from("registros")
       .select("id, created_at, modelo, paciente_nome, retorno_data, corrigido_pelo_medico")
-      .ilike("paciente_nome", `%${termo}%`)
       .order("created_at", { ascending: false })
-      .limit(100);
-    encontrados = data ?? [];
+      .limit(3000);
+    encontrados = (data ?? []).filter((r) => { const n = sem(r.paciente_nome || ""); return termos.every((t) => n.includes(t)); }).slice(0, 100);
   }
   const total = lista.length;
   const semCorrecao = lista.filter((r) => !r.corrigido_pelo_medico).length;
