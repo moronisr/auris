@@ -48,7 +48,7 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
         </div>
       </div>
       {podeReceitar && (
-        <a className="card atalho-receita nao-imprimir" href={`/registro/${id}/receita`}>
+        <a className="card atalho-receita nao-imprimir" data-ajuda="receita" href={`/registro/${id}/receita`}>
           <span>
             <b>Emitir receita com assinatura gov.br</b>
             <span className="muted" style={{ display: "block" }}>Gere a receita deste paciente em PDF e assine com a sua conta gov.br.</span>
@@ -56,14 +56,14 @@ export default async function PaginaRegistro({ params }: { params: Promise<{ id:
           <Seta />
         </a>
       )}
-      <a className="card atalho-receita nao-imprimir" href={`/registro/${id}/assinar`}>
+      <a className="card atalho-receita nao-imprimir" data-ajuda="assinar" href={`/registro/${id}/assinar`}>
         <span>
           <b>{r.assinada_em ? "Ficha assinada digitalmente" : "Assinar a ficha digitalmente"}</b>
           <span className="muted" style={{ display: "block" }}>{r.assinada_em ? `Assinada em ${new Date(r.assinada_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}. Toque para abrir ou enviar outra versão.` : "Com certificado ICP-Brasil ou conta gov.br, para a ficha valer sem papel."}</span>
         </span>
         <Seta />
       </a>
-      <a className="card atalho-receita atalho-doc nao-imprimir" href={`/registro/${id}/documentos`}>
+      <a className="card atalho-receita atalho-doc nao-imprimir" data-ajuda="documentos" href={`/registro/${id}/documentos`}>
         <span>
           <b>Documentos da consulta</b>
           <span className="muted" style={{ display: "block" }}>Atestado, pedido de exames, encaminhamento e resumo. Gere o PDF ou envie ao paciente por link.</span>

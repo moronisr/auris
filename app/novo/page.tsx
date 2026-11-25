@@ -316,7 +316,7 @@ export default function Novo() {
       {(etapa === "pronto" || etapa === "gravando") && (
         <div className="card">
           <label>Como você quer registrar?</label>
-          <div className="row" style={{ justifyContent: "flex-start", marginBottom: 10 }}>
+          <div className="row" data-ajuda="modo" style={{ justifyContent: "flex-start", marginBottom: 10 }}>
             <button type="button" className={modo === "ditado" ? "" : "btn-sec"} disabled={etapa === "gravando"} onClick={() => setModo("ditado")}>Ditado</button>
             <button type="button" className={modo === "consulta" ? "" : "btn-sec"} disabled={etapa === "gravando"} onClick={() => setModo("consulta")}>Consulta (conversa)</button>
           </div>
@@ -334,7 +334,7 @@ export default function Novo() {
             </label>
           )}
           <label>Especialidade / área do atendimento</label>
-          <select value={area} disabled={etapa === "gravando"} onChange={(e) => { setArea(e.target.value); setModelo(modeloDaArea(e.target.value)); }}>
+          <select data-ajuda="area" value={area} disabled={etapa === "gravando"} onChange={(e) => { setArea(e.target.value); setModelo(modeloDaArea(e.target.value)); }}>
             {AREAS_ATENDIMENTO.map((g) => (
               <optgroup key={g.grupo} label={g.grupo}>
                 {g.itens.map((i) => <option key={i} value={i}>{i}</option>)}
@@ -348,7 +348,7 @@ export default function Novo() {
           </select>
           {modo === "ditado" && <p className="muted">Exemplo de ditado: {EXEMPLOS[modelo]}</p>}
           {etapa === "pronto" ? (
-            <button className="gravar" onClick={iniciar}>{modo === "consulta" ? "Iniciar consulta" : "Iniciar gravação"}</button>
+            <button className="gravar" data-ajuda="gravar" onClick={iniciar}>{modo === "consulta" ? "Iniciar consulta" : "Iniciar gravação"}</button>
           ) : (
             <button className="gravar gravando" onClick={parar}>Parar ({Math.floor(segundos / 60)}:{String(segundos % 60).padStart(2, "0")})</button>
           )}
@@ -375,7 +375,7 @@ export default function Novo() {
           </div>
           <div className="row">
             <button className="btn-sec" onClick={() => { setFicha(null); setRes(null); setEtapa("pronto"); }}>Gravar de novo</button>
-            <button onClick={aprovar} disabled={etapa === "salvando"}>{etapa === "salvando" ? "Salvando..." : "Aprovar e gerar ficha"}</button>
+            <button data-ajuda="aprovar" onClick={aprovar} disabled={etapa === "salvando"}>{etapa === "salvando" ? "Salvando..." : "Aprovar e gerar ficha"}</button>
           </div>
         </>
       )}

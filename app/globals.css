@@ -277,3 +277,19 @@ button.link.link-discreto { color: var(--suave); font-weight: 400; font-size: 13
 /* Celular: caixas de marcar com tamanho bom para o dedo */
 input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--destaque); cursor: pointer; }
 .dia-nome { min-height: 44px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
+/* Ajuda guiada para quem está começando */
+.ajuda-destaque { position: fixed; z-index: 60; border: 3px solid var(--destaque); border-radius: 14px; pointer-events: none; animation: ajuda-pisca 1.4s ease-in-out infinite; }
+@keyframes ajuda-pisca { 0%,100% { box-shadow: 0 0 0 0 rgba(15,94,90,.45); } 50% { box-shadow: 0 0 0 8px rgba(15,94,90,0); } }
+.ajuda-balao { position: fixed; z-index: 61; background: var(--destaque-escuro); color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.ajuda-balao p { margin: 4px 0 10px; font-size: 14px; line-height: 1.45; color: #fff; }
+.ajuda-seta { position: absolute; width: 14px; height: 14px; background: var(--destaque-escuro); transform: translateX(-50%) rotate(45deg); }
+.ajuda-balao.abaixo .ajuda-seta { top: -7px; }
+.ajuda-balao.acima .ajuda-seta { bottom: -7px; }
+.ajuda-contador { font-size: 12px; opacity: .75; }
+.ajuda-acoes { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ajuda-acoes button { min-height: 36px; padding: 8px 14px; font-size: 14px; }
+.ajuda-sair { background: transparent; color: #fff; opacity: .8; padding-left: 0 !important; }
+.ajuda-proximo { background: #fff; color: var(--destaque-escuro); }
+.ajuda-link { background: transparent; color: var(--destaque); min-height: 0; padding: 6px 8px; font-weight: 500; font-size: 14px; text-decoration: underline; }
+.ajuda-convite { border-color: var(--destaque); background: var(--destaque-claro); }

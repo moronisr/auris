@@ -3,6 +3,7 @@ import { horariosLivres, limparAgenda, limparExcecoes } from "@/lib/agenda";
 import { supabaseServer } from "@/lib/supabase/server";
 import BotaoSair from "./sair";
 import { MODELOS } from "@/lib/modelos";
+import { AjudaConvite, AjudaLink } from "@/components/AjudaInicio";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +51,11 @@ export default async function Inicio() {
           </div>
         );
       })()}
-      <Link href="/novo" className="btn gravar">Novo registro</Link>
+      <AjudaConvite novato={total === 0} />
+      <Link href="/novo" className="btn gravar" data-ajuda="novo">Novo registro</Link>
       <Link href="/teleconsultas" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>Teleconsultas</Link>
       <Link href="/dia" className="btn btn-sec" style={{ display: "block", marginTop: 10 }}>PDF dos atendimentos do dia</Link>
+      <div style={{ textAlign: "center", marginTop: 12 }}><AjudaLink /></div>
 
       {proximas.length > 0 && (
         <>
