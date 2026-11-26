@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { avisarCancelamento } from "@/lib/avisoCancelamento";
 import { supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { chaveDoProfissional, devolverMercadoPago, pagamentosAprovados } from "@/lib/mercadopago";
@@ -24,13 +25,13 @@ export async function POST(req: Request) {
   if (!t || t.profissional_id !== user.id) return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
 
   if (b.acao === "cancelar") {
-    await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id);
+    await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id);
     return NextResponse.json({ ok: true, mensagem: "Consulta cancelada." });
   }
   if (t.pg_provedor === "pagbank") {
     if (b.acao === "devolver_extra") return NextResponse.json({ erro: "Pagamentos em duplicidade pelo PagBank são devolvidos no app do PagBank (Vendas, abrir a venda, Estornar)." }, { status: 409 });
     if (t.pagamento_status !== "confirmado") {
-      if (b.acao === "cancelar_devolver") await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id);
+      if (b.acao === "cancelar_devolver") { await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id); }
       return NextResponse.json({ ok: true, mensagem: b.acao === "cancelar_devolver" ? "Consulta cancelada. Não havia pagamento aprovado para devolver." : "Não há pagamento aprovado para devolver." });
     }
     const r = await devolverPeloPagBank(t.profissional_id, t.mp_pagamento_id, Number(t.valor || 0));
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     await admin.from("teleconsultas").update({
       status: "cancelada", cancelado_por: t.status === "cancelada" ? undefined : "profissional",
       pagamento_status: "devolvido", devolvido_em: new Date().toISOString(), devolucao_valor: r.valor, devolucao_id: r.id, pagamento_alerta: null,
-    }).eq("id", t.id);
+    }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id);
     return NextResponse.json({ ok: true, mensagem: `Consulta cancelada e ${r.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} devolvido ao paciente.` });
   }
   const token = await chaveDoProfissional(t.profissional_id);
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   // cancelar_devolver ou devolver: devolve todos os pagamentos aprovados desta consulta.
   const aprovados = await pagamentosAprovados(token, t.id);
   if (!aprovados.length) {
-    if (b.acao === "cancelar_devolver") await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id);
+    if (b.acao === "cancelar_devolver") { await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id); }
     return NextResponse.json({ ok: true, mensagem: b.acao === "cancelar_devolver" ? "Consulta cancelada. Não havia pagamento aprovado para devolver." : "Não há pagamento aprovado para devolver." });
   }
   let total = 0; let ultimo = "";
@@ -73,6 +74,6 @@ export async function POST(req: Request) {
   await admin.from("teleconsultas").update({
     status: "cancelada", cancelado_por: t.status === "cancelada" ? undefined : "profissional",
     pagamento_status: "devolvido", devolvido_em: new Date().toISOString(), devolucao_valor: total, devolucao_id: ultimo, pagamento_alerta: null,
-  }).eq("id", t.id);
+  }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id);
   return NextResponse.json({ ok: true, mensagem: `Consulta cancelada e ${total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} devolvido ao paciente.` });
 }

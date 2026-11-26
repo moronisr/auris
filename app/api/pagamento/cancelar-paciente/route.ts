@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { avisarCancelamento } from "@/lib/avisoCancelamento";
 import { supabaseAdmin } from "@/lib/admin";
 import { chaveDoProfissional, devolverMercadoPago, pagamentosAprovados } from "@/lib/mercadopago";
 import { podeCancelarComDevolucao, prazoTexto } from "@/lib/cancelamento";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   if (t.pagamento_status === "informado") return NextResponse.json({ erro: "Seu pagamento ainda está em conferência. Para cancelar, fale com o consultório." }, { status: 409 });
   if (t.pagamento_status !== "confirmado") {
     // Sem pagamento aprovado: só libera o horário.
-    await sb.from("teleconsultas").update({ status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo }).eq("id", t.id);
+    await sb.from("teleconsultas").update({ status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo }).eq("id", t.id); await avisarCancelamento(t.id);
     return NextResponse.json({ ok: true, devolvido: false });
   }
   if (!podeCancelarComDevolucao(t.inicio, horas)) {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     await sb.from("teleconsultas").update({
       status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo, pagamento_status: "devolvido",
       devolvido_em: new Date().toISOString(), devolucao_valor: r.valor, devolucao_id: r.id, pagamento_alerta: null,
-    }).eq("id", t.id);
+    }).eq("id", t.id); await avisarCancelamento(t.id);
     return NextResponse.json({ ok: true, devolvido: true, valor: r.valor });
   }
   const token = await chaveDoProfissional(t.profissional_id);
@@ -56,6 +57,6 @@ export async function POST(req: Request) {
   await sb.from("teleconsultas").update({
     status: "cancelada", cancelado_por: "paciente", cancelamento_motivo: motivo, pagamento_status: aprovados.length ? "devolvido" : t.pagamento_status,
     devolvido_em: aprovados.length ? new Date().toISOString() : null, devolucao_valor: aprovados.length ? total : null, devolucao_id: ultimo || null, pagamento_alerta: null,
-  }).eq("id", t.id);
+  }).eq("id", t.id); await avisarCancelamento(t.id);
   return NextResponse.json({ ok: true, devolvido: aprovados.length > 0, valor: total });
 }

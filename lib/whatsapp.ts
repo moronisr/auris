@@ -6,6 +6,7 @@ export const MODELOS_WHATSAPP = {
   convite: "auris_convite_teleconsulta",
   lembrete: "auris_lembrete_teleconsulta",
   documentos: "auris_documentos_consulta",
+  cancelamento: "auris_cancelamento_teleconsulta",
 } as const;
 export type ModeloWhatsApp = keyof typeof MODELOS_WHATSAPP;
 
