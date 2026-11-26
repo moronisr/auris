@@ -145,6 +145,7 @@ export default function AjudaGuia() {
     if (!atual) return;
     let rolou = false;
     let tocado = false;
+    let faltas = 0;
     const marca = `${estado?.roteiro}:${passo}`;
     // "Já visto" fica salvo, para voltar junto mesmo quando a página recarrega (ex.: Voltar à agenda).
     let visto = (() => { try { return localStorage.getItem("auris_ajuda_visto") === marca; } catch { return false; } })();
@@ -157,7 +158,8 @@ export default function AjudaGuia() {
         const i = proximoVisivel(passo);
         if (i >= 0) return definir(i);
         // A pessoa voltou uma tela (ex.: Voltar à agenda, outra forma de pagamento): volta junto.
-        if (visto && !tocado) {
+        // Espera uns 2 segundos a página terminar de carregar, para voltar ao passo certo.
+        if (visto && !tocado && ++faltas > 5) {
           for (let j = passo - 1; j >= 0; j--) if (alvoVisivel(PASSOS[j])) return definir(j);
         }
         setTextoSolto(atual.espera ?? (tocado ? PASSOS[passo + 1]?.espera : undefined) ?? "Continue nesta tela. Quando a próxima parte aparecer, a ajuda mostra onde tocar.");
@@ -165,6 +167,7 @@ export default function AjudaGuia() {
         setSolto(true);
         return;
       }
+      faltas = 0;
       if (!visto) { visto = true; try { localStorage.setItem("auris_ajuda_visto", marca); } catch {} }
       setSolto(false);
       if (!rolou) { el.scrollIntoView({ block: "center", behavior: "smooth" }); rolou = true; }
