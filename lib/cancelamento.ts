@@ -20,7 +20,8 @@ export function juntarObs(whats: string, recado: string): string | null {
 }
 const foneBR = (d: string) => (d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`);
 
-export function politicaCancelamento(horas: number, obsBruto?: string | null): string[] {
+/** pagina: onde o paciente remarca sozinho (link da página do profissional ou "nesta página"); quando houver, vem antes do WhatsApp. */
+export function politicaCancelamento(horas: number, obsBruto?: string | null, pagina?: string | null): string[] {
   const { whats, recado: obs } = separarObs(obsBruto);
   const linhas = [
     `Você pode cancelar pelo próprio link da consulta ${prazoTexto(horas)} e recebe o valor integral de volta, automaticamente.`,
@@ -28,7 +29,8 @@ export function politicaCancelamento(horas: number, obsBruto?: string | null): s
     "Se o consultório precisar cancelar, você recebe o valor integral de volta.",
     "Devolução no Pix: o valor volta para a conta que pagou, em geral em poucos minutos. No cartão: o estorno aparece na fatura em até duas faturas, conforme o banco.",
   ];
-  linhas.push(whats ? `Para remarcar ou reagendar, chame o consultório no WhatsApp ${foneBR(whats)}.` : "Para remarcar ou reagendar, fale com o consultório.");
+  if (pagina) linhas.push(`Para remarcar ou reagendar, escolha um novo horário ${pagina}.${whats ? ` Se preferir, chame o consultório no WhatsApp ${foneBR(whats)}.` : ""}`);
+  else linhas.push(whats ? `Para remarcar ou reagendar, chame o consultório no WhatsApp ${foneBR(whats)}.` : "Para remarcar ou reagendar, fale com o consultório.");
   if (obs) linhas.push(obs);
   return linhas;
 }

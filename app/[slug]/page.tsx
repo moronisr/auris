@@ -117,7 +117,7 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
           <p className="muted">O horário fica reservado por 30 minutos para você concluir o pagamento.</p>
           <details className="politica">
             <summary>Política de cancelamento e devolução</summary>
-            <ul>{politicaCancelamento(p.cancelamento_horas ?? 24, p.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
+            <ul>{politicaCancelamento(p.cancelamento_horas ?? 24, p.cancelamento_obs, "nesta mesma página").map((l, i) => <li key={i}>{l}</li>)}</ul>
           </details>
         </form>
       )}
