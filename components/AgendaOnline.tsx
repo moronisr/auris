@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { juntarObs, separarObs } from "@/lib/cancelamento";
+import { mascaraTelefone } from "@/lib/telefone";
 import { buscarSituacao } from "@/lib/useAcesso";
 import { criarSlug, horariosLivres, limparAgenda, limparExcecoes, slugValido, type Excecao, type Intervalo } from "@/lib/agenda";
 
@@ -37,6 +39,8 @@ export default function AgendaOnline({ nome, parte }: { nome: string; parte: Par
   const [pbTeste, setPbTeste] = useState(false);
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const [mesDesloc, setMesDesloc] = useState(0);
+  const [verRecado, setVerRecado] = useState(false);
+  const [whatsCampo, setWhatsCampo] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigem(window.location.origin);
@@ -246,8 +250,23 @@ export default function AgendaOnline({ nome, parte }: { nome: string; parte: Par
           </select>
         </div>
       </div>
-      <label htmlFor="ag-cancel-obs" style={{ marginTop: 12 }}>Recado sobre cancelamento (opcional)</label>
-      <textarea id="ag-cancel-obs" rows={2} maxLength={500} placeholder="Ex.: para remarcar, chame no WhatsApp." value={e.cancelamento_obs} onChange={(x) => set({ cancelamento_obs: x.target.value })} />
+      {(() => {
+        const { whats, recado } = separarObs(e.cancelamento_obs);
+        return (
+          <>
+            <label htmlFor="ag-whats" style={{ marginTop: 12 }}>WhatsApp para o paciente remarcar</label>
+            <input id="ag-whats" inputMode="tel" placeholder="(91) 99999-9999" value={whatsCampo ?? mascaraTelefone(whats)} onChange={(x) => { setWhatsCampo(mascaraTelefone(x.target.value)); set({ cancelamento_obs: juntarObs(x.target.value, recado) || "" }); }} />
+            {verRecado || recado ? (
+              <>
+                <label htmlFor="ag-cancel-obs" style={{ marginTop: 12 }}>Recado aos pacientes (opcional)</label>
+                <textarea id="ag-cancel-obs" rows={2} maxLength={400} placeholder="Ex.: atendemos remarcações em até 7 dias." value={recado} onChange={(x) => set({ cancelamento_obs: juntarObs(whats, x.target.value) || "" })} />
+              </>
+            ) : (
+              <button type="button" className="link" onClick={() => setVerRecado(true)}>Adicionar recado aos pacientes (opcional)</button>
+            )}
+          </>
+        );
+      })()}
       <label className="aceite" data-ajuda="pf-abrir">
         <input type="checkbox" checked={e.agenda_ativa} onChange={(x) => set({ agenda_ativa: x.target.checked })} />
         <span>Aceitar agendamentos pela minha página</span>
