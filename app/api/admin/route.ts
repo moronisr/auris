@@ -1,3 +1,4 @@
+import { planoPorId } from "@/lib/planos";
 import { NextResponse } from "next/server";
 import { ehAdmin, supabaseAdmin } from "@/lib/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
     sb.from("profissionais").select("id, nome, profissao, especialidade, created_at, plano_teste"),
     sb.from("assinaturas").select("profissional_id, plano, status, valor, pago_ate, falha_desde, falha_motivo, cancelada_em, cancelamento_motivo, cortesia_ate, cortesia_motivo, gateway_assinatura_id"),
     sb.from("auris_config").select("cobranca_ativa, cobranca_desde").eq("id", 1).maybeSingle(),
-    sb.from("auris_cobrancas").select("profissional_id, valor, status, data, origem").gte("data", new Date(agora.getFullYear(), agora.getMonth() - 5, 1).toISOString()).order("data", { ascending: false }).limit(1000),
+    sb.from("auris_cobrancas").select("profissional_id, valor, status, data, origem, plano, gateway_pagamento_id").gte("data", new Date(agora.getFullYear(), agora.getMonth() - 5, 1).toISOString()).order("data", { ascending: false }).limit(1000),
     sb.from("registros").select("profissional_id, created_at").gte("created_at", trintaDias).limit(20000),
     sb.from("teleconsultas").select("profissional_id, inicio, status").gte("inicio", trintaDias).limit(20000),
     sb.from("teleconsultas").select("profissional_id, pagamento_alerta").not("pagamento_alerta", "is", null).limit(1000),
@@ -91,7 +92,23 @@ export async function GET(req: Request) {
   const motivos = new Map<string, number>();
   for (const a of assin || []) if (a.cancelamento_motivo && !ehAdmin(a.profissional_id)) motivos.set(a.cancelamento_motivo, (motivos.get(a.cancelamento_motivo) || 0) + 1);
 
+  // Movimentações dos planos, com a instituição para onde foi o dinheiro.
+  const nomeDe = new Map((profs || []).map((p) => [p.id, p.nome]));
+  const SITUACAO: Record<string, string> = { approved: "Pago", pending: "Aguardando", rejected: "Recusado", cancelled: "Cancelado", refunded: "Devolvido", charged_back: "Estornado pelo cartão", in_mediation: "Em contestação" };
+  const movimentos = (cobr || []).slice(0, 200).map((c) => {
+    const id = String(c.gateway_pagamento_id || "");
+    const asaas = id.startsWith("pay_") || id.startsWith("pix-autorizacao") || id.startsWith("sub_");
+    return {
+      data: c.data, profissional: nomeDe.get(c.profissional_id) || "Profissional", plano: planoPorId(c.plano)?.nome || c.plano || "-",
+      valor: Number(c.valor || 0), situacao: SITUACAO[c.status] || c.status,
+      forma: id.startsWith("pix-autorizacao") ? "Pix Automático" : asaas ? "Asaas (cartão ou Pix)" : "Cartão",
+      destino: asaas ? "Asaas, conta do CNPJ" : "Mercado Pago, conta do Auris",
+      teste: ehAdmin(c.profissional_id),
+    };
+  });
+
   return NextResponse.json({
+    movimentos,
     cobrancaAtiva: !!cfg?.cobranca_ativa, cobrancaDesde: cfg?.cobranca_desde || null,
     asaas: await situacaoAsaas(req),
     resumo: {

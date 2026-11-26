@@ -16,6 +16,7 @@ type Dados = {
   profissionais: Prof[];
   motivosCancelamento: { motivo: string; n: number }[];
   planos: { id: string; nome: string; valor: number }[];
+  movimentos?: { data: string; profissional: string; plano: string; valor: number; situacao: string; forma: string; destino: string; teste: boolean }[];
 };
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -112,6 +113,31 @@ export default function PainelAuris() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Movimentações do Auris</h2>
+        <p className="muted" style={{ marginTop: -4 }}>Cobranças dos planos dos profissionais e para onde foi cada valor. As teleconsultas não aparecem aqui: os pacientes pagam direto na conta de cada profissional.</p>
+        {!d.movimentos?.length ? <p className="muted" style={{ marginBottom: 0 }}>Nenhuma cobrança nos últimos 6 meses.</p> : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="tabela-simples">
+              <thead><tr><th>Data</th><th>Profissional</th><th>Plano</th><th>Forma</th><th>Situação</th><th>Para onde foi</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
+              <tbody>
+                {d.movimentos.map((m, i) => (
+                  <tr key={i}>
+                    <td>{dia(m.data)}</td>
+                    <td>{m.profissional}{m.teste ? <span className="muted"> (teste)</span> : null}</td>
+                    <td>{m.plano}</td>
+                    <td>{m.forma}</td>
+                    <td>{m.situacao}</td>
+                    <td>{m.destino}</td>
+                    <td style={{ textAlign: "right" }}>{reais(m.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card">

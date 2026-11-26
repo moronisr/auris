@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { hostDoLink } from "@/lib/pix";
 
 /**
  * Financeiro do profissional: o que os pacientes pagaram, o que foi devolvido, o que está em contestação
@@ -11,13 +12,22 @@ type Linha = {
   id: string; paciente_nome: string; inicio: string; valor: number | null; status: string;
   pagamento_status: string; pagamento_metodo: string | null; pagamento_confirmado_em: string | null;
   devolvido_em: string | null; devolucao_valor: number | null; pagamento_alerta: string | null; pg_provedor: string | null;
+  cartao_link: string | null;
 };
-type Mov = { id: string; data: string; paciente: string; tipo: "Recebido" | "Devolvido" | "Estornado pelo cartão"; metodo: string; valor: number };
+type Mov = { id: string; data: string; paciente: string; tipo: "Recebido" | "Confirmado por você" | "Devolvido" | "Estornado pelo cartão"; metodo: string; destino: string; valor: number };
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo" });
 const METODO: Record<string, string> = { pix: "Pix", credito: "Cartão de crédito", debito: "Cartão de débito" };
-const metodoDe = (l: Linha) => (l.pg_provedor ? METODO[l.pagamento_metodo || ""] || "Online" : "Pix direto");
+const manualCartao = (l: Linha) => !l.pg_provedor && (l.pagamento_metodo === "credito" || l.pagamento_metodo === "debito" || l.pagamento_metodo === "cartao");
+const metodoDe = (l: Linha) => (l.pg_provedor ? METODO[l.pagamento_metodo || ""] || "Online" : manualCartao(l) ? "Cartão pelo seu link" : "Pix direto");
+/** Para onde foi o dinheiro: a conta conectada (Mercado Pago ou PagBank), o banco da chave Pix ou o site do link de cartão. */
+const destinoDe = (l: Linha, linkPerfil: string | null) => {
+  if (l.pg_provedor === "pagbank") return "Sua conta PagBank";
+  if (l.pg_provedor) return "Sua conta Mercado Pago";
+  if (manualCartao(l)) { const link = l.cartao_link || linkPerfil; return link ? `Site do seu link de cartão (${hostDoLink(link)})` : "Site do seu link de cartão"; }
+  return "Banco da sua chave Pix";
+};
 const PERIODOS = [
   { id: "mes", nome: "Este mês" },
   { id: "anterior", nome: "Mês passado" },
@@ -39,15 +49,18 @@ export default function Recebimentos() {
   const [linhas, setLinhas] = useState<Linha[] | null>(null);
   const [erro, setErro] = useState(false);
   const [periodo, setPeriodo] = useState<Periodo>("mes");
+  const [linkPerfil, setLinkPerfil] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const sb = supabaseBrowser();
       const desde = new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1).toISOString();
       const { data, error } = await sb.from("teleconsultas")
-        .select("id, paciente_nome, inicio, valor, status, pagamento_status, pagamento_metodo, pagamento_confirmado_em, devolvido_em, devolucao_valor, pagamento_alerta, pg_provedor")
+        .select("id, paciente_nome, inicio, valor, status, pagamento_status, pagamento_metodo, pagamento_confirmado_em, devolvido_em, devolucao_valor, pagamento_alerta, pg_provedor, cartao_link")
         .gt("valor", 0).gte("inicio", desde).order("inicio", { ascending: false }).limit(3000);
       if (error) setErro(true); else setLinhas((data || []) as Linha[]);
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) { const { data: p } = await sb.from("profissionais").select("cartao_link").eq("id", user.id).maybeSingle(); setLinkPerfil((p as { cartao_link?: string | null } | null)?.cartao_link ?? null); }
     })();
   }, []);
 
@@ -62,16 +75,16 @@ export default function Recebimentos() {
       const pago = l.pagamento_status === "confirmado" || l.pagamento_status === "devolvido";
       if (pago && dentro(l.pagamento_confirmado_em, faixa)) {
         recebido += v; porMetodo[metodoDe(l)] = (porMetodo[metodoDe(l)] || 0) + v;
-        movs.push({ id: l.id, data: l.pagamento_confirmado_em!, paciente: l.paciente_nome, tipo: "Recebido", metodo: metodoDe(l), valor: v });
+        movs.push({ id: l.id, data: l.pagamento_confirmado_em!, paciente: l.paciente_nome, tipo: l.pg_provedor ? "Recebido" : "Confirmado por você", metodo: metodoDe(l), destino: destinoDe(l, linkPerfil), valor: v });
       }
       if (l.pagamento_status === "devolvido" && dentro(l.devolvido_em, faixa)) {
         const d = Number(l.devolucao_valor ?? v);
         devolvido += d;
-        movs.push({ id: l.id, data: l.devolvido_em!, paciente: l.paciente_nome, tipo: "Devolvido", metodo: metodoDe(l), valor: -d });
+        movs.push({ id: l.id, data: l.devolvido_em!, paciente: l.paciente_nome, tipo: "Devolvido", metodo: metodoDe(l), destino: destinoDe(l, linkPerfil), valor: -d });
       }
       if (l.pagamento_alerta === "chargeback" && dentro(l.pagamento_confirmado_em, faixa)) {
         estornado += v;
-        movs.push({ id: l.id, data: l.pagamento_confirmado_em!, paciente: l.paciente_nome, tipo: "Estornado pelo cartão", metodo: metodoDe(l), valor: -v });
+        movs.push({ id: l.id, data: l.pagamento_confirmado_em!, paciente: l.paciente_nome, tipo: "Estornado pelo cartão", metodo: metodoDe(l), destino: destinoDe(l, linkPerfil), valor: -v });
       }
     }
     movs.sort((a, b) => +new Date(b.data) - +new Date(a.data));
@@ -96,12 +109,12 @@ export default function Recebimentos() {
       aReceber, aReceberTotal: aReceber.reduce((s, l) => s + Number(l.valor || 0), 0),
       informados: aReceber.filter((l) => l.pagamento_status === "informado"), contestadas, aDevolver,
     };
-  }, [linhas, periodo]);
+  }, [linhas, periodo, linkPerfil]);
 
   function exportar() {
     if (!r) return;
-    const cab = "Data;Paciente;Tipo;Forma;Valor\n";
-    const corpo = r.movs.map((m) => [dia(m.data), `"${m.paciente.replace(/"/g, "'")}"`, m.tipo, m.metodo, m.valor.toFixed(2).replace(".", ",")].join(";")).join("\n");
+    const cab = "Data;Paciente;Tipo;Forma;Para onde foi;Valor\n";
+    const corpo = r.movs.map((m) => [dia(m.data), `"${m.paciente.replace(/"/g, "'")}"`, m.tipo, m.metodo, `"${m.destino}"`, m.valor.toFixed(2).replace(".", ",")].join(";")).join("\n");
     const blob = new Blob(["﻿" + cab + corpo], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -176,7 +189,7 @@ export default function Recebimentos() {
         {r.movs.length === 0 ? <p className="muted" style={{ marginBottom: 0 }}>Nenhum pagamento neste período.</p> : (
           <div style={{ overflowX: "auto" }}>
             <table className="tabela-simples">
-              <thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Forma</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
+              <thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Forma</th><th>Para onde foi</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
               <tbody>
                 {r.movs.map((m, i) => (
                   <tr key={`${m.id}-${i}`}>
@@ -184,6 +197,7 @@ export default function Recebimentos() {
                     <td><a href={`/teleconsultas/${m.id}`}>{m.paciente}</a></td>
                     <td>{m.tipo}</td>
                     <td>{m.metodo}</td>
+                    <td>{m.destino}</td>
                     <td style={{ textAlign: "right", color: m.valor < 0 ? "var(--erro-tinta)" : undefined }}>{m.valor < 0 ? "- " : ""}{reais(Math.abs(m.valor))}</td>
                   </tr>
                 ))}
@@ -216,7 +230,7 @@ export default function Recebimentos() {
       </div>
 
       <p className="muted">
-        Pagamentos online caem direto na sua conta do Mercado Pago. O prazo para o dinheiro ficar disponível para saque depende do plano de recebimento escolhido no app do Mercado Pago.
+        Pagamentos online caem direto na sua conta conectada (Mercado Pago ou PagBank); o prazo para sacar depende do plano de recebimento escolhido no app dela. No Pix direto e no cartão pelo seu link, o Auris não vê o dinheiro: aparece "Confirmado por você" quando você confirma, e o valor fica no banco da sua chave Pix ou no site do link. Confira lá.
       </p>
     </div>
   );
