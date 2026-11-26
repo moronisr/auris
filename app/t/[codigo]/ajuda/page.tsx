@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { reais } from "@/lib/pix";
+import RemarcarConsulta from "@/components/RemarcarConsulta";
 import { podeCancelarComDevolucao, politicaCancelamento, prazoTexto } from "@/lib/cancelamento";
 
 type Info = {
@@ -97,6 +98,7 @@ export default function AjudaConsulta({ params }: { params: Promise<{ codigo: st
           </>
         )}
       </div>
+      {info.status === "cancelada" && <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
 
       <p style={{ textAlign: "center" }}><Link href={`/t/${codigo}`}>Voltar para a consulta</Link></p>
     </div>
