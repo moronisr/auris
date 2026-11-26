@@ -322,11 +322,11 @@ export default function SalaMedico({ params }: { params: Promise<{ id: string }>
                 <button type="button" className="btn-sec" data-ajuda="tc-controles" onClick={alternarMic} aria-pressed={!micOn}>{micOn ? "Desligar microfone" : "Ligar microfone"}</button>
                 <button type="button" className="btn-sec" onClick={alternarCam} aria-pressed={!camOn}>{camOn ? "Desligar câmera" : "Ligar câmera"}</button>
                 {t.ia_autorizada === false ? (
-                  <button type="button" data-ajuda="tc-encerrar" onClick={encerrarSemFicha}>Encerrar consulta</button>
+                  <button type="button" data-ajuda="tc-encerrar" data-ajuda-fim="" onClick={encerrarSemFicha}>Encerrar consulta</button>
                 ) : (
                   <>
                     <button type="button" data-ajuda="tc-encerrar" onClick={encerrarComFicha}>Encerrar e montar a ficha</button>
-                    <button type="button" className="link" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
+                    <button type="button" className="link" data-ajuda-fim="" onClick={encerrarSemFicha}>Encerrar sem ficha</button>
                   </>
                 )}
               </div>

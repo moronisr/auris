@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * Ajuda guiada para quem está começando. Opcional: só aparece se o profissional escolher "Sim".
@@ -41,7 +42,7 @@ const PASSOS_TELE: Passo[] = [
   { alvo: "tc-status", texto: "Aqui você acompanha o paciente: termo aceito, pagamento, pré-consulta e se ele já chegou à sala de espera." },
   { alvo: "tc-entrar", texto: "Toque em Entrar na sala. Quando o navegador pedir, toque em Permitir para a câmera e o microfone. Se negar sem querer, toque no cadeado ao lado do endereço do site e libere os dois.", aoTocar: true },
   { alvo: "tc-controles", texto: "Aqui você liga e desliga o microfone; ao lado, a câmera. Se o paciente não te ouvir, confira se o microfone está ligado." },
-  { alvo: "tc-encerrar", texto: "Ao terminar, toque em Encerrar e montar a ficha. A conversa vira a ficha para a sua revisão.", aoTocar: true },
+  { alvo: "tc-encerrar", texto: "Ao terminar, toque em Encerrar e montar a ficha. A conversa vira a ficha para a sua revisão. Se o paciente não autorizou a IA, o botão é Encerrar consulta.", aoTocar: true },
   { alvo: "aprovar", texto: "A ficha da teleconsulta chegou. Confira, corrija o que precisar e toque em Aprovar. Pronto.", espera: "Montando a ficha da consulta. Em alguns segundos ela aparece aqui para a sua revisão." },
 ];
 
@@ -101,6 +102,8 @@ export default function AjudaGuia() {
   const passo = estado ? estado.passo : null;
   const [caixa, setCaixa] = useState<DOMRect | null>(null);
   const [solto, setSolto] = useState(false);
+  const [textoSolto, setTextoSolto] = useState("");
+  const caminho = usePathname() ?? "";
 
   const definir = useCallback((n: number | null) => {
     setEstado((atual) => {
@@ -142,6 +145,7 @@ export default function AjudaGuia() {
     if (!atual) return;
     let rolou = false;
     let tocado = false;
+    let visto = false;
     const achar = () => {
       // Tocou no item destacado: segue quando a parte seguinte aparecer (se der erro, continua aqui).
       if (tocado && alvoVisivel(PASSOS[passo + 1])) return definir(passo + 1);
@@ -150,10 +154,16 @@ export default function AjudaGuia() {
         // A pessoa já está mais adiante (outra tela ou outra etapa): pula para o passo que está na tela.
         const i = proximoVisivel(passo);
         if (i >= 0) return definir(i);
+        // A pessoa voltou uma tela (ex.: Voltar à agenda, outra forma de pagamento): volta junto.
+        if (visto && !tocado) {
+          for (let j = passo - 1; j >= 0; j--) if (alvoVisivel(PASSOS[j])) return definir(j);
+        }
+        setTextoSolto(atual.espera ?? (tocado ? PASSOS[passo + 1]?.espera : undefined) ?? "Continue nesta tela. Quando a próxima parte aparecer, a ajuda mostra onde tocar.");
         setCaixa(null);
         setSolto(true);
         return;
       }
+      visto = true;
       setSolto(false);
       if (!rolou) { el.scrollIntoView({ block: "center", behavior: "smooth" }); rolou = true; }
       setCaixa(el.getBoundingClientRect());
@@ -163,7 +173,10 @@ export default function AjudaGuia() {
     window.addEventListener("scroll", achar, true);
     window.addEventListener("resize", achar);
     const aoClicar = (e: MouseEvent) => {
-      if (!atual.aoTocar || !(e.target instanceof Node)) return;
+      if (!(e.target instanceof Element)) return;
+      // Botões que terminam o caminho sem a etapa seguinte (ex.: Encerrar sem ficha): a ajuda termina.
+      if (e.target.closest("[data-ajuda-fim]")) { definir(null); return; }
+      if (!atual.aoTocar) return;
       const el = alvoVisivel(atual);
       if (el && el.contains(e.target)) { tocado = true; window.setTimeout(achar, 300); }
     };
@@ -177,13 +190,15 @@ export default function AjudaGuia() {
   }, [passo, definir, PASSOS, proximoVisivel]);
 
   if (passo === null) return null;
+  // A ajuda do paciente só aparece na página do paciente, e a do profissional só fora dela.
+  if ((estado?.roteiro === "paciente") !== caminho.startsWith("/t/")) return null;
   if (!caixa) {
     if (!solto) return null;
     const p = PASSOS[passo];
     return (
       <div className="ajuda-balao ajuda-solto" role="dialog" aria-label="Ajuda">
         <div className="ajuda-contador">Passo {passo + 1} de {PASSOS.length}</div>
-        <p>{p?.espera ?? "Continue nesta tela. Quando a próxima parte aparecer, a ajuda mostra onde tocar."}</p>
+        <p>{textoSolto || p?.espera}</p>
         <div className="ajuda-acoes">
           <button type="button" className="ajuda-sair" onClick={() => definir(null)}>Sair da ajuda</button>
         </div>
