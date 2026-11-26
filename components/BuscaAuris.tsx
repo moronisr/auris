@@ -11,7 +11,7 @@ import { iniciarAjuda } from "./AjudaGuia";
 type Atalho = { titulo: string; desc: string; href?: string; acao?: "ajuda" | "ajuda-tele"; palavras: string };
 
 const ATALHOS: Atalho[] = [
-  { titulo: "Novo registro", desc: "Gravar um atendimento por voz", href: "/novo", palavras: "gravar gravacao audio ditado ditar microfone consulta conversa registrar registro ficha nova atendimento" },
+  { titulo: "Consulta presencial", desc: "Gravar a consulta ou ditar depois", href: "/presencial", palavras: "gravar gravacao audio ditado ditar microfone consulta conversa registrar registro ficha nova atendimento" },
   { titulo: "Teleconsultas", desc: "Agendar e atender por vídeo", href: "/teleconsultas", palavras: "teleconsulta video online chamada telemedicina agendar agendamento link sala paciente remoto" },
   { titulo: "Agenda online", desc: "Horários que o paciente pode marcar sozinho", href: "/perfil#agenda-online", palavras: "agenda horario horarios marcar disponibilidade semana folga" },
   { titulo: "Finanças", desc: "Meu plano, cartão, Pix e cobranças", href: "/financas", palavras: "financas financeiro cartao credito plano pagamento pagar pix cobranca assinatura mensalidade upgrade trocar cancelar fatura valor preco" },

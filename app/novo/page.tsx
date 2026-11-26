@@ -32,6 +32,11 @@ export default function Novo() {
   const [modelo, setModelo] = useState("geral");
   const [area, setArea] = useState("Clínica médica");
   const [modo, setModo] = useState<Modo>("ditado");
+  // Vindo de Consulta presencial: o modo escolhido lá já chega marcado.
+  useEffect(() => {
+    const m = new URLSearchParams(window.location.search).get("modo");
+    if (m === "consulta" || m === "ditado") setModo(m);
+  }, []);
   const [consentimento, setConsentimento] = useState(false);
   const [etapa, setEtapa] = useState<Etapa>("pronto");
   const [erro, setErro] = useState<string | null>(null);

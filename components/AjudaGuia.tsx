@@ -23,8 +23,9 @@ type Passo = {
 };
 
 const PASSOS_REGISTRO: Passo[] = [
-  { alvo: "novo", texto: "Comece por aqui: toque em Novo registro.", aoTocar: true },
-  { alvo: "modo", texto: "Escolha Ditado, se for falar sozinho depois do atendimento, ou Consulta, para gravar a conversa com o paciente." },
+  { alvo: "novo", texto: "Comece por aqui: toque em Consulta presencial.", aoTocar: true },
+  { alvo: "presencial-opcao", texto: "Escolha Gravar a consulta, para gravar a conversa com o paciente, ou Ditar depois, para falar sozinho ao final.", aoTocar: true },
+  { alvo: "modo", texto: "O modo que você escolheu já vem marcado aqui. Se quiser, troque entre Ditado e Consulta." },
   { alvo: "area", texto: "Confira a sua área. O formato da ficha já vem escolhido por ela." },
   { alvo: "gravar", texto: "Toque para gravar. Quando terminar, toque em Parar e espere a ficha ficar pronta.", aoTocar: true },
   { alvo: "aprovar", texto: "Confira a ficha, corrija o que precisar e toque em Aprovar.", aoTocar: true, espera: "Montando a ficha. Em alguns segundos ela aparece aqui para a sua revisão." },

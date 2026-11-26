@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Registro clínico por voz com IA",
   manifest: "/manifest.webmanifest",
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#F7F7F4" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#070A07" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
         />
       </head>
       <body>

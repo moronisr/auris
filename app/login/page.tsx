@@ -82,15 +82,15 @@ export default function Login() {
   }
 
   return (
-    <>
+    <div className="login-caixa">
       <div className="login-marca">
         <span className="marca-icone" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round"><path d="M4 12h2l2-5 4 10 2-5h6" /></svg>
         </span>
+        <span>Auris</span>
       </div>
-      <h1>Auris</h1>
+      <h1>{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
       <p className="login-desc">Registro clínico por voz</p>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>Registre o atendimento falando. A IA organiza, você revisa, aprova e gera o PDF.</p>
       {confirmar ? (
         <ConfirmarEmail email={confirmar.email} senha={confirmar.senha} recemEnviado={confirmar.recemEnviado}
           onConfirmado={entrarNoSistema}
@@ -176,6 +176,6 @@ export default function Login() {
       </button>
       {modo === "cadastrar" && <p className="muted" style={{ textAlign: "center", fontSize: 13 }}>Ao criar a conta, você concorda com os <a href="/termos" target="_blank" rel="noreferrer">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noreferrer">Política de privacidade</a>.</p>}
       </>}
-    </>
+    </div>
   );
 }
