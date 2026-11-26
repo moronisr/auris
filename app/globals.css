@@ -325,14 +325,14 @@ input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: va
 .detalhe-pagamento dd { margin: 0; }
 
 /* ===== Tema Auris: verde-musgo, vidro e desfoque ===== */
-body {
+body { background: var(--fundo); min-height: 100vh; font-feature-settings: normal; }
+/* Fundo fixo numa camada própria (mais leve que background-attachment: fixed, e funciona no iPhone). */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
     radial-gradient(ellipse 55% 60% at 50% 40%, rgba(140, 180, 100, .20), rgba(0, 0, 0, 0) 72%),
     linear-gradient(180deg, rgba(4, 7, 4, .72), rgba(4, 7, 4, .86)),
-    url(/fundo-auris.jpg) center / cover no-repeat fixed,
-    var(--fundo);
-  min-height: 100vh;
-  font-feature-settings: normal;
+    url(/fundo-auris.jpg) center / cover no-repeat;
 }
 ::selection { background: rgba(169, 196, 127, .35); }
 h1 { font-weight: 500; letter-spacing: -.6px; }
@@ -340,7 +340,7 @@ h2 { color: var(--suave); }
 a { color: var(--destaque); }
 a:hover { color: #fff; }
 
-.card, .vidro { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra); backdrop-filter: var(--vidro-borrao); -webkit-backdrop-filter: var(--vidro-borrao); }
+.card, .vidro { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra); }
 a.card:hover { border-color: rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .09); }
 
 input, textarea, select { background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .14); border-radius: 14px; color: var(--tinta); }
@@ -351,13 +351,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: #7C9A55; width: auto
 
 button, .btn { border-radius: 999px; background: linear-gradient(135deg, #9BB873, #4D6B33); color: #fff; box-shadow: 0 10px 28px rgba(77, 107, 51, .45), inset 0 1px 0 rgba(255, 255, 255, .30); }
 button:hover, .btn:hover { background: linear-gradient(135deg, #A9C47F, #577A3A); color: #fff; }
-.btn-sec, button.btn-sec { background: rgba(255, 255, 255, .07); color: var(--tinta); border: 1px solid rgba(255, 255, 255, .14); box-shadow: none; backdrop-filter: var(--vidro-borrao); -webkit-backdrop-filter: var(--vidro-borrao); }
+.btn-sec, button.btn-sec { background: rgba(255, 255, 255, .07); color: var(--tinta); border: 1px solid rgba(255, 255, 255, .14); box-shadow: none; }
 .btn-sec:hover, button.btn-sec:hover { background: rgba(255, 255, 255, .12); color: #fff; }
 button.link, button.link:hover { background: none; box-shadow: none; }
 .gravar { border-radius: 999px; }
 .gravando { background: linear-gradient(135deg, #D2614F, #8E2A1C); }
 
-.aviso, .erro, .ok { border-radius: 16px; backdrop-filter: var(--vidro-borrao); -webkit-backdrop-filter: var(--vidro-borrao); }
+.aviso, .erro, .ok { border-radius: 16px; }
 .selo { background: rgba(255, 255, 255, .08); color: #D3DCCB; }
 .termo { background: rgba(0, 0, 0, .25); }
 .aceite { background: rgba(143, 174, 102, .14); }
@@ -420,7 +420,7 @@ main.container:has(.inicio-auris) { max-width: 1080px; }
 @media (max-width: 720px) { .titulo-grande { font-size: 30px; } }
 .escolhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
 @media (max-width: 720px) { .escolhas { grid-template-columns: 1fr; } }
-.escolha { display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 28px; color: var(--tinta); text-decoration: none; background: var(--superficie); border: 1px solid var(--linha); box-shadow: var(--sombra); backdrop-filter: var(--vidro-borrao); -webkit-backdrop-filter: var(--vidro-borrao); transition: background .15s, border-color .15s, transform .15s; }
+.escolha { display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 28px; color: var(--tinta); text-decoration: none; background: var(--superficie); border: 1px solid var(--linha); box-shadow: var(--sombra); transition: background .15s, border-color .15s, transform .15s; }
 .escolha:hover { background: rgba(255, 255, 255, .10); border-color: rgba(255, 255, 255, .22); color: #fff; transform: translateY(-2px); }
 .escolha-icone { width: 54px; height: 54px; border-radius: 50%; background: rgba(255, 255, 255, .10); display: inline-flex; align-items: center; justify-content: center; }
 .escolha b { font-size: 22px; font-weight: 600; letter-spacing: -.3px; }
