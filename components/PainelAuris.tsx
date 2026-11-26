@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import IconeDetalhe from "@/components/IconeDetalhe";
 
 /** Painel do dono do Auris: números do negócio, profissionais, cortesias e a chave da cobrança. Sem dado clínico. */
 type Prof = {
@@ -24,6 +25,12 @@ const dia = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-
 const SITUACAO: Record<string, [string, string]> = {
   liberado: ["Liberado", "selo-ok"], teste: ["Em teste", "selo"], ativa: ["Ativa", "selo-ok"], aviso: ["Pagamento pendente", "selo-alerta"], bloqueado: ["Bloqueado", "selo-alerta"],
 };
+// Datas do Asaas sem hora são gravadas ao meio-dia: nesse caso mostra só o dia, para não exibir uma hora inventada.
+const diaHora = (iso: string) => {
+  const d = new Date(iso);
+  const semHora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) === "12:00";
+  return semHora ? dia(iso) : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).replace(",", " às");
+};
 const PRAZOS = [7, 30, 60, 90, 180, 365];
 
 export default function PainelAuris() {
@@ -31,6 +38,7 @@ export default function PainelAuris() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [aberto, setAberto] = useState<string | null>(null);
+  const [movAberto, setMovAberto] = useState<number | null>(null);
   const [dias, setDias] = useState(30);
   const [motivo, setMotivo] = useState("Piloto");
   const [confirmarCobranca, setConfirmarCobranca] = useState(false);
@@ -121,18 +129,29 @@ export default function PainelAuris() {
         {!d.movimentos?.length ? <p className="muted" style={{ marginBottom: 0 }}>Nenhuma cobrança nos últimos 6 meses.</p> : (
           <div style={{ overflowX: "auto" }}>
             <table className="tabela-simples">
-              <thead><tr><th>Data</th><th>Profissional</th><th>Plano</th><th>Forma</th><th>Situação</th><th>Para onde foi</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
+              <thead><tr><th>Data e hora</th><th>Profissional</th><th style={{ textAlign: "right" }}>Valor</th><th aria-label="Detalhes" /></tr></thead>
               <tbody>
                 {d.movimentos.map((m, i) => (
-                  <tr key={i}>
-                    <td>{dia(m.data)}</td>
-                    <td>{m.profissional}{m.teste ? <span className="muted"> (teste)</span> : null}</td>
-                    <td>{m.plano}</td>
-                    <td>{m.forma}</td>
-                    <td>{m.situacao}</td>
-                    <td>{m.destino}</td>
-                    <td style={{ textAlign: "right" }}>{reais(m.valor)}</td>
-                  </tr>
+                  <Fragment key={i}>
+                    <tr>
+                      <td style={{ whiteSpace: "nowrap" }}>{diaHora(m.data)}</td>
+                      <td>{m.profissional}{m.teste ? <span className="muted"> (teste)</span> : null}</td>
+                      <td style={{ textAlign: "right" }}>{reais(m.valor)}</td>
+                      <td style={{ width: 36 }}><IconeDetalhe aberto={movAberto === i} rotulo="Ver detalhes da cobrança" onClick={() => setMovAberto(movAberto === i ? null : i)} /></td>
+                    </tr>
+                    {movAberto === i && (
+                      <tr className="detalhe-pagamento"><td colSpan={4}>
+                        <dl>
+                          <dt>Plano</dt><dd>{m.plano}</dd>
+                          <dt>Situação</dt><dd>{m.situacao}</dd>
+                          <dt>Forma</dt><dd>{m.forma}</dd>
+                          <dt>Para onde foi</dt><dd>{m.destino}</dd>
+                          <dt>Data e hora</dt><dd>{diaHora(m.data)}</dd>
+                          <dt>Valor</dt><dd>{reais(m.valor)}</dd>
+                        </dl>
+                      </td></tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

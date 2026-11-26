@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { hostDoLink } from "@/lib/pix";
+import IconeDetalhe from "@/components/IconeDetalhe";
 
 /**
  * Financeiro do profissional: o que os pacientes pagaram, o que foi devolvido, o que está em contestação
@@ -17,6 +18,7 @@ type Linha = {
 type Mov = { id: string; data: string; paciente: string; tipo: "Recebido" | "Confirmado por você" | "Devolvido" | "Estornado pelo cartão"; metodo: string; destino: string; valor: number };
 
 const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const diaHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).replace(",", " às");
 const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo" });
 const METODO: Record<string, string> = { pix: "Pix", credito: "Cartão de crédito", debito: "Cartão de débito" };
 const manualCartao = (l: Linha) => !l.pg_provedor && (l.pagamento_metodo === "credito" || l.pagamento_metodo === "debito" || l.pagamento_metodo === "cartao");
@@ -50,6 +52,7 @@ export default function Recebimentos() {
   const [erro, setErro] = useState(false);
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [linkPerfil, setLinkPerfil] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -189,17 +192,30 @@ export default function Recebimentos() {
         {r.movs.length === 0 ? <p className="muted" style={{ marginBottom: 0 }}>Nenhum pagamento neste período.</p> : (
           <div style={{ overflowX: "auto" }}>
             <table className="tabela-simples">
-              <thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Forma</th><th>Para onde foi</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
+              <thead><tr><th>Data e hora</th><th>Paciente</th><th style={{ textAlign: "right" }}>Valor</th><th aria-label="Detalhes" /></tr></thead>
               <tbody>
                 {r.movs.map((m, i) => (
-                  <tr key={`${m.id}-${i}`}>
-                    <td>{dia(m.data)}</td>
-                    <td><a href={`/teleconsultas/${m.id}`}>{m.paciente}</a></td>
-                    <td>{m.tipo}</td>
-                    <td>{m.metodo}</td>
-                    <td>{m.destino}</td>
-                    <td style={{ textAlign: "right", color: m.valor < 0 ? "var(--erro-tinta)" : undefined }}>{m.valor < 0 ? "- " : ""}{reais(Math.abs(m.valor))}</td>
-                  </tr>
+                  <Fragment key={`${m.id}-${i}`}>
+                    <tr>
+                      <td style={{ whiteSpace: "nowrap" }}>{diaHora(m.data)}</td>
+                      <td>{m.paciente}</td>
+                      <td style={{ textAlign: "right", color: m.valor < 0 ? "var(--erro-tinta)" : undefined }}>{m.valor < 0 ? "- " : ""}{reais(Math.abs(m.valor))}</td>
+                      <td style={{ width: 36 }}><IconeDetalhe aberto={aberta === i} rotulo="Ver detalhes do pagamento" onClick={() => setAberta(aberta === i ? null : i)} /></td>
+                    </tr>
+                    {aberta === i && (
+                      <tr className="detalhe-pagamento"><td colSpan={4}>
+                        <dl>
+                          <dt>Situação</dt><dd>{m.tipo}</dd>
+                          <dt>Forma</dt><dd>{m.metodo}</dd>
+                          <dt>Para onde foi</dt><dd>{m.destino}</dd>
+                          <dt>Data e hora</dt><dd>{diaHora(m.data)}</dd>
+                          <dt>Valor</dt><dd>{m.valor < 0 ? "- " : ""}{reais(Math.abs(m.valor))}</dd>
+                          <dt>Consulta</dt><dd><a href={`/teleconsultas/${m.id}`}>Abrir a teleconsulta</a></dd>
+                        </dl>
+                        {m.tipo === "Confirmado por você" && <p className="muted" style={{ margin: "6px 0 0" }}>O Auris não vê este dinheiro: confira no extrato do seu banco ou do site do link.</p>}
+                      </td></tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
