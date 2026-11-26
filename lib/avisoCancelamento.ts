@@ -21,8 +21,11 @@ export async function avisarCancelamento(teleId: string): Promise<void> {
     if (!t?.paciente_telefone) return;
     const { data: p } = await sb.from("profissionais").select("nome, slug, agenda_ativa").eq("id", t.profissional_id).maybeSingle();
     const quem = t.cancelado_por === "paciente" ? "a seu pedido" : "pelo consultório";
-    const devolucao = t.pagamento_status === "devolvido" ? ". O valor pago foi devolvido" : "";
-    const destino = p?.agenda_ativa && p.slug ? p.slug : `t/${t.codigo}`;
+    // Cancelada pelo consultório e paga: o pagamento fica guardado e o paciente escolhe na página da consulta.
+    const guardado = t.cancelado_por === "profissional" && t.pagamento_status === "confirmado";
+    const devolucao = t.pagamento_status === "devolvido" ? ". O valor pago foi devolvido"
+      : guardado ? ". Seu pagamento está guardado: remarque sem pagar de novo ou peça a devolução" : "";
+    const destino = guardado ? `t/${t.codigo}` : p?.agenda_ativa && p.slug ? p.slug : `t/${t.codigo}`;
     await enviarModelo("cancelamento", t.paciente_telefone,
       [String(t.paciente_nome || "").split(" ")[0] || "paciente", p?.nome || "o profissional", dataParaMensagem(t.inicio), quem + devolucao], destino);
   } catch (e) {

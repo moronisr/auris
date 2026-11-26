@@ -12,11 +12,14 @@ export const runtime = "nodejs";
  * - cancelar: só cancela (sem devolver);
  * - cancelar_devolver: cancela e devolve o valor integral ao paciente;
  * - devolver: devolve o valor de uma consulta já cancelada que foi paga;
- * - devolver_extra: devolve os pagamentos em duplicidade, mantendo o primeiro.
+ * - devolver_extra: devolve os pagamentos em duplicidade, mantendo o primeiro;
+ * - remarcar: consulta cancelada pelo consultório e já paga volta para um novo horário, sem nova cobrança;
+ * - ja_devolvi: o consultório devolveu por fora (Pix da própria chave) e marca como devolvido.
+ * Ao cancelar uma consulta paga, o dinheiro NÃO é devolvido: fica guardado e o paciente escolhe remarcar ou receber de volta.
  */
 export async function POST(req: Request) {
-  const b = (await req.json().catch(() => null)) as { teleId?: string; acao?: string } | null;
-  if (!b?.teleId || !["cancelar", "cancelar_devolver", "devolver", "devolver_extra"].includes(b.acao || "")) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
+  const b = (await req.json().catch(() => null)) as { teleId?: string; acao?: string; inicio?: string } | null;
+  if (!b?.teleId || !["cancelar", "cancelar_devolver", "devolver", "devolver_extra", "remarcar", "ja_devolvi"].includes(b.acao || "")) return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   const sb = await supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
@@ -24,9 +27,21 @@ export async function POST(req: Request) {
   const { data: t } = await admin.from("teleconsultas").select("id, profissional_id, status, pagamento_status, pg_provedor, mp_pagamento_id, valor, pagamento_alerta").eq("id", b.teleId).maybeSingle();
   if (!t || t.profissional_id !== user.id) return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
 
+  if (b.acao === "remarcar") {
+    const novo = new Date(String(b.inicio || ""));
+    if (isNaN(novo.getTime()) || novo.getTime() < Date.now()) return NextResponse.json({ erro: "Escolha uma data e hora futuras." }, { status: 400 });
+    if (t.status !== "cancelada" || t.pagamento_status !== "confirmado") return NextResponse.json({ erro: "Só dá para remarcar sem nova cobrança uma consulta paga e cancelada pelo consultório." }, { status: 409 });
+    await admin.from("teleconsultas").update({ inicio: novo.toISOString(), status: "confirmada", cancelado_por: null, pagamento_alerta: null, lembrete_24h_em: null, lembrete_1h_em: null }).eq("id", t.id);
+    return NextResponse.json({ ok: true, mensagem: `Consulta remarcada para ${novo.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}, sem nova cobrança.` });
+  }
+  if (b.acao === "ja_devolvi") {
+    await admin.from("teleconsultas").update({ pagamento_status: "devolvido", devolvido_em: new Date().toISOString(), devolucao_valor: Number(t.valor || 0), pagamento_alerta: null }).eq("id", t.id);
+    return NextResponse.json({ ok: true, mensagem: "Marcado como devolvido." });
+  }
   if (b.acao === "cancelar") {
-    await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional" }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id);
-    return NextResponse.json({ ok: true, mensagem: "Consulta cancelada." });
+    const pagoGuardado = t.pagamento_status === "confirmado";
+    await admin.from("teleconsultas").update({ status: "cancelada", cancelado_por: "profissional", ...(pagoGuardado ? { pagamento_alerta: "aguardando_paciente" } : {}) }).eq("id", t.id); if (t.status !== "cancelada") await avisarCancelamento(t.id);
+    return NextResponse.json({ ok: true, mensagem: pagoGuardado ? "Consulta cancelada. O pagamento ficou guardado e o paciente vai escolher: remarcar ou receber de volta." : "Consulta cancelada." });
   }
   if (t.pg_provedor === "pagbank") {
     if (b.acao === "devolver_extra") return NextResponse.json({ erro: "Pagamentos em duplicidade pelo PagBank são devolvidos no app do PagBank (Vendas, abrir a venda, Estornar)." }, { status: 409 });

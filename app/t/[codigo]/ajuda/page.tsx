@@ -98,7 +98,8 @@ export default function AjudaConsulta({ params }: { params: Promise<{ codigo: st
           </>
         )}
       </div>
-      {info.status === "cancelada" && <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
+      {info.status === "cancelada" && !(info.cancelado_por === "profissional" && info.pagamento_status === "confirmado") && <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
+      {info.status === "cancelada" && info.cancelado_por === "profissional" && info.pagamento_status === "confirmado" && <p className="aviso" style={{ marginTop: 14 }}>Seu pagamento está guardado. Volte para a consulta para remarcar sem custo ou pedir a devolução.</p>}
 
       <p style={{ textAlign: "center" }}><Link href={`/t/${codigo}`}>Voltar para a consulta</Link></p>
     </div>

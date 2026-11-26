@@ -267,7 +267,9 @@ export async function confirmarPeloMercadoPago(teleId: string, pagamentoId?: str
     return "devolvido";
   }
   if (t.pagamento_status === "confirmado") {
-    if (alerta && t.pagamento_alerta !== alerta && t.pagamento_alerta !== "contestacao" && t.pagamento_alerta !== "chargeback") await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
+    // Cancelada pelo consultório com pagamento guardado: o alerta é a escolha do paciente, não "pago_cancelada".
+    const guardado = alerta === "pago_cancelada" && (t.pagamento_alerta === "aguardando_paciente" || t.pagamento_alerta === "devolucao_pendente");
+    if (alerta && !guardado && t.pagamento_alerta !== alerta && t.pagamento_alerta !== "contestacao" && t.pagamento_alerta !== "chargeback") await sb.from("teleconsultas").update({ pagamento_alerta: alerta }).eq("id", teleId);
     return "confirmado";
   }
   const ok = aprovados[0];

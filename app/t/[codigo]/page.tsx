@@ -5,6 +5,7 @@ import Link from "next/link";
 import CartaoMP from "@/components/CartaoMP";
 import { AjudaLink } from "@/components/AjudaInicio";
 import RemarcarConsulta from "@/components/RemarcarConsulta";
+import EscolhaPaciente from "@/components/EscolhaPaciente";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -200,7 +201,9 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
           <p className="muted" style={{ marginBottom: 0 }}>No Pix, o valor volta para a conta que pagou, em geral em poucos minutos. No cartão, o estorno aparece na fatura em até duas faturas, conforme o banco.{info.transacao ? ` Número da transação: ${info.transacao}.` : ""}</p>
         </div>
       )}
-      <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />
+      {info.cancelado_por === "profissional" && info.pagamento_status === "confirmado"
+        ? <EscolhaPaciente codigo={codigo} profissional={info.profissional} valor={Number(info.valor || 0)} obs={info.cancelamento_obs} aoConcluir={carregar} />
+        : <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
     </div>
   );
   if (info.status === "encerrada" || estado === "encerrada") return (

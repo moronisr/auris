@@ -224,9 +224,10 @@ export default function Teleconsultas() {
             {t.status === "em_andamento" && <span className="selo selo-ok">Em andamento</span>}
           </div>
           <div className="selos">
+            {t.pagamento_alerta === "aguardando_paciente" && <Selo ok={false} alerta texto="Cancelada pelo consultório: aguardando o paciente (remarcar ou devolver)" />}
             {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
             {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
-            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Paciente cancelou: devolução pendente" : t.pagamento_alerta === "contestacao" ? "Pagamento contestado: responder" : t.pagamento_alerta === "chargeback" ? "Valor estornado pelo cartão" : "Pago, mas a consulta foi cancelada"} />}
+            {t.pagamento_alerta && t.pagamento_alerta !== "aguardando_paciente" && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Devolução pedida: devolver ao paciente" : t.pagamento_alerta === "contestacao" ? "Pagamento contestado: responder" : t.pagamento_alerta === "chargeback" ? "Valor estornado pelo cartão" : "Pago, mas a consulta foi cancelada"} />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}

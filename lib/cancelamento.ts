@@ -26,7 +26,7 @@ export function politicaCancelamento(horas: number, obsBruto?: string | null, pa
   const linhas = [
     `Você pode cancelar pelo próprio link da consulta ${prazoTexto(horas)} e recebe o valor integral de volta, automaticamente.`,
     "Depois desse prazo, ou se você não entrar na consulta, o valor não é devolvido.",
-    "Se o consultório precisar cancelar, você recebe o valor integral de volta.",
+    "Se o consultório precisar cancelar, você escolhe: remarcar sem pagar de novo ou receber o valor integral de volta.",
     "Devolução no Pix: o valor volta para a conta que pagou, em geral em poucos minutos. No cartão: o estorno aparece na fatura em até duas faturas, conforme o banco.",
   ];
   if (pagina) linhas.push(`Para remarcar ou reagendar, escolha um novo horário ${pagina}.${whats ? ` Se preferir, chame o consultório no WhatsApp ${foneBR(whats)}.` : ""}`);
