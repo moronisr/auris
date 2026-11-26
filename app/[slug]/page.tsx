@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { reais } from "@/lib/pix";
 import { mascaraTelefone } from "@/lib/telefone";
 import { politicaCancelamento } from "@/lib/cancelamento";
+import { AjudaLink } from "@/components/AjudaInicio";
 
 type Pagina = {
   nome: string; especialidade: string | null; conselho: string | null; apresentacao: string | null;
@@ -64,8 +65,9 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
   );
 
   return (
-    <div className="paciente">
+    <div className="paciente" data-publico="">
       <div className="paciente-topo"><span className="paciente-marca">Auris</span><span className="muted">Teleconsulta</span></div>
+      <div className="ajuda-paciente"><AjudaLink roteiro="agendar" texto="Precisa de ajuda? Ver o passo a passo" /></div>
       <h1 style={{ marginBottom: 4 }}>{p.nome}</h1>
       <p className="muted" style={{ marginTop: 0 }}>{[p.especialidade, p.conselho].filter(Boolean).join(", ")}</p>
       {p.apresentacao && <p>{p.apresentacao}</p>}
@@ -89,7 +91,7 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
         <div className="card"><p style={{ margin: 0 }}>Todos os horários dos próximos 14 dias estão ocupados. Volte em breve: novos horários são abertos toda semana.</p></div>
       ) : (
         <form className="card" onSubmit={agendar}>
-          <h2 style={{ marginTop: 0 }}>1. Escolha o horário</h2>
+          <h2 style={{ marginTop: 0 }} data-ajuda="ag-horario">1. Escolha o horário</h2>
           <p className="muted" style={{ marginTop: -4 }}>Horários de Brasília.</p>
           {porDia.map(([dia, hs]) => (
             <div className="horarios-dia" key={dia}>
@@ -104,14 +106,14 @@ export default function PaginaProfissional({ params }: { params: Promise<{ slug:
 
           <h2>2. Seus dados</h2>
           <label htmlFor="pg-nome">Nome completo</label>
-          <input id="pg-nome" autoComplete="name" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+          <input id="pg-nome" data-ajuda="ag-dados" autoComplete="name" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
           <label htmlFor="pg-tel" style={{ marginTop: 10 }}>WhatsApp com DDD</label>
           <input id="pg-tel" inputMode="tel" autoComplete="tel" placeholder="(91) 99999-9999" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: mascaraTelefone(e.target.value) })} required />
           <label htmlFor="pg-email" style={{ marginTop: 10 }}>E-mail (opcional, para o recibo)</label>
           <input id="pg-email" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           {escolhido && <p className="ok" style={{ marginTop: 14 }}>Horário escolhido: <b>{diaDe(escolhido)}, às {horaDe(escolhido)}</b>.</p>}
           {erro && <div className="erro" style={{ marginTop: 12 }}>{erro}</div>}
-          <button type="submit" disabled={enviando || !escolhido || !p.aceitando} style={{ width: "100%", marginTop: 14 }}>{enviando ? "Reservando o horário" : "Continuar para o pagamento"}</button>
+          <button type="submit" data-ajuda="ag-continuar" disabled={enviando || !escolhido || !p.aceitando} style={{ width: "100%", marginTop: 14 }}>{enviando ? "Reservando o horário" : "Continuar para o pagamento"}</button>
           <p className="muted">O horário fica reservado por 30 minutos para você concluir o pagamento.</p>
           <details className="politica">
             <summary>Política de cancelamento e devolução</summary>

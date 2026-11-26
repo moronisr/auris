@@ -18,6 +18,8 @@ type Passo = {
   aoTocar?: boolean;
   /** Frase mostrada enquanto a parte deste passo ainda não apareceu (ex.: aguardando o pagamento). */
   espera?: string;
+  /** Ao tocar, segue para o primeiro passo seguinte que estiver na tela (ex.: abas). */
+  segue?: boolean;
 };
 
 const PASSOS_REGISTRO: Passo[] = [
@@ -65,14 +67,56 @@ const PASSOS_PACIENTE: Passo[] = [
   { alvo: "p-controles", texto: "Pronto, você está na sala. Aqui você liga e desliga o microfone e a câmera. Deixe esta tela aberta: o profissional entra no horário marcado." },
 ];
 
-export type Roteiro = "registro" | "tele" | "paciente";
-const ROTEIROS: Record<string, Passo[]> = { registro: PASSOS_REGISTRO, tele: PASSOS_TELE, paciente: PASSOS_PACIENTE };
+const PASSOS_PERFIL: Passo[] = [
+  { alvo: "pf-dados", texto: "Confira seu nome, profissão, especialidade e registro no conselho. Eles aparecem nas fichas, nas receitas e na sua página." },
+  { alvo: "pf-pix", texto: "Para receber por Pix nas teleconsultas que você mesmo agenda: escolha o tipo de chave, coloque a sua chave Pix e o nome e a cidade da conta. O Auris monta o código Pix para o paciente." },
+  { alvo: "pf-cartao", texto: "Para receber no cartão de crédito e débito: crie um link de pagamento com o valor da consulta no app do seu banco ou maquininha (Mercado Pago, PagBank, InfinitePay), copie e cole aqui." },
+  { alvo: "pf-salvar", texto: "Toque em Salvar perfil e depois em Próximo." },
+  { alvo: "pf-online", texto: "Para o pagamento ser confirmado sozinho, conecte a sua conta: toque em Conectar com Mercado Pago (ou escolha PagBank) e entre na sua conta. Sem isso, você confere os pagamentos por conta própria." },
+  { alvo: "pf-link", texto: "Este é o link da sua página. Escolha um nome simples, como dra-ana. É por ele que o paciente agenda e paga sozinho." },
+  { alvo: "pf-valor", texto: "Coloque o valor da teleconsulta. Ao lado, a duração de cada consulta e com quanta antecedência o paciente pode marcar." },
+  { alvo: "pf-horarios", texto: "Marque os dias em que você atende online e o horário de início e de fim. Dá para colocar mais de um horário no mesmo dia." },
+  { alvo: "pf-ajustes", texto: "Vai tirar folga ou abrir um horário extra numa data? Ajuste aqui, sem mexer nos horários da semana." },
+  { alvo: "pf-cancelar", texto: "Defina até quando o paciente pode cancelar e receber o valor de volta." },
+  { alvo: "pf-abrir", texto: "Marque para abrir a agenda. Com ela fechada, ninguém consegue marcar pela sua página." },
+  { alvo: "pf-salvar-agenda", texto: "Toque em Salvar agenda e depois em Próximo. Se faltar algo, aparece um aviso logo acima do botão." },
+  { alvo: "pf-divulgar", texto: "Pronto. Toque em Ver minha página para ver como o paciente vê, ou em Copiar meu link para colocar no Instagram, no WhatsApp ou na bio.", espera: "Toque em Salvar agenda. Depois de salvar, aparecem aqui os botões para ver a sua página e copiar o seu link." },
+];
+
+const PASSOS_FINANCAS: Passo[] = [
+  { alvo: "fi-abas", texto: "Em Recebimentos você vê o que os pacientes pagaram nas teleconsultas. Em Plano do Auris ficam o seu plano e a forma de pagamento." },
+  { alvo: "fi-plano", texto: "Toque em Plano do Auris.", aoTocar: true, segue: true },
+  { alvo: "fi-escolher", texto: "Escolha o seu plano. Todos têm consultas ilimitadas; o Max libera todos os recursos." },
+  { alvo: "fi-pagar", texto: "Escolha cartão de crédito ou Pix Automático e preencha os dados. A cobrança é feita todo mês sozinha, sem você precisar lembrar." },
+  { alvo: "fi-forma", texto: "Aqui ficam o seu cartão e o seu plano. Use Trocar cartão, Remover cartão ou Mudar de plano quando precisar." },
+  { alvo: "fi-historico", texto: "Aqui ficam todas as cobranças do Auris, com data, valor e situação." },
+];
+
+const PASSOS_DIA: Passo[] = [
+  { alvo: "dia-data", texto: "Escolha a data. A página mostra todos os atendimentos registrados nesse dia." },
+  { alvo: "dia-pdf", texto: "Toque para salvar o PDF com todas as fichas do dia, para o seu arquivo." },
+  { alvo: "dia-lista", texto: "Aqui está o resumo do dia, com a hora e o nome de cada paciente. Logo abaixo vêm as fichas completas." },
+];
+
+const PASSOS_AGENDAR: Passo[] = [
+  { alvo: "ag-horario", texto: "Escolha o dia e toque no horário que preferir. Os horários são de Brasília." },
+  { alvo: "ag-dados", texto: "Preencha o seu nome completo e o WhatsApp com DDD. É por ele que você recebe o link da consulta." },
+  { alvo: "ag-continuar", texto: "Toque em Continuar para o pagamento. O horário fica reservado por 30 minutos enquanto você paga.", aoTocar: true },
+  ...PASSOS_PACIENTE,
+];
+
+export type Roteiro = "registro" | "tele" | "paciente" | "perfil" | "financas" | "dia" | "agendar";
+const ROTEIROS: Record<string, Passo[]> = {
+  registro: PASSOS_REGISTRO, tele: PASSOS_TELE, paciente: PASSOS_PACIENTE,
+  perfil: PASSOS_PERFIL, financas: PASSOS_FINANCAS, dia: PASSOS_DIA, agendar: PASSOS_AGENDAR,
+};
+const ROTEIROS_PACIENTE = ["paciente", "agendar"];
 type Estado = { roteiro: string; passo: number };
 
 export function iniciarAjuda(roteiro: Roteiro = "registro") {
   try {
     localStorage.setItem(CHAVE_AJUDA, `${roteiro}:0`);
-    if (roteiro !== "paciente") localStorage.setItem(CHAVE_AJUDA_VISTA, "1");
+    if (!ROTEIROS_PACIENTE.includes(roteiro)) localStorage.setItem(CHAVE_AJUDA_VISTA, "1");
   } catch {}
   window.dispatchEvent(new Event("auris-ajuda"));
 }
@@ -152,6 +196,7 @@ export default function AjudaGuia() {
     const achar = () => {
       // Tocou no item destacado: segue quando a parte seguinte aparecer (se der erro, continua aqui).
       if (tocado && alvoVisivel(PASSOS[passo + 1])) return definir(passo + 1);
+      if (tocado && atual.segue) { const i = proximoVisivel(passo); if (i >= 0) return definir(i); }
       const el = alvoVisivel(atual);
       if (!el) {
         // A pessoa já está mais adiante (outra tela ou outra etapa): pula para o passo que está na tela.
@@ -196,7 +241,8 @@ export default function AjudaGuia() {
 
   if (passo === null) return null;
   // A ajuda do paciente só aparece na página do paciente, e a do profissional só fora dela.
-  if ((estado?.roteiro === "paciente") !== caminho.startsWith("/t/")) return null;
+  const paginaPaciente = caminho.startsWith("/t/") || !!document.querySelector("[data-publico]");
+  if (ROTEIROS_PACIENTE.includes(estado?.roteiro ?? "") !== paginaPaciente) return null;
   if (!caixa) {
     if (!solto) return null;
     const p = PASSOS[passo];

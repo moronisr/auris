@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AjudaLink } from "@/components/AjudaInicio";
 import CartaoAsaas, { type CartaoForm } from "@/components/CartaoAsaas";
 import PixAutomatico from "@/components/PixAutomatico";
 import Recebimentos from "@/components/Recebimentos";
@@ -63,7 +64,7 @@ export default function Financas() {
   const formCartao = (modoForm: "assinar" | "cartao", p: { id: string; nome: string; valor: number }) => (
     <div style={{ marginTop: 14 }}>
       {modoForm === "assinar" && (
-        <div className="abas-login" role="tablist" aria-label="Forma de pagamento" style={{ marginBottom: 12 }}>
+        <div className="abas-login" role="tablist" aria-label="Forma de pagamento" data-ajuda="fi-pagar" style={{ marginBottom: 12 }}>
           <button type="button" role="tab" aria-selected={forma === "cartao"} className={forma === "cartao" ? "ativa" : ""} onClick={() => setForma("cartao")}>Cartão de crédito</button>
           <button type="button" role="tab" aria-selected={forma === "pix"} className={forma === "pix" ? "ativa" : ""} onClick={() => setForma("pix")}>Pix Automático</button>
         </div>
@@ -101,9 +102,10 @@ export default function Financas() {
         <h1>Finanças</h1>
         <a className="btn btn-sec" href="/perfil">Voltar</a>
       </div>
-      <div className="abas-login" role="tablist" aria-label="Finanças">
+      <div style={{ marginTop: -6, marginBottom: 10 }}><AjudaLink roteiro="financas" texto="Ajuda com esta página" /></div>
+      <div className="abas-login" role="tablist" aria-label="Finanças" data-ajuda="fi-abas">
         <button type="button" role="tab" aria-selected={aba === "recebimentos"} className={aba === "recebimentos" ? "ativa" : ""} onClick={() => { setAba("recebimentos"); setMsg(null); }}>Recebimentos</button>
-        <button type="button" role="tab" aria-selected={aba === "plano"} className={aba === "plano" ? "ativa" : ""} onClick={() => { setAba("plano"); setMsg(null); }}>Plano do Auris{s.acesso === "aviso" || s.acesso === "bloqueado" ? " (pendente)" : ""}</button>
+        <button type="button" role="tab" data-ajuda="fi-plano" aria-selected={aba === "plano"} className={aba === "plano" ? "ativa" : ""} onClick={() => { setAba("plano"); setMsg(null); }}>Plano do Auris{s.acesso === "aviso" || s.acesso === "bloqueado" ? " (pendente)" : ""}</button>
       </div>
       {aba === "recebimentos" && <Recebimentos />}
       {aba === "plano" && <>
@@ -159,7 +161,7 @@ export default function Financas() {
       {/* 3. Escolher plano (sem plano ativo) */}
       {s.configurada && !ativo && (
         <div className="card">
-          <h2 style={{ marginTop: 0 }}>Escolha o seu plano</h2>
+          <h2 style={{ marginTop: 0 }} data-ajuda="fi-escolher">Escolha o seu plano</h2>
           <p className="muted">Consultas ilimitadas em todos os planos. Pagamento no cartão de crédito.</p>
           <div className="planos">
             {s.planos.map((p) => (
@@ -181,7 +183,7 @@ export default function Financas() {
       {/* 4. Forma de pagamento */}
       {s.configurada && a?.plano && (
         <div className="card">
-          <h2 style={{ marginTop: 0 }}>Forma de pagamento</h2>
+          <h2 style={{ marginTop: 0 }} data-ajuda="fi-forma">Forma de pagamento</h2>
           {pix ? (
             <p style={{ margin: 0 }}><b>Pix Automático</b> <span className="muted">(débito mensal autorizado no app do seu banco)</span></p>
           ) : temCartao ? (
@@ -232,7 +234,7 @@ export default function Financas() {
       {/* 5. Histórico */}
       {(s.cobrancas?.length ?? 0) > 0 && (
         <div className="card">
-          <h2 style={{ marginTop: 0 }}>Histórico de cobranças</h2>
+          <h2 style={{ marginTop: 0 }} data-ajuda="fi-historico">Histórico de cobranças</h2>
           <table className="tabela-simples">
             <thead><tr><th>Data</th><th>Plano</th><th>Valor</th><th>Situação</th></tr></thead>
             <tbody>

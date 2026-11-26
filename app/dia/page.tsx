@@ -3,6 +3,7 @@ import FichaConteudo, { hora, type Registro } from "@/components/FichaConteudo";
 import { MODELOS } from "@/lib/modelos";
 import BotaoPdf from "../registro/[id]/pdf";
 import SeletorData from "./seletor";
+import { AjudaLink } from "@/components/AjudaInicio";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +33,10 @@ export default async function PdfDoDia({ searchParams }: { searchParams: Promise
     <>
       <div className="row nao-imprimir" style={{ flexWrap: "wrap", gap: 8 }}>
         <a className="btn btn-sec" href="/">Voltar ao início</a>
-        <SeletorData data={data} />
-        <BotaoPdf />
+        <span data-ajuda="dia-data" style={{ display: "inline-flex" }}><SeletorData data={data} /></span>
+        <span data-ajuda="dia-pdf" style={{ display: "inline-flex" }}><BotaoPdf /></span>
       </div>
+      <div className="nao-imprimir" style={{ marginBottom: 6 }}><AjudaLink roteiro="dia" texto="Ajuda com esta página" /></div>
       <p className="muted nao-imprimir">Documento de arquivo do profissional. Para entregar a um paciente, use o PDF individual da ficha dele.</p>
 
       <article className="card ficha">
@@ -48,7 +50,7 @@ export default async function PdfDoDia({ searchParams }: { searchParams: Promise
           </div>
         </header>
         <section className="ficha-sec">
-          <h2>Sumário: {registros.length} atendimento{registros.length === 1 ? "" : "s"}</h2>
+          <h2 data-ajuda="dia-lista">Sumário: {registros.length} atendimento{registros.length === 1 ? "" : "s"}</h2>
           {registros.length === 0 && <p className="muted">Nenhum atendimento registrado nesta data.</p>}
           {registros.map((r, i) => (
             <div key={r.id} className="ficha-linha">

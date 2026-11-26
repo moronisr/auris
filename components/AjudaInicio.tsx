@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CHAVE_AJUDA_VISTA, iniciarAjuda } from "./AjudaGuia";
+import { CHAVE_AJUDA_VISTA, iniciarAjuda, type Roteiro } from "./AjudaGuia";
 
 /** Pergunta, uma única vez, se quem está começando quer a ajuda guiada. */
 export function AjudaConvite({ novato }: { novato: boolean }) {
@@ -27,7 +27,7 @@ export function AjudaConvite({ novato }: { novato: boolean }) {
 }
 
 /** Link discreto para abrir a ajuda quando quiser. */
-export function AjudaLink({ roteiro = "registro", texto = "Ajuda para usar o Auris" }: { roteiro?: "registro" | "tele" | "paciente"; texto?: string }) {
+export function AjudaLink({ roteiro = "registro", texto = "Ajuda para usar o Auris" }: { roteiro?: Roteiro; texto?: string }) {
   return (
     <button type="button" className="ajuda-link" onClick={() => iniciarAjuda(roteiro)}>{texto}</button>
   );

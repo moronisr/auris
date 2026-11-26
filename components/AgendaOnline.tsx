@@ -136,7 +136,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       <h2 style={{ marginTop: 0 }}>Agenda online e pagamento automático</h2>
       <p className="muted" style={{ marginTop: -4 }}>O paciente abre o seu link, escolhe um horário livre, paga por Pix, crédito ou débito e recebe o link da teleconsulta. Sem ninguém precisar aprovar. Você só entra na hora da consulta.</p>
 
-      <h3 className="sub">1. Pagamento online</h3>
+      <h3 className="sub" data-ajuda="pf-online">1. Pagamento online</h3>
       {e.mp_conectado ? (
         <div className="ok" style={{ marginBottom: 8 }}>
           {e.pg_provedor === "pagbank" ? "PagBank" : "Mercado Pago"} conectado{e.mp_modo === "teste" ? " em modo de teste (nenhum dinheiro real é cobrado)" : ""}. O pagamento é confirmado automaticamente, e o paciente só entra na consulta depois de pagar.
@@ -196,13 +196,13 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       <label htmlFor="ag-slug">Seu link</label>
       <div className="link-prefixo">
         <span>{origem.replace(/^https?:\/\//, "")}/</span>
-        <input id="ag-slug" value={e.slug} onChange={(x) => set({ slug: x.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} />
+        <input id="ag-slug" data-ajuda="pf-link" value={e.slug} onChange={(x) => set({ slug: x.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} />
       </div>
       <p className="muted">Coloque este link no Instagram, no WhatsApp e no Google.</p>
       <div className="grid">
         <div>
           <label htmlFor="ag-valor">Valor da teleconsulta</label>
-          <input id="ag-valor" inputMode="decimal" placeholder="150,00" value={e.valor} onChange={(x) => set({ valor: x.target.value })} />
+          <input id="ag-valor" data-ajuda="pf-valor" inputMode="decimal" placeholder="150,00" value={e.valor} onChange={(x) => set({ valor: x.target.value })} />
         </div>
         <div>
           <label htmlFor="ag-dur">Duração de cada consulta</label>
@@ -220,7 +220,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       <label htmlFor="ag-apres" style={{ marginTop: 10 }}>Apresentação (opcional)</label>
       <textarea id="ag-apres" rows={2} maxLength={400} placeholder="Ex.: Atendo adultos e crianças. Retornos em até 30 dias." value={e.apresentacao} onChange={(x) => set({ apresentacao: x.target.value })} />
 
-      <h3 className="sub">3. Horários fixos da semana</h3>
+      <h3 className="sub" data-ajuda="pf-horarios">3. Horários fixos da semana</h3>
       <p className="muted" style={{ marginTop: -4 }}>Valem para todas as semanas. Ajuste datas específicas no passo 4.</p>
       <div className="semana">
         {[1, 2, 3, 4, 5, 6, 0].map((d) => {
@@ -250,7 +250,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         })}
       </div>
 
-      <h3 className="sub">4. Ajustes em datas específicas</h3>
+      <h3 className="sub" data-ajuda="pf-ajustes">4. Ajustes em datas específicas</h3>
       <p className="muted" style={{ marginTop: -4 }}>Feche um dia (feriado, viagem) ou abra um horário a mais só naquela data.</p>
       <div className="grid">
         <div>
@@ -284,7 +284,7 @@ export default function AgendaOnline({ nome }: { nome: string }) {
         </ul>
       )}
 
-      <h3 className="sub">5. Cancelamento e devolução</h3>
+      <h3 className="sub" data-ajuda="pf-cancelar">5. Cancelamento e devolução</h3>
       <label htmlFor="ag-cancel">O paciente pode cancelar e receber o valor de volta até</label>
       <select id="ag-cancel" value={e.cancelamento_horas} onChange={(x) => set({ cancelamento_horas: Number(x.target.value) })}>
         <option value={2}>2 horas antes</option>
@@ -301,15 +301,15 @@ export default function AgendaOnline({ nome }: { nome: string }) {
       </details>
 
       <h3 className="sub">6. Abrir a agenda</h3>
-      <label className="aceite">
+      <label className="aceite" data-ajuda="pf-abrir">
         <input type="checkbox" checked={e.agenda_ativa} onChange={(x) => set({ agenda_ativa: x.target.checked })} />
         <span>Aceitar agendamentos online pela minha página</span>
       </label>
       <p className="muted">{livres7 > 0 ? `Com esses horários, a sua página mostra ${livres7} horários nos próximos 7 dias.` : "Com os horários de agora, a sua página não mostra nenhum horário nos próximos 7 dias."}</p>
       {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
-      <button type="button" disabled={salvando} style={{ width: "100%" }} onClick={salvar}>{salvando ? "Salvando" : "Salvar agenda"}</button>
+      <button type="button" data-ajuda="pf-salvar-agenda" disabled={salvando} style={{ width: "100%" }} onClick={salvar}>{salvando ? "Salvando" : "Salvar agenda"}</button>
       {slugSalvo && slugSalvo === e.slug ? (
-        <div className="acoes-ficha" style={{ marginTop: 10 }}>
+        <div className="acoes-ficha" data-ajuda="pf-divulgar" style={{ marginTop: 10 }}>
           <a className="btn btn-sec" href={`/${slugSalvo}?previa=1`} target="_blank" rel="noreferrer">Ver minha página</a>
           <button type="button" className="btn-sec" onClick={() => { navigator.clipboard.writeText(`${origem}/${slugSalvo}`); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}>{copiado ? "Link copiado" : "Copiar meu link"}</button>
         </div>

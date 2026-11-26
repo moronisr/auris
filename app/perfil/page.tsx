@@ -1,6 +1,7 @@
 "use client";
 import LinkPainel from "@/components/LinkPainel";
 import { iniciarAjuda } from "@/components/AjudaGuia";
+import { AjudaLink } from "@/components/AjudaInicio";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -73,12 +74,13 @@ export default function Perfil() {
         <h1>Meu perfil</h1>
         <a className="btn btn-sec" href="/">Voltar</a>
       </div>
+      <div style={{ marginTop: -6, marginBottom: 10 }}><AjudaLink roteiro="perfil" texto="Ajuda com esta página" /></div>
       <a className="card card-link" href="/financas"><b>Finanças</b><span className="muted">Seu plano, forma de pagamento, cobranças e upgrade</span></a>
       <LinkPainel />
       <button type="button" className="card card-link" style={{ width: "100%", textAlign: "left", color: "inherit", fontWeight: 400 }} onClick={() => iniciarAjuda("registro")}><b>Ajuda para usar o Auris</b><span className="muted">Passo a passo mostrando onde tocar para registrar, assinar e emitir receita</span></button>
       <form className="card" onSubmit={salvar}>
         <label>Nome completo</label>
-        <input value={nome} onChange={(e) => setNome(e.target.value)} required />
+        <input data-ajuda="pf-dados" value={nome} onChange={(e) => setNome(e.target.value)} required />
         <div className="grid" style={{ marginTop: 10 }}>
           <div>
             <label>Profissão</label>
@@ -113,7 +115,7 @@ export default function Perfil() {
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
         <h2>Recebimento manual (teleconsultas agendadas por você)</h2>
         <p className="muted" style={{ marginTop: -4 }}>Usado quando você mesmo agenda a teleconsulta e não conectou o pagamento online (abaixo). Nesse caso, você confere o pagamento e confirma no Auris. Com o pagamento online conectado (Mercado Pago ou PagBank), a confirmação é automática.</p>
-        <div className="grid">
+        <div className="grid" data-ajuda="pf-pix">
           <div>
             <label htmlFor="pix-tipo">Tipo de chave Pix</label>
             <select id="pix-tipo" value={pixTipo} onChange={(e) => setPixTipo(e.target.value as TipoChave)}>
@@ -133,14 +135,14 @@ export default function Perfil() {
             <input id="pix-cidade" value={pixCidade} onChange={(e) => setPixCidade(e.target.value)} />
           </div>
         </div>
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 14 }} data-ajuda="pf-cartao">
           <label htmlFor="cartao-link">Link de pagamento por cartão de crédito e débito</label>
           <input id="cartao-link" inputMode="url" placeholder="https://" value={cartaoLink} onChange={(e) => setCartaoLink(e.target.value)} />
           <p className="muted" style={{ marginBottom: 0 }}>Crie um link de pagamento com o valor da consulta na sua conta do Mercado Pago, PagBank, InfinitePay ou da sua maquininha, e cole aqui. O paciente paga no site desse serviço, no crédito ou no débito. Necessário para cobrar teleconsultas: o paciente sempre vê as três opções, Pix, crédito e débito.</p>
         </div>
         <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
-        <button type="submit" style={{ width: "100%" }}>Salvar perfil</button>
+        <button type="submit" data-ajuda="pf-salvar" style={{ width: "100%" }}>Salvar perfil</button>
       </form>
       <AgendaOnline nome={nome} />
       <ExportarProntuario />
