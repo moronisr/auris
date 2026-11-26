@@ -58,7 +58,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
             {perfil.agenda_ativa
               ? "Sua agenda online não tem horários abertos nos próximos 7 dias. "
               : "Abra a sua agenda online: o paciente marca, paga e recebe o link sozinho. "}
-            <Link href="/perfil#agenda-online">{perfil.agenda_ativa ? "Ajustar horários" : "Configurar"}</Link>
+            <Link href={perfil.agenda_ativa ? "/perfil#horarios" : "/perfil#pagina"}>{perfil.agenda_ativa ? "Ajustar horários" : "Configurar"}</Link>
           </div>
         );
       })()}

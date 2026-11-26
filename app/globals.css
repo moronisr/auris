@@ -386,15 +386,15 @@ button.link, button.link:hover { background: none; box-shadow: none; }
 .marca-icone { border-radius: 50%; background: linear-gradient(145deg, #8FAE66, #3F5A2A); }
 .marca-desc { display: none; }
 .topo-direita { display: flex; align-items: center; gap: 10px; }
-.busca-botao, .menu-botao { background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); color: var(--tinta); box-shadow: none; backdrop-filter: var(--vidro-borrao); -webkit-backdrop-filter: var(--vidro-borrao); min-height: 44px; }
+.busca-botao, .menu-botao { background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); color: var(--tinta); box-shadow: none; -webkit-backdrop-filter: var(--vidro-borrao); backdrop-filter: var(--vidro-borrao); min-height: 44px; }
 .busca-botao { width: 44px; height: 44px; padding: 0; border-radius: 50%; }
 .menu-botao { padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 500; }
 .busca-botao:hover, .menu-botao:hover { background: rgba(255, 255, 255, .12); }
-.veu { position: fixed; inset: 0; z-index: 60; background: rgba(4, 7, 4, .35); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); animation: veu-entra .2s ease; }
+.veu { position: fixed; inset: 0; z-index: 60; background: rgba(4, 7, 4, .35); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); animation: veu-entra .2s ease; }
 @keyframes veu-entra { from { opacity: 0; } to { opacity: 1; } }
 @keyframes painel-entra { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
 @keyframes caixa-entra { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
-.menu-painel { position: absolute; top: 16px; right: 16px; bottom: 16px; width: min(360px, calc(100vw - 32px)); border-radius: 28px; padding: 18px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; background: rgba(28, 38, 24, .55); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); animation: painel-entra .25s ease; }
+.menu-painel { position: absolute; top: 16px; right: 16px; bottom: 16px; width: min(360px, calc(100vw - 32px)); border-radius: 28px; padding: 18px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; background: rgba(28, 38, 24, .55); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); animation: painel-entra .25s ease; }
 .menu-cabeca { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 12px; font-weight: 600; font-size: 18px; }
 .menu-fechar { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .12); box-shadow: none; color: var(--tinta); }
 .menu-item { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 18px; color: var(--tinta); text-decoration: none; font-size: 16px; font-weight: 500; }
@@ -405,8 +405,8 @@ button.link, button.link:hover { background: none; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .veu, .menu-painel, .busca-painel { animation: none; } }
 
 /* Busca com fundo desfocado */
-.busca-fundo { background: rgba(4, 7, 4, .35) !important; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
-.busca-painel { background: rgba(28, 38, 24, .55) !important; border: 1px solid rgba(255, 255, 255, .14) !important; border-radius: 26px !important; box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10) !important; backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); animation: caixa-entra .22s ease; }
+.busca-fundo { background: rgba(4, 7, 4, .35) !important; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.busca-painel { background: rgba(28, 38, 24, .55) !important; border: 1px solid rgba(255, 255, 255, .14) !important; border-radius: 26px !important; box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10) !important; -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); animation: caixa-entra .22s ease; }
 .busca-campo { background: rgba(0, 0, 0, .28) !important; border: 1px solid rgba(255, 255, 255, .12) !important; border-radius: 16px !important; }
 .busca-campo input { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 .busca-fechar { background: rgba(255, 255, 255, .08) !important; box-shadow: none !important; }
@@ -438,10 +438,41 @@ main.container:has(.inicio-auris) { max-width: 1080px; }
 }
 
 /* Entrar e criar conta: cartão de vidro no centro */
-.login-caixa { max-width: 440px; margin: 6vh auto 0; padding: 32px; border-radius: 30px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); }
+.login-caixa { max-width: 440px; margin: 6vh auto 0; padding: 32px; border-radius: 30px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); }
 .login-caixa .login-marca { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-weight: 600; font-size: 18px; }
 .login-caixa .login-marca .marca-icone { width: 36px; height: 36px; border-radius: 50%; }
 .login-caixa h1 { font-size: 30px; margin: 0 0 4px; }
 .login-caixa .login-desc { margin: 0 0 18px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--suave); font-weight: 400; }
-.login-caixa form.card { background: transparent; border: 0; box-shadow: none; padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.login-caixa form.card { background: transparent; border: 0; box-shadow: none; padding: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (max-width: 480px) { .login-caixa { padding: 22px; margin-top: 2vh; } }
+
+/* Abas do Perfil */
+.abas-perfil { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; border-radius: 999px; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .10); margin: 0 0 16px; }
+.abas-perfil button { flex: 1 1 auto; min-height: 40px; padding: 8px 14px; border-radius: 999px; background: transparent; box-shadow: none; color: #D3E3C3; font-size: 14px; font-weight: 500; }
+.abas-perfil button:hover { background: rgba(255, 255, 255, .08); }
+.abas-perfil button.ativa { background: #fff; color: #1D2A14; font-weight: 600; }
+
+/* Calendário de horários */
+.calendario { border-radius: 24px; padding: 18px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .10); }
+.cal-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-mes span { font-size: 28px; font-weight: 500; letter-spacing: -.5px; }
+.cal-mes small { font-size: 15px; color: var(--suave); }
+.cal-seta { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .12); box-shadow: none; color: var(--tinta); }
+.cal-seta:disabled { opacity: .3; }
+.cal-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.cal-sem { font-size: 12px; color: var(--suave); padding: 4px 0; }
+.cal-dia { position: relative; min-height: 44px; padding: 0; border-radius: 14px; background: transparent; box-shadow: none; color: var(--tinta); font-size: 16px; font-weight: 500; }
+.cal-dia:hover { background: rgba(255, 255, 255, .08); }
+.cal-dia:disabled { color: rgba(214, 228, 200, .25); background: transparent; cursor: default; }
+.cal-dia.aberto::after { content: ""; position: absolute; left: 50%; bottom: 6px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #A9C47F; }
+.cal-dia.hoje { border: 1px solid rgba(255, 255, 255, .25); }
+.cal-dia.sel { background: #fff; color: #1D2A14; font-weight: 700; }
+.cal-dia.sel::after { background: #4D6B33; }
+.cal-legenda { display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 12px; color: var(--suave); }
+.cal-legenda i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.ponto-aberto { background: #A9C47F; }
+.ponto-passado { background: rgba(214, 228, 200, .25); }
+.cal-painel { margin-top: 14px; padding: 16px; border-radius: 20px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .10); }
+.cal-painel-titulo { font-size: 17px; font-weight: 600; text-transform: capitalize; }
+.link-prefixo { border-color: rgba(255, 255, 255, .14); background: rgba(0, 0, 0, .28); border-radius: 14px; }
+.link-prefixo input { background: transparent; }
