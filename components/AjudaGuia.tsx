@@ -145,7 +145,9 @@ export default function AjudaGuia() {
     if (!atual) return;
     let rolou = false;
     let tocado = false;
-    let visto = false;
+    const marca = `${estado?.roteiro}:${passo}`;
+    // "Já visto" fica salvo, para voltar junto mesmo quando a página recarrega (ex.: Voltar à agenda).
+    let visto = (() => { try { return localStorage.getItem("auris_ajuda_visto") === marca; } catch { return false; } })();
     const achar = () => {
       // Tocou no item destacado: segue quando a parte seguinte aparecer (se der erro, continua aqui).
       if (tocado && alvoVisivel(PASSOS[passo + 1])) return definir(passo + 1);
@@ -163,7 +165,7 @@ export default function AjudaGuia() {
         setSolto(true);
         return;
       }
-      visto = true;
+      if (!visto) { visto = true; try { localStorage.setItem("auris_ajuda_visto", marca); } catch {} }
       setSolto(false);
       if (!rolou) { el.scrollIntoView({ block: "center", behavior: "smooth" }); rolou = true; }
       setCaixa(el.getBoundingClientRect());
@@ -187,7 +189,7 @@ export default function AjudaGuia() {
       window.removeEventListener("resize", achar);
       document.removeEventListener("click", aoClicar, true);
     };
-  }, [passo, definir, PASSOS, proximoVisivel]);
+  }, [passo, definir, PASSOS, proximoVisivel, estado?.roteiro]);
 
   if (passo === null) return null;
   // A ajuda do paciente só aparece na página do paciente, e a do profissional só fora dela.
