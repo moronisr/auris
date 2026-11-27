@@ -62,7 +62,7 @@ export default function CampoCid({ valor, onChange }: { valor: string; onChange:
         aria-autocomplete="list"
       />
       {aberto && sugestoes.length > 0 && (
-        <ul role="listbox" style={{ position: "absolute", zIndex: 20, left: 0, right: 0, top: "100%", margin: "4px 0 0", padding: 4, listStyle: "none", background: "var(--superficie, #fff)", border: "1px solid var(--linha, #d9dee3)", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,.08)", maxHeight: 280, overflowY: "auto" }}>
+        <ul role="listbox" style={{ position: "absolute", zIndex: 20, left: 0, right: 0, top: "100%", margin: "4px 0 0", padding: 4, listStyle: "none", background: "rgba(24, 33, 20, .96)", border: "1px solid var(--linha, #d9dee3)", borderRadius: 14, boxShadow: "0 16px 40px rgba(0,0,0,.45)", backdropFilter: "blur(20px)", maxHeight: 280, overflowY: "auto" }}>
           {sugestoes.map((s, i) => (
             <li key={s[0]} role="option" aria-selected={i === ativo}
               onMouseDown={(e) => { e.preventDefault(); escolher(s); }}

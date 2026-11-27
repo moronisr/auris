@@ -4,6 +4,8 @@ import QRCode from "qrcode";
 import Link from "next/link";
 import CartaoMP from "@/components/CartaoMP";
 import { AjudaLink } from "@/components/AjudaInicio";
+import RemarcarConsulta from "@/components/RemarcarConsulta";
+import EscolhaPaciente from "@/components/EscolhaPaciente";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { codigoPix, hostDoLink, reais } from "@/lib/pix";
 import { abrirCameraMicrofone, useSala } from "@/lib/sala";
@@ -18,7 +20,7 @@ type Info = {
   cartao_link: string | null;
   pagamento_online?: boolean; reserva_expira_em?: string | null; profissao?: string | null;
   pagamento_metodo?: string | null; pagamento_confirmado_em?: string | null; transacao?: string | null;
-  devolvido_em?: string | null; devolucao_valor?: number | null; cancelamento_horas?: number; cancelamento_obs?: string | null; cancelado_por?: string | null;
+  devolvido_em?: string | null; devolucao_valor?: number | null; cancelamento_horas?: number; cancelamento_obs?: string | null; cancelado_por?: string | null; pagina?: string | null;
 };
 
 function Passos({ atual, total }: { atual: number; total: number }) {
@@ -192,13 +194,16 @@ export default function SalaPaciente({ params }: { params: Promise<{ codigo: str
   if (info.status === "cancelada") return (
     <div className="paciente">{cabecalho}
       <h1>Consulta cancelada</h1>
-      <p className="muted">{info.cancelado_por === "paciente" ? "Você cancelou esta teleconsulta." : "Esta teleconsulta foi cancelada pelo consultório. Entre em contato para remarcar."}</p>
+      <p className="muted">{info.cancelado_por === "paciente" ? "Você cancelou esta teleconsulta." : "Esta teleconsulta foi cancelada pelo consultório."}</p>
       {info.pagamento_status === "devolvido" && (
         <div className="card">
           <div className="ok" role="status"><b>Valor devolvido</b><div style={{ marginTop: 4 }}>Devolvemos {reais(Number(info.devolucao_valor ?? info.valor ?? 0))}{info.devolvido_em ? ` em ${new Date(info.devolvido_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}` : ""}.</div></div>
           <p className="muted" style={{ marginBottom: 0 }}>No Pix, o valor volta para a conta que pagou, em geral em poucos minutos. No cartão, o estorno aparece na fatura em até duas faturas, conforme o banco.{info.transacao ? ` Número da transação: ${info.transacao}.` : ""}</p>
         </div>
       )}
+      {info.cancelado_por === "profissional" && info.pagamento_status === "confirmado"
+        ? <EscolhaPaciente codigo={codigo} profissional={info.profissional} valor={Number(info.valor || 0)} obs={info.cancelamento_obs} aoConcluir={carregar} />
+        : <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
     </div>
   );
   if (info.status === "encerrada" || estado === "encerrada") return (

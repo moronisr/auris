@@ -1,13 +1,12 @@
 "use client";
 import LinkPainel from "@/components/LinkPainel";
-import { iniciarAjuda } from "@/components/AjudaGuia";
 import { AjudaLink } from "@/components/AjudaInicio";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFISSOES, ESPECIALIDADES_MEDICAS } from "@/lib/modelos";
 import { TIPOS_CHAVE, linkPagamentoValido, normalizarChave, type TipoChave } from "@/lib/pix";
-import AgendaOnline from "@/components/AgendaOnline";
+import AgendaOnline, { type ParteAgenda } from "@/components/AgendaOnline";
 import ExportarProntuario from "@/components/ExportarProntuario";
 import { SIGLA_CONSELHO, grupoProfissao } from "@/lib/conselhos";
 
@@ -25,6 +24,21 @@ export default function Perfil() {
   const [cartaoLink, setCartaoLink] = useState("");
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [id, setId] = useState<string | null>(null);
+  type Aba = "dados" | "recebimento" | "pagina" | "horarios";
+  const [aba, setAba] = useState<Aba>("dados");
+  // A aba fica no endereço (#recebimento, #pagina, #horarios), para links e para a volta do Mercado Pago.
+  useEffect(() => {
+    const ler = () => {
+      const h = window.location.hash.replace("#", "");
+      if (h === "agenda-online" || h === "pagina") setAba("pagina");
+      else if (h === "recebimento" || new URLSearchParams(window.location.search).get("mp")) setAba("recebimento");
+      else if (h === "horarios") setAba("horarios");
+    };
+    ler();
+    window.addEventListener("hashchange", ler);
+    return () => window.removeEventListener("hashchange", ler);
+  }, []);
+  const irPara = (a: Aba) => { setAba(a); setMsg(null); window.history.replaceState(null, "", a === "dados" ? "/perfil" : `/perfil#${a}`); };
 
   useEffect(() => {
     (async () => {
@@ -64,21 +78,23 @@ export default function Perfil() {
       id, nome, profissao, especialidade, conselho, preferencias,
       pix_tipo: chave ? pixTipo : null, pix_chave: chave, pix_nome: chave ? pixNome.trim() : null, pix_cidade: chave ? pixCidade.trim() : null,
     });
-    setMsg(error ? { tipo: "erro", texto: "Não foi possível salvar: " + error.message } : { tipo: "ok", texto: "Perfil salvo." });
-    if (!error) setTimeout(() => { router.push("/"); router.refresh(); }, 800);
+    setMsg(error ? { tipo: "erro", texto: "Não foi possível salvar: " + error.message } : { tipo: "ok", texto: "Salvo." });
+    if (!error) router.refresh();
   }
 
+  const ABAS: [Aba, string][] = [["dados", "Meus dados"], ["recebimento", "Recebimento"], ["pagina", "Minha página"], ["horarios", "Horários"]];
   return (
     <>
-      <div className="row">
-        <h1>Meu perfil</h1>
-        <a className="btn btn-sec" href="/">Voltar</a>
+      <h1 style={{ marginBottom: 6 }}>Perfil</h1>
+      <div style={{ marginBottom: 12 }}><AjudaLink roteiro="perfil" texto="Ajuda com esta página" /></div>
+      <div className="abas-perfil" role="tablist" aria-label="Partes do perfil" data-ajuda="pf-abas">
+        {ABAS.map(([k, r]) => (
+          <button key={k} type="button" role="tab" aria-selected={aba === k} className={aba === k ? "ativa" : ""} data-ajuda={`pf-aba-${k}`} onClick={() => irPara(k)}>{r}</button>
+        ))}
       </div>
-      <div style={{ marginTop: -6, marginBottom: 10 }}><AjudaLink roteiro="perfil" texto="Ajuda com esta página" /></div>
-      <a className="card card-link" href="/financas"><b>Finanças</b><span className="muted">Seu plano, forma de pagamento, cobranças e upgrade</span></a>
-      <LinkPainel />
-      <button type="button" className="card card-link" style={{ width: "100%", textAlign: "left", color: "inherit", fontWeight: 400 }} onClick={() => iniciarAjuda("registro")}><b>Ajuda para usar o Auris</b><span className="muted">Passo a passo mostrando onde tocar para registrar, assinar e emitir receita</span></button>
+      {(aba === "dados" || aba === "recebimento") && (
       <form className="card" onSubmit={salvar}>
+        {aba === "dados" && <>
         <label>Nome completo</label>
         <input data-ajuda="pf-dados" value={nome} onChange={(e) => setNome(e.target.value)} required />
         <div className="grid" style={{ marginTop: 10 }}>
@@ -113,8 +129,10 @@ export default function Perfil() {
         <label>Preferências de escrita (opcional)</label>
         <textarea rows={3} placeholder="Ex.: usar abreviações HAS e DM; escrever conduta em tópicos; não usar termos em inglês." value={preferencias} onChange={(e) => setPreferencias(e.target.value)} />
         <p className="muted">A IA segue estas preferências em todos os seus registros.</p>
-        <h2>Recebimento manual (teleconsultas agendadas por você)</h2>
-        <p className="muted" style={{ marginTop: -4 }}>Usado quando você mesmo agenda a teleconsulta e não conectou o pagamento online (abaixo). Nesse caso, você confere o pagamento e confirma no Auris. Com o pagamento online conectado (Mercado Pago ou PagBank), a confirmação é automática.</p>
+        </>}
+        {aba === "recebimento" && <>
+        <h3 className="sub" style={{ marginTop: 0 }}>Pix</h3>
+        <p className="muted" style={{ marginTop: -4 }}>Para as teleconsultas que você mesmo agenda.</p>
         <div className="grid" data-ajuda="pf-pix">
           <div>
             <label htmlFor="pix-tipo">Tipo de chave Pix</label>
@@ -136,16 +154,24 @@ export default function Perfil() {
           </div>
         </div>
         <div style={{ marginTop: 14 }} data-ajuda="pf-cartao">
-          <label htmlFor="cartao-link">Link de pagamento por cartão de crédito e débito</label>
+          <label htmlFor="cartao-link">Link de pagamento (crédito e débito)</label>
           <input id="cartao-link" inputMode="url" placeholder="https://" value={cartaoLink} onChange={(e) => setCartaoLink(e.target.value)} />
-          <p className="muted" style={{ marginBottom: 0 }}>Crie um link de pagamento com o valor da consulta na sua conta do Mercado Pago, PagBank, InfinitePay ou da sua maquininha, e cole aqui. O paciente paga no site desse serviço, no crédito ou no débito. Necessário para cobrar teleconsultas: o paciente sempre vê as três opções, Pix, crédito e débito.</p>
+          <p className="muted" style={{ marginBottom: 0 }}>Crie no app do seu banco ou maquininha, com o valor da consulta, e cole aqui.</p>
         </div>
         <div style={{ height: 14 }} />
         {msg && <div className={msg.tipo} style={{ marginBottom: 10 }}>{msg.texto}</div>}
-        <button type="submit" data-ajuda="pf-salvar" style={{ width: "100%" }}>Salvar perfil</button>
+        </>}
+        <button type="submit" data-ajuda="pf-salvar" style={{ width: "100%" }}>Salvar</button>
       </form>
-      <AgendaOnline nome={nome} />
-      <ExportarProntuario />
+      )}
+      {(aba === "recebimento" || aba === "pagina" || aba === "horarios") && <AgendaOnline key={aba} nome={nome} parte={(aba === "recebimento" ? "pagamento" : aba) as ParteAgenda} />}
+      {aba === "dados" && (
+        <>
+          <a className="card card-link" href="/financas"><b>Finanças</b><span className="muted">Plano, cartão e cobranças</span></a>
+          <LinkPainel />
+          <ExportarProntuario />
+        </>
+      )}
     </>
   );
 }

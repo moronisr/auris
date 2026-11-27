@@ -122,11 +122,23 @@ export default function Teleconsultas() {
 
   return (
     <>
-      <div className="row">
-        <h1>Teleconsultas</h1>
-        <a className="btn btn-sec" href="/">Voltar</a>
+      <Link href="/" className="btn btn-sec" style={{ minHeight: 40, padding: "0 16px", fontSize: 14, fontWeight: 500 }}>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="m15 18-6-6 6-6" /></svg>
+        Início
+      </Link>
+      <div className="saudacao" style={{ marginTop: 22 }}>Teleconsulta</div>
+      <h1 className="titulo-grande">O que você quer fazer?</h1>
+      <div className="escolhas">
+        <a href="#agendar" className="escolha escolha-linha">
+          <span className="escolha-icone"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></span>
+          <span className="escolha-texto"><b>Agendar teleconsulta</b><span>O Auris gera o link do paciente.</span></span>
+        </a>
+        <Link href="/perfil#agenda-online" className="escolha escolha-linha">
+          <span className="escolha-icone"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg></span>
+          <span className="escolha-texto"><b>Minha página de agendamento</b><span>O paciente marca e paga sozinho.</span></span>
+        </Link>
       </div>
-      <div style={{ marginTop: -6, marginBottom: 10 }}><AjudaLink roteiro="tele" texto="Ajuda para fazer uma teleconsulta" /></div>
+      <div style={{ marginBottom: 10 }}><AjudaLink roteiro="tele" texto="Ajuda para fazer uma teleconsulta" /></div>
       {acessoAss?.acesso === "bloqueado" && (
         <div className="card bloqueio">
           <h2 style={{ marginTop: 0 }}>Assinatura inativa</h2>
@@ -143,7 +155,7 @@ export default function Teleconsultas() {
       {whats && <p className="muted" style={{ marginTop: -6 }}>WhatsApp automático ligado: convite ao agendar e lembretes um dia antes e uma hora antes.</p>}
 
       {acessoAss?.acesso !== "bloqueado" && (
-      <form className="card" onSubmit={criar}>
+      <form className="card" id="agendar" onSubmit={criar} style={{ scrollMarginTop: 20 }}>
         <h2 style={{ marginTop: 0 }}>Agendar teleconsulta</h2>
         <div className="grid">
           <div style={{ gridColumn: "1 / -1" }} data-ajuda="tc-paciente">
@@ -212,9 +224,10 @@ export default function Teleconsultas() {
             {t.status === "em_andamento" && <span className="selo selo-ok">Em andamento</span>}
           </div>
           <div className="selos">
+            {t.pagamento_alerta === "aguardando_paciente" && <Selo ok={false} alerta texto="Cancelada pelo consultório: aguardando o paciente (remarcar ou devolver)" />}
             {t.origem === "pagina" && <Selo ok texto="Agendada pela sua página" />}
             {t.origem === "pagina" && t.pagamento_status === "pendente" && <Selo ok={false} alerta texto="Reservado, aguardando pagamento" />}
-            {t.pagamento_alerta && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Paciente cancelou: devolução pendente" : t.pagamento_alerta === "contestacao" ? "Pagamento contestado: responder" : t.pagamento_alerta === "chargeback" ? "Valor estornado pelo cartão" : "Pago, mas a consulta foi cancelada"} />}
+            {t.pagamento_alerta && t.pagamento_alerta !== "aguardando_paciente" && <Selo ok={false} alerta texto={t.pagamento_alerta === "duplicado" ? "Pagamento em duplicidade: devolver" : t.pagamento_alerta === "devolucao_pendente" ? "Devolução pedida: devolver ao paciente" : t.pagamento_alerta === "contestacao" ? "Pagamento contestado: responder" : t.pagamento_alerta === "chargeback" ? "Valor estornado pelo cartão" : "Pago, mas a consulta foi cancelada"} />}
             <Selo ok={!!t.consentimento_em} texto={t.consentimento_em ? "Termo aceito" : "Termo pendente"} />
             {t.pagamento_status !== "isento" && (
               <Selo ok={t.pagamento_status === "confirmado"} alerta={t.pagamento_status === "informado"}

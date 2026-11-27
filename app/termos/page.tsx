@@ -52,12 +52,12 @@ export default function Termos() {
         <li>Cada profissional define no Auris até quando o paciente pode cancelar com devolução integral (de 2 a 72 horas antes do horário). Essa política é mostrada ao paciente <b>antes do pagamento</b>, na página de agendamento, e fica disponível no link da consulta, em &quot;Ajuda e política de cancelamento&quot;.</li>
         <li>Dentro do prazo, o paciente pode cancelar pelo próprio link da consulta e recebe o valor integral de volta, automaticamente, na mesma forma de pagamento.</li>
         <li>Depois do prazo, ou se o paciente não entrar na consulta, o valor não é devolvido, salvo acordo entre o profissional e o paciente.</li>
-        <li><b>Se o profissional cancelar a consulta, deve devolver o valor integral ao paciente</b>, salvo se já tiver combinado com ele outra solução, como a remarcação.</li>
+        <li><b>Se o profissional cancelar a consulta, o pagamento fica guardado e o paciente escolhe</b>: remarcar sem pagar de novo ou receber o valor integral de volta, sem prazo.</li>
       </ul>
 
       <h3>6.4 Devolução</h3>
       <ul>
-        <li>O profissional devolve pelo próprio Auris, em &quot;Cancelar e devolver&quot;. A devolução é processada pela instituição de pagamento.</li>
+        <li>Quando o paciente pede a devolução pelo link da consulta, o Auris devolve automaticamente pela instituição de pagamento. Se o pagamento foi feito direto na chave Pix do profissional, o profissional devolve pelo próprio banco.</li>
         <li><b>Prazos:</b> no Pix, o valor volta para a conta que pagou, em geral em poucos minutos. No cartão, o estorno aparece na fatura conforme o banco emissor, em geral em até duas faturas.</li>
         <li>A devolução usa o saldo da conta do profissional na instituição de pagamento. Se não houver saldo suficiente, a instituição pode recusar a devolução até que haja saldo; o profissional é responsável por concluí-la.</li>
         <li>Se o mesmo paciente pagar a mesma consulta mais de uma vez, o Auris avisa o profissional, que deve devolver o valor em duplicidade.</li>

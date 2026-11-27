@@ -23,8 +23,9 @@ type Passo = {
 };
 
 const PASSOS_REGISTRO: Passo[] = [
-  { alvo: "novo", texto: "Comece por aqui: toque em Novo registro.", aoTocar: true },
-  { alvo: "modo", texto: "Escolha Ditado, se for falar sozinho depois do atendimento, ou Consulta, para gravar a conversa com o paciente." },
+  { alvo: "novo", texto: "Comece por aqui: toque em Consulta presencial.", aoTocar: true },
+  { alvo: "presencial-opcao", texto: "Toque em Começar a consulta.", aoTocar: true },
+  { alvo: "modo", texto: "O modo que você escolheu já vem marcado aqui. Se quiser, troque entre Ditado e Consulta." },
   { alvo: "area", texto: "Confira a sua área. O formato da ficha já vem escolhido por ela." },
   { alvo: "gravar", texto: "Toque para gravar. Quando terminar, toque em Parar e espere a ficha ficar pronta.", aoTocar: true },
   { alvo: "aprovar", texto: "Confira a ficha, corrija o que precisar e toque em Aprovar.", aoTocar: true, espera: "Montando a ficha. Em alguns segundos ela aparece aqui para a sua revisão." },
@@ -68,19 +69,25 @@ const PASSOS_PACIENTE: Passo[] = [
 ];
 
 const PASSOS_PERFIL: Passo[] = [
-  { alvo: "pf-dados", texto: "Confira seu nome, profissão, especialidade e registro no conselho. Eles aparecem nas fichas, nas receitas e na sua página." },
-  { alvo: "pf-pix", texto: "Para receber por Pix nas teleconsultas que você mesmo agenda: escolha o tipo de chave, coloque a sua chave Pix e o nome e a cidade da conta. O Auris monta o código Pix para o paciente." },
-  { alvo: "pf-cartao", texto: "Para receber no cartão de crédito e débito: crie um link de pagamento com o valor da consulta no app do seu banco ou maquininha (Mercado Pago, PagBank, InfinitePay), copie e cole aqui." },
-  { alvo: "pf-salvar", texto: "Toque em Salvar perfil e depois em Próximo." },
-  { alvo: "pf-online", texto: "Para o pagamento ser confirmado sozinho, conecte a sua conta: toque em Conectar com Mercado Pago (ou escolha PagBank) e entre na sua conta. Sem isso, você confere os pagamentos por conta própria." },
-  { alvo: "pf-link", texto: "Este é o link da sua página. Escolha um nome simples, como dra-ana. É por ele que o paciente agenda e paga sozinho." },
-  { alvo: "pf-valor", texto: "Coloque o valor da teleconsulta. Ao lado, a duração de cada consulta e com quanta antecedência o paciente pode marcar." },
-  { alvo: "pf-horarios", texto: "Marque os dias em que você atende online e o horário de início e de fim. Dá para colocar mais de um horário no mesmo dia." },
-  { alvo: "pf-ajustes", texto: "Vai tirar folga ou abrir um horário extra numa data? Ajuste aqui, sem mexer nos horários da semana." },
+  { alvo: "pf-abas", texto: "O perfil está dividido em quatro partes. Vamos passar por cada uma." },
+  { alvo: "pf-aba-dados", texto: "Toque em Meus dados.", aoTocar: true, segue: true },
+  { alvo: "pf-dados", texto: "Confira seu nome, profissão, especialidade e registro no conselho. Eles aparecem nas fichas e receitas." },
+  { alvo: "pf-salvar", texto: "Toque em Salvar e depois em Próximo." },
+  { alvo: "pf-aba-recebimento", texto: "Toque em Recebimento.", aoTocar: true, segue: true },
+  { alvo: "pf-pix", texto: "Coloque a sua chave Pix, o nome e a cidade da conta. O Auris monta o código Pix para o paciente." },
+  { alvo: "pf-cartao", texto: "Para receber no cartão: crie um link de pagamento no app do seu banco ou maquininha e cole aqui. Depois toque em Salvar." },
+  { alvo: "pf-online", texto: "Conecte o Mercado Pago para o pagamento ser confirmado sozinho." },
+  { alvo: "pf-aba-pagina", texto: "Toque em Minha página.", aoTocar: true, segue: true },
+  { alvo: "pf-link", texto: "Este é o link da sua página. Escolha um nome simples, como dra-ana." },
+  { alvo: "pf-valor", texto: "Coloque o valor, a duração e com quanta antecedência o paciente pode marcar." },
   { alvo: "pf-cancelar", texto: "Defina até quando o paciente pode cancelar e receber o valor de volta." },
-  { alvo: "pf-abrir", texto: "Marque para abrir a agenda. Com ela fechada, ninguém consegue marcar pela sua página." },
-  { alvo: "pf-salvar-agenda", texto: "Toque em Salvar agenda e depois em Próximo. Se faltar algo, aparece um aviso logo acima do botão." },
-  { alvo: "pf-divulgar", texto: "Pronto. Toque em Ver minha página para ver como o paciente vê, ou em Copiar meu link para colocar no Instagram, no WhatsApp ou na bio.", espera: "Toque em Salvar agenda. Depois de salvar, aparecem aqui os botões para ver a sua página e copiar o seu link." },
+  { alvo: "pf-abrir", texto: "Marque para abrir a agenda. Fechada, ninguém marca." },
+  { alvo: "pf-salvar-agenda", texto: "Toque em Salvar e depois em Próximo." },
+  { alvo: "pf-divulgar", texto: "Veja como o paciente vê a sua página ou copie o link para divulgar.", espera: "Depois de salvar, aparecem aqui os botões para ver e copiar o seu link." },
+  { alvo: "pf-aba-horarios", texto: "Toque em Horários.", aoTocar: true, segue: true },
+  { alvo: "pf-calendario", texto: "Toque num dia do calendário. Os dias que já passaram ficam apagados; o ponto verde marca os dias com atendimento." },
+  { alvo: "pf-dia", texto: "Marque se atende toda semana nesse dia, dê folga só nesta data ou abra um horário extra.", espera: "Toque num dia do calendário para ver as opções." },
+  { alvo: "pf-salvar-horarios", texto: "Toque em Salvar horários. Pronto." },
 ];
 
 const PASSOS_FINANCAS: Passo[] = [

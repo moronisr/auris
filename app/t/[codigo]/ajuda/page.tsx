@@ -4,11 +4,12 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { reais } from "@/lib/pix";
+import RemarcarConsulta from "@/components/RemarcarConsulta";
 import { podeCancelarComDevolucao, politicaCancelamento, prazoTexto } from "@/lib/cancelamento";
 
 type Info = {
   profissional: string; inicio: string; valor: number | null; status: string; pagamento_status: string;
-  pagamento_online?: boolean; cancelamento_horas?: number; cancelamento_obs?: string | null;
+  pagamento_online?: boolean; cancelamento_horas?: number; cancelamento_obs?: string | null; pagina?: string | null;
   devolvido_em?: string | null; devolucao_valor?: number | null; transacao?: string | null; cancelado_por?: string | null;
 };
 
@@ -58,7 +59,8 @@ export default function AjudaConsulta({ params }: { params: Promise<{ codigo: st
 
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Política de cancelamento e devolução</h2>
-        <ul className="politica-lista">{politicaCancelamento(horas, info.cancelamento_obs).map((l, i) => <li key={i}>{l}</li>)}</ul>
+        <ul className="politica-lista">{politicaCancelamento(horas, info.cancelamento_obs, info.pagina ? `na página de ${info.profissional}` : null).map((l, i) => <li key={i}>{l}</li>)}</ul>
+        {info.pagina && <a className="btn" href={`/${info.pagina}`} style={{ display: "flex", marginTop: 12 }}>Escolher novo horário</a>}
       </div>
 
       <div className="card">
@@ -96,6 +98,8 @@ export default function AjudaConsulta({ params }: { params: Promise<{ codigo: st
           </>
         )}
       </div>
+      {info.status === "cancelada" && !(info.cancelado_por === "profissional" && info.pagamento_status === "confirmado") && <RemarcarConsulta profissional={info.profissional} pagina={info.pagina} obs={info.cancelamento_obs} />}
+      {info.status === "cancelada" && info.cancelado_por === "profissional" && info.pagamento_status === "confirmado" && <p className="aviso" style={{ marginTop: 14 }}>Seu pagamento está guardado. Volte para a consulta para remarcar sem custo ou pedir a devolução.</p>}
 
       <p style={{ textAlign: "center" }}><Link href={`/t/${codigo}`}>Voltar para a consulta</Link></p>
     </div>
